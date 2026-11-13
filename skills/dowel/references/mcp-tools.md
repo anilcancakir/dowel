@@ -60,7 +60,7 @@ responses with `isError: true` text.
 - **Lazy-reconnect**: connected tools check `_vmClient == null` before
   dispatch. If null, `_lazyReconnect()` re-reads state.json, opens the
   WebSocket, resolves the main isolate id, and caches the client.
-  Concurrent calls coalesce on a memoized `_reconnecting` future
+  Concurrent calls coalesce on a memoised `_reconnecting` future
   (`lib/src/mcp/mcp_server.dart:248-266`).
 - **Output envelope**: substrate handlers write to a `BufferedOutput`;
   the MCP dispatcher reads `stdout` + `stderr` after the handler returns
@@ -104,9 +104,8 @@ responses with `isError: true` text.
 > Usage:
 > - Call this BEFORE invoking any plugin tool (`tapir_snap`,
 >   `crumbs_tail`, `dowel_tinker`) that needs VM Service access.
-> - Default device is the first available; pass `device: "chrome"` for
->   web (port 3100), `device: "macos"` for desktop, or
->   `device: "<serial>"` for a connected mobile.
+> - Default device is `chrome` (web, port 3100); pass `device: "macos"`
+>   for desktop or `device: "<serial>"` for a connected mobile.
 > - Returns once the VM Service URI is captured; the Flutter process keeps
 >   running in the background.
 > - IF THIS CALL TIMES OUT, the app is probably still starting rather than
@@ -119,8 +118,9 @@ responses with `isError: true` text.
 > - To stop call `dowel_stop`. To full-cycle restart call
 >   `dowel_restart`. For source-change reload call `dowel_reload`
 >   (state preserved) or `dowel_hot_restart` (state dropped).
-> - Fails with "another app is recorded" when this project's session
->   already has a running pid; call `dowel_stop` first.
+> - Check `dowel_status` first and call `dowel_stop` before starting
+>   again: a second web start fails with "Port <n> is already in use",
+>   and a second start on another device launches a second app.
 
 **Input schema**:
 
@@ -128,7 +128,7 @@ responses with `isError: true` text.
 {
   "type": "object",
   "properties": {
-    "device":            { "type": "string",  "description": "chrome | macos | linux | <adb-serial>. Omit for `flutter devices` first." },
+    "device":            { "type": "string",  "description": "chrome | macos | linux | <adb-serial>. Default chrome." },
     "port":              { "type": "string",  "description": "Web port for the chrome device. Default 3100. Ignored for non-web." },
     "vm-service-port":   { "type": "string",  "description": "Host VM Service port. Default 8181." },
     "dds":               { "type": "boolean", "description": "Enable Dart Development Service proxy. Default false." },
@@ -146,15 +146,7 @@ VM Service: ws://127.0.0.1:8181/<token>/ws
 Recorded to ~/.dowel/sessions/<hash>/state.json
 ```
 
-**Returns on error**:
-
-```
-# `dowel start` exit 1
-### Error
-another app is recorded (pid=12345). Run `dowel stop` first.
-```
-
-Other documented error messages: `Failed to capture child PIDs from start
+**Returns on error**: documented messages: `Failed to capture child PIDs from start
 wrapper`, `flutter run (pid <n>) is still building after <n>s` (exit 75: the
 session stays booting, retry a connected tool once the build finishes),
 `flutter run (pid <n>) exited before announcing a VM Service URI` (exit 1:
@@ -399,7 +391,7 @@ Recorded to ~/.dowel/sessions/<hash>/state.json
 - Slowest of the three reload verbs because the process must fully
   terminate and respawn (~5-15s on web, depending on Flutter startup).
 - Use when: native plugin added, pubspec dependency changed,
-  `lib/main.dart` initialization corrupted, isolate id needs a complete
+  `lib/main.dart` initialisation corrupted, isolate id needs a complete
   reset.
 
 ## dowel_reload
@@ -843,7 +835,7 @@ Tools can be denied by a 3-layer filter (`lib/src/mcp/mcp_filter_config.dart`):
 Allow lists: CLI > env > file (first non-null wins, replace not merge).
 Deny lists: union across all three (deny anywhere wins everywhere).
 
-Denied tools are filtered at initialize time BEFORE `registerTool`, so
+Denied tools are filtered at initialise time BEFORE `registerTool`, so
 they never appear in `tools/list`. Calling a denied tool returns
 dart_mcp's native "No tool registered with the name <X>" error.
 

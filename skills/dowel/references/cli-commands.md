@@ -454,7 +454,7 @@ without `--force`.
 ## Reading the 22-command surface from `dowel_list`
 
 Use `dowel_list` (MCP) or `./bin/dowel list` (CLI) to see the live
-catalog. The 12 CLI-only commands appear under these namespaces:
+catalogue. The 12 CLI-only commands appear under these namespaces:
 
 - root: `help`, `install`
 - `commands:`: `commands:refresh`
