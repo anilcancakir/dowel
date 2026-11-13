@@ -132,8 +132,14 @@ jobs:
             --verify-tag \
             "$FLAG"
 
-  # The skill-registry sync (dispatch-to-registry.yml) is not called from here
-  # yet. The registry repository (anilcancakir/ai) is cut last, and a job
-  # that dispatches to a repository that does not exist would fail after every
-  # release. Re-add `registry: uses: ./.github/workflows/dispatch-to-registry.yml`
-  # with the REGISTRY_BOT_* secrets once the registry accepts the `dowel` source.
+  # Mirrors skills/dowel/ into the skill registry (anilcancakir/ai) after a
+  # stable release. Pre-releases are not mirrored. It runs only after the GitHub
+  # Release job, so the registry never gets a skill whose release failed.
+  registry:
+    name: Sync skill to registry
+    needs: github-release
+    if: ${{ !contains(github.ref_name, '-') }}
+    uses: ./.github/workflows/dispatch-to-registry.yml
+    secrets:
+      REGISTRY_BOT_APP_ID: ${{ secrets.REGISTRY_BOT_APP_ID }}
+      REGISTRY_BOT_PRIVATE_KEY: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
