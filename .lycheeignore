@@ -21,6 +21,11 @@
 ^https://pub\.dev/packages/dowel
 ^https://pub\.dev/documentation/dowel
 
+# The tapir and crumbs docs pages exist only once their docs sync runs.
+# Added 2026-11-13: remove these lines once tapir and crumbs are published.
+^https://anilcancakir\.com/tapir/docs
+^https://anilcancakir\.com/crumbs/docs
+
 # Placeholder hosts inside example code.
 ^https?://([a-z0-9-]+\.)*example\.com
 ^https?://localhost

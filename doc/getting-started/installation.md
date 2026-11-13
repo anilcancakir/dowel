@@ -33,7 +33,7 @@ Alternatively, add it manually to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dowel: ^0.0.20
+  dowel: ^0.0.21
 ```
 
 Then fetch dependencies:
