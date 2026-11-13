@@ -10,10 +10,10 @@ import '../console/command_boot.dart';
 /// Advisory warning emitted when `.mcp.json` still references the removed
 /// `fluttersdk_mcp` package. Those entries live under the `fluttersdk` key,
 /// which `mcp:install` no longer writes, so the user deletes the old entry
-/// first.
-const _staleMcpWarning =
+/// first. [key] is the entry's server name, usually `fluttersdk`.
+String _staleMcpWarning(String key) =>
     'WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the '
-    'removed fluttersdk_mcp package. Delete the "fluttersdk" entry from '
+    'removed fluttersdk_mcp package. Delete the "$key" entry from '
     '.mcp.json, then run: ./bin/dowel mcp:install (or: '
     'dart run dowel mcp:install).';
 
@@ -21,11 +21,12 @@ const _staleMcpWarning =
 /// `fluttersdk_artisan:mcp` args shape. That shape routes through the substrate
 /// standalone, which never loads consumer plugin providers. It lives under the
 /// `fluttersdk` key as well, so the user deletes it before `mcp:install`
-/// writes the branched entry shape under `dowel`.
-const _preFixMcpWarning =
+/// writes the branched entry shape under `dowel`. [key] is the entry's server
+/// name, usually `fluttersdk`.
+String _preFixMcpWarning(String key) =>
     'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
     'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Delete the "fluttersdk" entry from .mcp.json, then run: '
+    'Delete the "$key" entry from .mcp.json, then run: '
     './bin/dowel mcp:install (or: dart run dowel mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still has the `fluttersdk` server
@@ -148,12 +149,13 @@ class DoctorCommand extends DowelCommand {
 
     // 1. Scan all server entries for the legacy fluttersdk_mcp:server shape
     //    (the removed package from before the dowel absorption).
-    for (final entry in servers.values) {
+    for (final server in servers.entries) {
+      final entry = server.value;
       if (entry is! Map<String, dynamic>) continue;
       final args = entry['args'];
       if (args is! List<dynamic>) continue;
       if (args.contains('fluttersdk_mcp:server')) {
-        ctx.output.writeln(_staleMcpWarning);
+        ctx.output.writeln(_staleMcpWarning(server.key));
         return;
       }
     }
@@ -161,12 +163,13 @@ class DoctorCommand extends DowelCommand {
     // 2. Scan all server entries for the pre-Bug-B fluttersdk_artisan:mcp shape
     //    (routes through the substrate standalone, which never loads consumer
     //    plugin providers; upgrading via mcp:install writes the correct shape).
-    for (final entry in servers.values) {
+    for (final server in servers.entries) {
+      final entry = server.value;
       if (entry is! Map<String, dynamic>) continue;
       final args = entry['args'];
       if (args is! List<dynamic>) continue;
       if (args.contains('fluttersdk_artisan:mcp')) {
-        ctx.output.writeln(_preFixMcpWarning);
+        ctx.output.writeln(_preFixMcpWarning(server.key));
         return;
       }
     }

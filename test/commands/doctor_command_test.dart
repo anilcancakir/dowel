@@ -5,19 +5,19 @@ import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Constant warning message emitted when a stale `.mcp.json` entry is found.
-const _staleMcpWarning =
+String _staleMcpWarning(String key) =>
     'WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the '
-    'removed fluttersdk_mcp package. Delete the "fluttersdk" entry from '
+    'removed fluttersdk_mcp package. Delete the "$key" entry from '
     '.mcp.json, then run: ./bin/dowel mcp:install (or: '
     'dart run dowel mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
 /// `fluttersdk_artisan:mcp` args shape. Mirrors the production constant in
 /// `lib/src/commands/doctor_command.dart`; kept in sync manually.
-const _preFixMcpWarning =
+String _preFixMcpWarning(String key) =>
     'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
     'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Delete the "fluttersdk" entry from .mcp.json, then run: '
+    'Delete the "$key" entry from .mcp.json, then run: '
     './bin/dowel mcp:install (or: dart run dowel mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still has the `fluttersdk` server
@@ -116,7 +116,7 @@ void main() {
 
         await command.handle(ctx);
 
-        expect(output.content, contains(_staleMcpWarning));
+        expect(output.content, contains(_staleMcpWarning('fluttersdk')));
       });
 
       test(
@@ -143,8 +143,8 @@ void main() {
 
         await command.handle(ctx);
 
-        expect(output.content, isNot(contains(_staleMcpWarning)));
-        expect(output.content, contains(_preFixMcpWarning));
+        expect(output.content, isNot(contains(_staleMcpWarning('fluttersdk'))));
+        expect(output.content, contains(_preFixMcpWarning('fluttersdk')));
       });
 
       test('a fluttersdk entry in any shape emits the old-entry warning',
@@ -171,8 +171,33 @@ void main() {
         await command.handle(ctx);
 
         expect(output.content, contains(_oldKeyMcpWarning));
-        expect(output.content, isNot(contains(_staleMcpWarning)));
-        expect(output.content, isNot(contains(_preFixMcpWarning)));
+        expect(output.content, isNot(contains(_staleMcpWarning('fluttersdk'))));
+        expect(
+            output.content, isNot(contains(_preFixMcpWarning('fluttersdk'))));
+      });
+
+      test('the warning names the key the stale entry really has', () async {
+        final mcpJson = File('${tempDir.path}/.mcp.json');
+        await mcpJson.writeAsString('''
+{
+  "mcpServers": {
+    "old-tools": {
+      "command": "dart",
+      "args": ["run", "fluttersdk_mcp:server"]
+    }
+  }
+}
+''');
+
+        final command = DoctorCommand(workingDir: tempDir.path);
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(MapInput(const {}), output);
+
+        await command.handle(ctx);
+
+        expect(output.content, contains(_staleMcpWarning('old-tools')));
+        expect(
+            output.content, isNot(contains('Delete the "fluttersdk" entry')));
       });
 
       test('a dowel entry alone emits no warning', () async {
@@ -206,7 +231,7 @@ void main() {
 
         await command.handle(ctx);
 
-        expect(output.content, isNot(contains(_staleMcpWarning)));
+        expect(output.content, isNot(contains(_staleMcpWarning('fluttersdk'))));
       });
 
       test('stale .mcp.json does not change doctor exit code', () async {
