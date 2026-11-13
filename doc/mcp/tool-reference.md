@@ -5,7 +5,11 @@ Catalog of every MCP tool surfaced by `dowel` directly. The MCP server exposes
 provider is registered in the consumer's `bin/dispatcher.dart`. Plugin tool catalogs live on
 each plugin's own documentation site (see [Plugin Tools](#plugin-tools) below).
 
-## Table of Contents
+- [Tool Naming Convention](#tool-naming-convention)
+- [Substrate Tools](#substrate-tools)
+- [Plugin Tools](#plugin-tools)
+- [Filter Configuration](#filter-configuration)
+- [Related Documentation](#related-documentation)
 
 - [Tool Naming Convention](#tool-naming-convention)
 - [Substrate Tools](#substrate-tools)
@@ -21,10 +25,11 @@ each plugin's own documentation site (see [Plugin Tools](#plugin-tools) below).
   - [dowel_tinker](#dowel_tinker)
 - [Plugin Tools](#plugin-tools)
 - [Filter Configuration](#filter-configuration)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="tool-naming-convention"></a>
 ## Tool Naming Convention
 
 ### Substrate tools
@@ -60,6 +65,7 @@ the MCP surface).
 
 ---
 
+<a name="substrate-tools"></a>
 ## Substrate Tools
 
 The 10 substrate tools are always present when the MCP server starts. They are served
@@ -188,6 +194,7 @@ expression runs in the foreground isolate's root library scope and is passed thr
 
 ---
 
+<a name="plugin-tools"></a>
 ## Plugin Tools
 
 Plugin tools are contributed by sibling packages via `DowelServiceProvider.mcpTools()`.
@@ -233,6 +240,7 @@ live state inspection, controller calls, or facade events.
 
 ---
 
+<a name="filter-configuration"></a>
 ## Filter Configuration
 
 The MCP server applies a three-layer filter (file, then env vars, then CLI flags) to
@@ -306,7 +314,8 @@ CLI flags replace the env + file allow lists and are unioned into the deny sets.
 
 ---
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [MCP Overview](overview.md): architecture, transport, and server entry points
 - [MCP Setup](setup.md): consumer registration, `.mcp.json`, and first-run checklist

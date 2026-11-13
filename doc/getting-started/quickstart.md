@@ -3,6 +3,8 @@
 A 5-step walkthrough taking a fresh Dart or Flutter project from zero to a working
 dowel setup with a plugin installed and a custom command registered.
 
+- [What's next?](#whats-next)
+
 Prerequisites: Dart 3.4+ SDK, a Flutter project with a valid `pubspec.yaml`, and
 `flutter pub get` already run so `.dart_tool/package_config.json` is present.
 
@@ -123,11 +125,12 @@ A clean setup shows the 21 built-in commands (under namespaces `consumer`, `make
 
 ---
 
+<a name="whats-next"></a>
 ## What's next?
 
-- Browse the full [command catalog](../commands/) to see what each builtin does.
-- Wire the MCP server into your AI client via [MCP setup](../mcp/setup).
-- Write your own plugin via the [plugin authoring guide](../plugins/authoring).
+- Browse the full [command catalog](../commands/index.md) to see what each builtin does.
+- Wire the MCP server into your AI client via [MCP setup](../mcp/setup.md).
+- Write your own plugin via the [plugin authoring guide](../plugins/authoring.md).
 
 ---
 

@@ -4,10 +4,6 @@ Scaffold a new `dowel` plugin skeleton under `packages/<name>/` (or a
 custom target directory). Produces a fully wired, immediately testable plugin package
 in a single command.
 
----
-
-## Table of contents
-
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
 - [Two Modes](#two-modes)
@@ -15,10 +11,11 @@ in a single command.
 - [Output Layout](#output-layout)
 - [Examples](#examples)
 - [Workspace Enrollment](#workspace-enrollment)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="basic-usage"></a>
 ## Basic Usage
 
 ```bash
@@ -32,6 +29,7 @@ one is detected.
 
 ---
 
+<a name="synopsis"></a>
 ## Synopsis
 
 ```
@@ -48,6 +46,7 @@ make:plugin {name} {--path=} {--target=} {--magic} {--bootstrap-command=}
 
 ---
 
+<a name="two-modes"></a>
 ## Two Modes
 
 ### Generic mode (default)
@@ -85,6 +84,7 @@ automatically.
 
 ---
 
+<a name="8-phase-pipeline"></a>
 ## 8-Phase Pipeline
 
 1. **Validate name.** Reject empty or non-snake_case names with an actionable error.
@@ -119,6 +119,7 @@ automatically.
 
 ---
 
+<a name="output-layout"></a>
 ## Output Layout
 
 ```
@@ -149,6 +150,7 @@ Items without `[magic]` are present in both modes.
 
 ---
 
+<a name="examples"></a>
 ## Examples
 
 **Generic plugin at the default location:**
@@ -180,6 +182,7 @@ is found above that path, the plugin is enrolled.
 
 ---
 
+<a name="workspace-enrollment"></a>
 ## Workspace Enrollment
 
 When the target directory lives inside or adjacent to a Flutter application,
@@ -196,11 +199,12 @@ standalone package and the success banner reports the outcome.
 
 ---
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [make:command](index.md): scaffold a single `DowelCommand` subclass inside an
   existing consumer project or plugin.
 - [plugins:refresh](index.md): regenerate `lib/app/_plugins.g.dart` from
   `.dowel/plugins.json` after manually editing the registry.
-- [plugin:install](plugin-install): register a third-party plugin (resolves
+- [plugin:install](plugin-install.md): register a third-party plugin (resolves
   `install.yaml` manifests produced by `make:plugin --magic`).

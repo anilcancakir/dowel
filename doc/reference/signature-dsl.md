@@ -5,10 +5,6 @@ options into a single Dart string. `CommandSignature.parse`
 (`lib/src/console/command_signature.dart:57`) splits that string at
 registration time; the registry applies it to the underlying `ArgParser`.
 
----
-
-## Contents
-
 - [Overview](#overview)
 - [Grammar](#grammar)
 - [Token Types](#token-types)
@@ -18,7 +14,7 @@ registration time; the registry applies it to the underlying `ArgParser`.
 - [Name Validation](#name-validation)
 - [Error Handling](#error-handling)
 - [Examples](#examples)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
@@ -226,8 +222,8 @@ argument `name`, no own options beyond those from `baseFlags` expansion.
 
 ---
 
-<a name="related"></a>
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
-- [`../commands/`](../commands/): per-command reference with full signature
+- [`../commands/`](../commands/index.md): per-command reference with full signature
   listings and usage examples.

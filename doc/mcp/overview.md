@@ -1,6 +1,6 @@
 # MCP Integration Overview
 
-<a name="toc"></a>
+How `dowel` exposes its commands to AI clients as MCP tools: what MCP is, the ten substrate tools, the tools plugins contribute and the state file that ties a tool call to a running app.
 
 - [What is MCP](#what-is-mcp)
 - [Why MCP in dowel](#why-mcp-in-dowel)
@@ -8,7 +8,7 @@
 - [Plugin-Contributed Tools](#plugin-contributed-tools)
 - [State File Contract](#state-file-contract)
 - [Architecture Diagram](#architecture-diagram)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
@@ -194,9 +194,9 @@ Fields (from `lib/src/state/state_file.dart`):
 
 ---
 
-<a name="related"></a>
+<a name="related-documentation"></a>
 
-## Related
+## Related Documentation
 
 - [Setup guide](setup.md): install the MCP server, configure `.dowel/mcp.json`, and wire provider
   registration in `bin/dispatcher.dart`.

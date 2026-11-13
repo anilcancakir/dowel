@@ -5,6 +5,21 @@ Canonical schema for the declarative `install.yaml` manifest consumed by `plugin
 - [Overview](#overview)
 - [Top-Level Fields](#top-level-fields)
 - [plugin_name](#plugin_name)
+- [dependencies](#dependencies)
+- [publish](#publish)
+- [json_merge](#json_merge)
+- [magic](#magic)
+- [native](#native)
+- [env](#env)
+- [prompts](#prompts)
+- [placeholders](#placeholders)
+- [post_install](#post_install)
+- [bootstrap_command](#bootstrap_command)
+- [Complete Example](#complete-example)
+
+- [Overview](#overview)
+- [Top-Level Fields](#top-level-fields)
+- [plugin_name](#plugin_name)
 - [pubspec / dev_pubspec / pubspec_assets (dependencies:)](#dependencies)
 - [publish](#publish)
 - [json_merge](#json_merge)
@@ -21,12 +36,14 @@ Canonical schema for the declarative `install.yaml` manifest consumed by `plugin
 - [bootstrap_command](#bootstrap_command)
 - [Complete Example](#complete-example)
 
+<a name="overview"></a>
 ## Overview
 
 `install.yaml` is the declarative manifest that drives `plugin:install`'s manifest flow. The file is parsed by `ManifestParser` (`lib/src/installer/manifest_parser.dart`) into a typed `InstallManifest` (`lib/src/installer/install_manifest.dart`) and consumed by `ManifestInstaller`, which translates each section into deferred `InstallOperation`s on the `PluginInstaller` transaction. Nothing writes to disk until `commit(dryRun:, force:)` fires.
 
 The schema is intentionally tolerant: every section except `plugin_name` is optional, every section factory returns a sensible empty default when absent, and partial manifests parse cleanly. Schema violations raise `ManifestValidationException`; raw YAML syntax errors raise `FormatException`.
 
+<a name="top-level-fields"></a>
 ## Top-Level Fields
 
 | Field | Type | Required | Default | Source |
@@ -43,6 +60,7 @@ The schema is intentionally tolerant: every section except `plugin_name` is opti
 | `post_install` | map | no | empty | `manifest_parser.dart:138` |
 | `bootstrap_command` | string | no | `null` | `manifest_parser.dart:141` |
 
+<a name="plugin_name"></a>
 ## plugin_name
 
 The plugin's pubspec package name. Used to scope `.dowel/installed/<plugin>.json` reversibility records, the `plugins.json` registry entry, and the generated `lib/app/_plugins.g.dart` import line.
@@ -59,6 +77,7 @@ The value must start with a lowercase letter or underscore, followed by any numb
 plugin_name: example_plugin
 ```
 
+<a name="dependencies"></a>
 ## dependencies
 
 Pubspec mutations. The `dependencies:` map (note the YAML key is plural, but the typed model is `PubspecDeps`) carries three sub-keys, all optional.
@@ -81,6 +100,7 @@ dependencies:
     - assets/example/
 ```
 
+<a name="publish"></a>
 ## publish
 
 Stub-name to target-path mapping. Each entry becomes a `publishConfig` operation: the named stub is read from the plugin's `install/` directory, placeholder-substituted, and written to the target path inside the consumer project.
@@ -96,6 +116,7 @@ publish:
   install/example_config.dart.stub: lib/config/example.dart
 ```
 
+<a name="json_merge"></a>
 ## json_merge
 
 Map of target JSON file path to merge spec. Each entry triggers a `mergeJson` operation: the source stub is parsed as JSON, then merged into the target file according to `additive`.
@@ -112,6 +133,7 @@ json_merge:
     additive: true
 ```
 
+<a name="magic"></a>
 ## magic
 
 Magic-framework integration block. Every slot is optional; the section defaults to an empty integration when absent.
@@ -137,6 +159,7 @@ magic:
   routes: registerExampleRoutes
 ```
 
+<a name="native"></a>
 ## native
 
 Per-platform native configuration. Each platform sub-section is independently optional.
@@ -234,6 +257,7 @@ native:
       - {name: "description", content: "Example plugin metadata"}
 ```
 
+<a name="env"></a>
 ## env
 
 Environment variables to inject into the consumer's `.env`. Map of var name to spec.
@@ -252,6 +276,7 @@ env:
     comment: "Example plugin runtime config"
 ```
 
+<a name="prompts"></a>
 ## prompts
 
 Ordered list of prompts driven immediately at the start of install (before any deferred operation runs). Prompt answers populate the prompt-result map that `placeholders` interpolates.
@@ -273,6 +298,7 @@ prompts:
   - {key: enableFeature, type: bool, default: false, question: "Enable optional feature?"}
 ```
 
+<a name="placeholders"></a>
 ## placeholders
 
 Map of placeholder key to value template. Values may reference prompt answers via `{{ prompts.KEY }}`. Whitespace around the dotted reference is optional, so `{{prompts.x}}` and `{{ prompts.x }}` are both accepted.
@@ -291,6 +317,7 @@ placeholders:
   runtimeMode: "{{ prompts.mode }}"
 ```
 
+<a name="post_install"></a>
 ## post_install
 
 Post-install shell operations plus a final info message. Every sub-field is optional.
@@ -314,6 +341,7 @@ post_install:
     example_plugin installed.
 ```
 
+<a name="bootstrap_command"></a>
 ## bootstrap_command
 
 Optional plugin-specific bootstrap command name AUTO-RUN after a Success result. On a non-dry-run install, once the plugin is registered (`plugins.json` + `lib/app/_plugins.g.dart` regenerated), `plugin:install` spawns the declared command as a fresh dispatcher subprocess so the just-registered plugin command actually executes. The chained command is a plugin command that was only just written to `_plugins.g.dart`, so it is not loaded in the current process; a subprocess is the only way to reach it.
@@ -337,6 +365,7 @@ This was hint-only before `0.0.9`: prior versions only printed `Bootstrap with: 
 bootstrap_command: example:install
 ```
 
+<a name="complete-example"></a>
 ## Complete Example
 
 The example below is the canonical `_fullYaml` test fixture from `test/installer/manifest_parser_test.dart`. Every section above appears here in context.

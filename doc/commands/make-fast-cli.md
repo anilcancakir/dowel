@@ -2,21 +2,19 @@
 
 Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for ~50ms startup, avoiding the 3-second `dart run` overhead with build hooks.
 
----
-
-## Table of contents
-
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
 - [What It Does](#what-it-does)
 - [Output](#output)
 - [Re-running](#re-running)
+- [Staleness Detection](#staleness-detection)
 - [Performance](#performance)
 - [Caveats](#caveats)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="basic-usage"></a>
 ## Basic Usage
 
 ```bash
@@ -27,6 +25,7 @@ Writes four files and directories: `bin/dowel` (POSIX shell wrapper, executable)
 
 ---
 
+<a name="synopsis"></a>
 ## Synopsis
 
 ```
@@ -39,6 +38,7 @@ make:fast-cli {--force : Overwrite bin/dowel even when it already exists}
 
 ---
 
+<a name="what-it-does"></a>
 ## What It Does
 
 1. **Validates the project structure.** Checks for `pubspec.yaml` and `bin/dispatcher.dart`; errors with actionable guidance if either is missing.
@@ -53,6 +53,7 @@ make:fast-cli {--force : Overwrite bin/dowel even when it already exists}
 
 ---
 
+<a name="output"></a>
 ## Output
 
 - **`bin/dowel`** (executable, ~50 LoC): shell wrapper that checks staleness, auto-recompiles if needed, then execs into the binary.
@@ -62,6 +63,7 @@ make:fast-cli {--force : Overwrite bin/dowel even when it already exists}
 
 ---
 
+<a name="re-running"></a>
 ## Re-running
 
 Run `make:fast-cli` again without `--force`: the wrapper detects `bin/dowel` already exists and skips the override.
@@ -72,6 +74,7 @@ The wrapper script itself is the source of truth for staleness detection. When t
 
 ---
 
+<a name="staleness-detection"></a>
 ## Staleness Detection
 
 The wrapper's `needs_build()` function triggers a rebuild when any of these conditions hold:
@@ -94,6 +97,7 @@ Any match triggers a recompile inside the lock-acquire section. The re-check ins
 
 ---
 
+<a name="performance"></a>
 ## Performance
 
 ### Cache hit (wrapper runs existing binary)
@@ -131,6 +135,7 @@ time ./bin/dowel status
 
 ---
 
+<a name="caveats"></a>
 ## Caveats
 
 **V1 POSIX-only (macOS + Linux).** Windows users continue to use `dart run dowel <cmd>`. A `.cmd` variant is deferred to V1.x.
@@ -141,8 +146,9 @@ time ./bin/dowel status
 
 ---
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [make:command](index.md): scaffold a single `DowelCommand` subclass.
-- [make:plugin](make-plugin): scaffold a full plugin package.
-- [install](install): initialize a dowel consumer project structure.
+- [make:plugin](make-plugin.md): scaffold a full plugin package.
+- [install](install.md): initialize a dowel consumer project structure.

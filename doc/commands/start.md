@@ -1,5 +1,7 @@
 # start
 
+The `start` command spawns `flutter run` as a detached background process, scrapes the VM Service URI from its output, and records the session so that every downstream tool (MCP server, `stop`, `restart`, `tapir:snap`, `tinker`, etc.) knows where the running app lives.
+
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
 - [Options](#options)
@@ -7,9 +9,7 @@
 - [State File](#state-file)
 - [Examples](#examples)
 - [Troubleshooting](#troubleshooting)
-- [Related](#related)
-
-The `start` command spawns `flutter run` as a detached background process, scrapes the VM Service URI from its output, and records the session so that every downstream tool (MCP server, `stop`, `restart`, `tapir:snap`, `tinker`, etc.) knows where the running app lives.
+- [Related Documentation](#related-documentation)
 
 The session lives in a directory of its own, **per project**: `~/.dowel/sessions/<hash>/state.json`, with the log and the FIFO beside it. It used to be one global `~/.dowel/state.json`, so a second project's `start` silently took the slot and every command from the first project then drove the second app, succeeding each time. That file is still written, as a pointer to whichever session started last, because hand-writing it is the documented recovery recipe when `start` cannot boot an app.
 
@@ -173,8 +173,8 @@ On the `--cdp-port` branch a timeout still fails the start with exit 1 and reaps
 
 **CDP port already in use (`--cdp-port` collision).** When the configured CDP port is held by another process, `start` exits immediately before launching Chrome and emits: `CDP port <n> is already in use; pass --cdp-port <free-port> or free it before running start.` Choose a free port (for example `--cdp-port=9224`) or kill the occupying process with `lsof -ti:<port> | xargs kill`.
 
-<a name="related"></a>
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [stop](index.md): stop the running Flutter process group and wait until it and its ports are gone (see [One process group per app](#behavior)), force-stop the app on an Android device (`adb -s <serial> shell am force-stop <applicationId>`, the id read from `android/app/build.gradle*`), and delete `state.json`. An app that outlives `SIGKILL` keeps its session and `stop` exits 1.
 - [restart](index.md): full stop + start cycle; preserves the prior session's `--cdp-port` (read from `state.json` before `stop` deletes it, then forwarded into `start`). An explicit `--cdp-port` on the `restart` invocation wins. The start begins only after `stop` has seen the old app and its ports go, and a `stop` that fails aborts the restart.

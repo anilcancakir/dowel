@@ -2,9 +2,7 @@
 
 Connected REPL into the running Flutter app. Evaluates Dart expressions via the
 VM Service protocol and pretty-prints the result. Requires the app to be running
-before invoking (see [start](start)).
-
-## Table of contents
+before invoking (see [start](start.md)).
 
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
@@ -13,10 +11,11 @@ before invoking (see [start](start)).
 - [Examples](#examples)
 - [VM Service Evaluate](#vm-service-evaluate)
 - [MCP Surface](#mcp-surface)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="basic-usage"></a>
 ## Basic Usage
 
 ```bash
@@ -33,6 +32,7 @@ dart run dowel tinker        # via consumer wrapper (same effect)
 
 ---
 
+<a name="synopsis"></a>
 ## Synopsis
 
 ```
@@ -45,6 +45,7 @@ tinker {--eval=expr}
 
 ---
 
+<a name="connected-mode"></a>
 ## Connected Mode
 
 `tinker` sets `CommandBoot.connected` as its boot mode. Before `handle` runs, the
@@ -58,6 +59,7 @@ command reports whether a state file is present and what VM Service URI it holds
 
 ---
 
+<a name="two-modes"></a>
 ## Two Modes
 
 ### REPL (default)
@@ -87,6 +89,7 @@ echo $?                                 # 0
 
 ---
 
+<a name="examples"></a>
 ## Examples
 
 ```bash
@@ -104,6 +107,7 @@ dart run dowel tinker --eval "DateTime.now().toIso8601String()"
 
 ---
 
+<a name="vm-service-evaluate"></a>
 ## VM Service Evaluate
 
 Expression evaluation routes through `VmServiceClient.evaluate`, which opens a
@@ -118,6 +122,7 @@ await-awareness. The `InstanceRef` response is unwrapped and passed through the
 
 ---
 
+<a name="mcp-surface"></a>
 ## MCP Surface
 
 dowel ships `dowel_tinker` as a substrate MCP tool. When `mcp:serve` runs, any MCP
@@ -127,12 +132,13 @@ argument to evaluate Dart in the running app. This is the same evaluation path a
 stdio JSON-RPC; the dispatcher uses the same lazy-reconnect to the VM Service that
 the CLI form uses, and the result returns as MCP text content.
 
-See [mcp:serve](mcp-serve) and the [MCP tool reference](../mcp/tool-reference.md) for
+See [mcp:serve](mcp-serve.md) and the [MCP tool reference](../mcp/tool-reference.md) for
 the full input schema, filter precedence, and the substrate vs plugin separation.
 
 ---
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
-- [start](start): boot the Flutter app and write the VM Service URI to the state file.
+- [start](start.md): boot the Flutter app and write the VM Service URI to the state file.
 - [status](index.md): confirm the app is running and inspect the recorded state.

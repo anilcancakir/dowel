@@ -5,6 +5,14 @@ package to `pubspec.yaml` and running `flutter pub get`, `plugin:install` wires
 the plugin's `DowelServiceProvider` without requiring manual edits to
 `bin/dispatcher.dart` or `lib/app/_plugins.g.dart`.
 
+- [Basic Usage](#basic-usage)
+- [Synopsis](#synopsis)
+- [Two Routing Modes](#two-routing-modes)
+- [Examples](#examples)
+- [Idempotency](#idempotency)
+- [Reversibility](#reversibility)
+- [Related Documentation](#related-documentation)
+
 ---
 
 <a name="basic-usage"></a>
@@ -170,8 +178,8 @@ reversibility is planned for V1.1.
 
 ---
 
-<a name="related"></a>
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [plugin:uninstall](index.md): removes a plugin registered via
   `plugin:install`, using the `.dowel/installed/<name>.json` record.

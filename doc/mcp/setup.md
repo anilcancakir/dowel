@@ -2,8 +2,17 @@
 
 The dowel CLI ships with a built-in [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes your running Flutter app to AI coding assistants. The server speaks stdio JSON-RPC and surfaces tools contributed by every registered `DowelServiceProvider` (substrate commands plus Tapir, Crumbs, and any custom plugin).
 
+- [Without dowel MCP](#without-dowel-mcp)
+- [With dowel MCP](#with-dowel-mcp)
+- [Installation](#installation)
+- [Server Identity](#server-identity)
+- [Add a Rule](#add-a-rule)
+- [Automated Install](#automated-install)
+- [Available Tools](#available-tools)
+
 This page documents the per-client install matrix: the exact configuration snippet each MCP-compatible client needs to spawn `./bin/dowel mcp:serve` (or `dart run :dispatcher mcp:serve` as a fallback) against your project. The dowel MCP server is stdio-only in V1 (no remote HTTP endpoint); every client below launches the CLI locally with the project directory as the working directory.
 
+<a name="without-dowel-mcp"></a>
 ## Without dowel MCP
 
 LLM agents working against a running Flutter app are blind without dowel MCP:
@@ -13,6 +22,7 @@ LLM agents working against a running Flutter app are blind without dowel MCP:
 - No HTTP / log / exception inspection: Crumbs's runtime feed stays invisible.
 - No connected REPL: every state inspection becomes a `print()` round-trip + hot-reload.
 
+<a name="with-dowel-mcp"></a>
 ## With dowel MCP
 
 The dowel MCP server bridges the agent to the running app over the VM Service:
@@ -28,6 +38,7 @@ Add `use dowel` to your prompt to nudge the agent toward the MCP tool surface:
 Show me the current MonitorController state. use dowel
 ```
 
+<a name="installation"></a>
 ## Installation
 
 ### Prerequisites
@@ -358,6 +369,7 @@ Remote HTTP transport is NOT supported in V1; the dowel MCP server is stdio-only
 
 ---
 
+<a name="server-identity"></a>
 ## Server Identity
 
 The dowel MCP server advertises itself as `serverInfo: {"name": "dowel_mcp", "version": "<package version>"}` in the `initialize` response. The `name` field is fixed regardless of the installed plugin set. Clients such as Claude Code, Cursor, Windsurf, and others derive tool prefixes (like `mcp__dowel__dowel_start`) from the `.mcp.json` key (typically `dowel`), not from `serverInfo.name`. The MCP specification treats `serverInfo.name` as a display hint, not a stable identifier for tool prefix derivation.
@@ -366,6 +378,7 @@ The `version` field in `serverInfo` tracks the package version at release time, 
 
 ---
 
+<a name="add-a-rule"></a>
 ## Add a Rule
 
 To make the agent reach for dowel MCP without an explicit `use dowel` prompt, add a rule to your AI client:
@@ -386,6 +399,7 @@ Always use dowel MCP when working with this Flutter project. Inspect running app
 
 ---
 
+<a name="automated-install"></a>
 ## Automated Install
 
 The dowel CLI ships a built-in command that writes the canonical `.mcp.json` entry for you:
@@ -410,6 +424,7 @@ Both commands work without a running Flutter app; they only edit the JSON file.
 
 ---
 
+<a name="available-tools"></a>
 ## Available Tools
 
 The dowel MCP server surfaces 10 substrate tools plus plugin-contributed tools from any registered sibling plugin (`tapir`, `crumbs`, or custom plugins). See [tool-reference.md](./tool-reference.md) for the per-tool input schema, output shape, and example invocations of the substrate tools, plus links to each plugin's MCP tool reference for the current plugin tool catalog.

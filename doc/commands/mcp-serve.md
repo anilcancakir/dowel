@@ -11,10 +11,11 @@ plugin-contributed tools to AI clients such as Claude Code, Cursor, and Windsurf
 - [3-Layer Filter](#3-layer-filter)
 - [Tools Surfaced](#tools-surfaced)
 - [Examples](#examples)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="basic-usage"></a>
 ## Basic Usage
 
 ```bash
@@ -34,6 +35,7 @@ dart run :dispatcher mcp:serve
 
 ---
 
+<a name="synopsis"></a>
 ## Synopsis
 
 ```
@@ -58,6 +60,7 @@ All four flags are **repeatable**. Each can also be set via environment variable
 
 ---
 
+<a name="soft-fail-behavior"></a>
 ## Soft-Fail Behavior
 
 The server does **not** require a running Flutter app at startup. When
@@ -83,6 +86,7 @@ in Claude Code (or restart the server process in other clients) to apply the cha
 
 ---
 
+<a name="3-layer-filter"></a>
 ## 3-Layer Filter
 
 Tool visibility is controlled by three layers using **Cargo-style precedence**
@@ -128,6 +132,7 @@ A non-empty `--include-*` replaces the env and file allow list for that axis.
 
 ---
 
+<a name="tools-surfaced"></a>
 ## Tools Surfaced
 
 At initialize time the server merges two tool sets, then applies the active filter.
@@ -165,6 +170,7 @@ live on each plugin's own MCP tool reference site
 
 ---
 
+<a name="examples"></a>
 ## Examples
 
 ### 1. Filter via file: allow only specific packages
@@ -207,7 +213,8 @@ Only the three named tools register. Any `tools.allow` in `.dowel/mcp.json` or
 
 ---
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [mcp:install](index.md): write or update the `.mcp.json` client entry.
 - [mcp:uninstall](index.md): remove the `dowel` entry from `.mcp.json`.

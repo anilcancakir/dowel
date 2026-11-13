@@ -1,13 +1,13 @@
 # Commands
 
-Catalog of every user-facing command shipped by `dowel`. Twenty-one commands, grouped by intent.
+Catalog of every user-facing command shipped by `dowel`. Twenty-two commands, grouped by intent.
 
-Every command is invoked as `dart run dowel <name>` (or via the consumer wrapper `dart run dowel <name>` once the project has run `install` or `magic:install`). Commands are auto-discovered through the registered providers list; nothing wires by hand.
+Every command is invoked as `dart run dowel <name>`, or as `./bin/dowel <name>` once the project has run `install` (the fast wrapper). Commands are auto-discovered through the registered providers list; nothing wires by hand.
 
 Need a quick reminder of what a command does without leaving the terminal? Run `dart run dowel list` for the full registry grouped by namespace, or `dart run dowel help <name>` for the per-command flag surface. This page exists for the deeper view: the boot mode, the MCP exposure, and the grouping rationale.
 
-## Table of contents
-
+- [How to read this page](#how-to-read-this-page)
+- [Naming conventions](#naming-conventions)
 - [Lifecycle](#lifecycle)
 - [Scaffolding](#scaffolding)
 - [Plugin management](#plugin-management)
@@ -15,16 +15,19 @@ Need a quick reminder of what a command does without leaving the terminal? Run `
 - [Introspection](#introspection)
 - [Code generation](#code-generation)
 - [Featured deep-dives](#featured-deep-dives)
+- [Boot mode at a glance](#boot-mode-at-a-glance)
 
+<a name="how-to-read-this-page"></a>
 ## How to read this page
 
 Each group section ships a single table with four columns:
 
-- **Command** is the canonical name you type after `dart run dowel` (or `dart run dowel`).
+- **Command** is the canonical name you type after `dart run dowel` (or `./bin/dowel`).
 - **Description** is the one-line summary returned by the command's `description` getter; the same string surfaces in `dart run dowel list`.
 - **Boot Mode** is the `CommandBoot` value the dispatcher reads before invoking `handle()` (see `lib/src/console/command_boot.dart`). `none` means pure CLI: no Flutter binding, no VM Service connection. `connected` means the command dials this project's session and fails fast if no app is running.
 - **MCP Tool** is the canonical `dowel_*` tool name surfaced over stdio JSON-RPC by `mcp:serve`, or the literal `no` when the command is not in the substrate allowlist. The allowlist lives in `lib/src/mcp/mcp_server.dart` (`_safeDowelCommandNames`) and intentionally omits interactive, codegen, installer, and MCP-meta commands.
 
+<a name="naming-conventions"></a>
 ## Naming conventions
 
 Two shapes appear in the catalog:
@@ -34,6 +37,7 @@ Two shapes appear in the catalog:
 
 The `hot-restart` command is the one outlier: it lives in the lifecycle group but uses a hyphen instead of a colon, mirroring the `R` keypress sent to `flutter run`.
 
+<a name="lifecycle"></a>
 ## Lifecycle
 
 Seven commands that own the running Flutter process: spawn, stop, query, tail, restart, reload, hot-restart. All run pure CLI; none of them boot Flutter or Magic in the dowel process. State lives in a per-project session directory under `~/.dowel/sessions/`, written by `start` and consumed by everything that needs the VM Service URI. `~/.dowel/state.json` remains a pointer to whichever session started last. Any command that acts on the recorded app refuses when the session belongs to another project, so a `stop` from the wrong checkout cannot kill a sibling's run.
@@ -50,6 +54,7 @@ These seven are the only commands surfaced as MCP tools today, which makes them 
 | `reload` | Hot reload the running app (sends `r` to flutter run's stdin). State preserved. | none | dowel_reload |
 | `hot-restart` | Hot restart the running app (sends `R` to flutter run's stdin). Drops Dart state, keeps process. | none | dowel_hot_restart |
 
+<a name="scaffolding"></a>
 ## Scaffolding
 
 Four commands that write source files into the consumer project. They are deliberately excluded from the MCP allowlist: source mutation is better routed through the client's own file tools, and the stub system uses placeholder substitution (`{{ name }}`, `{{ pascalName }}`, `{{ commandPrefix }}`) that benefits from interactive prompts.
@@ -61,6 +66,7 @@ Four commands that write source files into the consumer project. They are delibe
 | `make:fast-cli` | Scaffold the POSIX `bin/dowel` wrapper and pre-compile the AOT cache under `.dowel/cli-bundle/` for ~50ms startup. | none | no |
 | `install` | Scaffold the canonical native Flutter consumer wrapper (`bin/dispatcher.dart` plus `lib/app/_plugins.g.dart` plus `lib/app/commands/_index.g.dart`) and chain `make:fast-cli` in-process. | none | no |
 
+<a name="plugin-management"></a>
 ## Plugin management
 
 Three commands that maintain the `.dowel/plugins.json` registry and its generated barrel `lib/app/_plugins.g.dart`. Atomic writes (`.tmp` plus rename) across every mutation, so concurrent readers (editors, lint daemons) never observe partial state. `plugin:install` routes through two modes (manifest, direct registration) depending on whether the plugin ships an `install.yaml`.
@@ -71,6 +77,7 @@ Three commands that maintain the `.dowel/plugins.json` registry and its generate
 | `plugin:uninstall` | Uninstall a third-party dowel plugin (reverses the install manifest). | none | no |
 | `plugins:refresh` | Regenerate `lib/app/_plugins.g.dart` from `.dowel/plugins.json` registry. | none | no |
 
+<a name="mcp"></a>
 ## MCP
 
 Three commands that wire the dowel MCP server into a host like Claude Code, Cursor, or Windsurf, plus the server entry itself. The `mcp:*` meta commands recurse into the server and are intentionally excluded from the allowlist. Per-tool visibility is configured via `.dowel/mcp.json`, environment variables, and CLI flags (the three layers compose Cargo-style: file plus env plus flags, with deny rules always winning).
@@ -81,6 +88,7 @@ Three commands that wire the dowel MCP server into a host like Claude Code, Curs
 | `mcp:install` | Add the dowel MCP server entry to `.mcp.json` (idempotent; preserves other server entries). | none | no |
 | `mcp:uninstall` | Remove the dowel MCP server entry from `.mcp.json` (preserves other entries). | none | no |
 
+<a name="introspection"></a>
 ## Introspection
 
 Four commands that observe the substrate or its host. `tinker` is the only command in the catalog with `CommandBoot.connected`: it dials the running app's VM Service and is interactive, so it stays out of the MCP allowlist.
@@ -92,6 +100,7 @@ Four commands that observe the substrate or its host. `tinker` is the only comma
 | `doctor` | Run environment preflight checks (flutter, dart, port availability). | none | dowel_doctor |
 | `tinker` | Connected REPL into the running Flutter app (Dart expression evaluation via VM Service). | connected | dowel_tinker |
 
+<a name="code-generation"></a>
 ## Code generation
 
 One command that rewrites the `lib/app/commands/_index.g.dart` barrel. Codegen sits in its own bucket because the consumer rarely runs it by hand: `make:command` and `plugin:install` invoke it as a follow-up step. The generated barrel is never edited manually; the source of truth is the set of `*_command.dart` files under `lib/app/commands/`.
@@ -100,6 +109,7 @@ One command that rewrites the `lib/app/commands/_index.g.dart` barrel. Codegen s
 |---------|-------------|-----------|----------|
 | `commands:refresh` | Rescan `lib/app/commands/` and rewrite the auto-discovery index. | none | no |
 
+<a name="boot-mode-at-a-glance"></a>
 ## Boot mode at a glance
 
 Twenty of twenty-one commands run with `CommandBoot.none`. Only `tinker` is `CommandBoot.connected`, because its job is to evaluate Dart expressions against a live VM Service isolate. Everything else (lifecycle commands included) shells out to `flutter run` or operates on disk; the dowel process itself never depends on a Flutter binding.
@@ -108,15 +118,16 @@ This separation is what lets the substrate ship as a pure-Dart package: the cons
 
 A third boot mode, `headless`, is reserved for a V1.x release that will let Magic-bound commands (think `migrate`, `db:seed`) boot just enough of the host to read `Magic.Config` without spinning up a UI.
 
+<a name="featured-deep-dives"></a>
 ## Featured deep-dives
 
 Six commands earn their own pages because their flags, modes, or composition rules outgrow a single table row:
 
-- [start](start)
-- [plugin:install](plugin-install)
-- [mcp:serve](mcp-serve)
-- [make:plugin](make-plugin)
-- [install](install)
-- [tinker](tinker)
+- [start](start.md)
+- [plugin:install](plugin-install.md)
+- [mcp:serve](mcp-serve.md)
+- [make:plugin](make-plugin.md)
+- [install](install.md)
+- [tinker](tinker.md)
 
 Slug rule: the deep-dive URL drops the `:` separator in favor of `-`, so `plugin:install` lives at `commands/plugin-install/` and `mcp:serve` at `commands/mcp-serve/`. The remaining fifteen commands share this index page; reach for `dart run dowel help <name>` for their full flag surface.

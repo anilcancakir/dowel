@@ -3,7 +3,12 @@
 The `PluginInstaller` class is the procedural escape hatch for plugin install logic that the
 declarative `install.yaml` manifest cannot express.
 
-## Table of Contents
+- [When to Use](#when-to-use)
+- [Two Phases: IMMEDIATE vs DEFERRED](#two-phases-immediate-vs-deferred)
+- [DSL Method Reference](#dsl-method-reference)
+- [Atomic Commit Semantics](#atomic-commit-semantics)
+- [Example](#example)
+- [Related Documentation](#related-documentation)
 
 - [When to Use](#when-to-use)
 - [Two Phases: IMMEDIATE vs DEFERRED](#two-phases-immediate-vs-deferred)
@@ -20,10 +25,11 @@ declarative `install.yaml` manifest cannot express.
   - [Lifecycle Hooks](#lifecycle-hooks)
 - [Atomic Commit Semantics](#atomic-commit-semantics)
 - [Example](#example)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="when-to-use"></a>
 ## When to Use
 
 Prefer `install.yaml` for straightforward installs. Use the procedural DSL when:
@@ -39,6 +45,7 @@ When none of these apply, `install.yaml` + `ManifestInstaller` is simpler and pr
 
 ---
 
+<a name="two-phases-immediate-vs-deferred"></a>
 ## Two Phases: IMMEDIATE vs DEFERRED
 
 Every chain method falls into one of two categories. This split determines whether a method's
@@ -73,6 +80,7 @@ user confirms, so the shell command still executes deferredly during commit.
 
 ---
 
+<a name="dsl-method-reference"></a>
 ## DSL Method Reference
 
 All methods return `this` (chainable) unless noted otherwise.
@@ -326,6 +334,7 @@ mutations independently.
 
 ---
 
+<a name="atomic-commit-semantics"></a>
 ## Atomic Commit Semantics
 
 `commit()` delegates to `InstallTransaction.commit()` (see
@@ -360,6 +369,7 @@ anchor-bracket markers for reversible injections.
 
 ---
 
+<a name="example"></a>
 ## Example
 
 Pattern from `assets/stubs/make_plugin/magic/install_command.dart.stub`, with a conditional
@@ -422,7 +432,8 @@ class AnalyticsInstallCommand extends DowelInstallCommand {
 }
 ```
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [install-yaml.md](install-yaml.md): declarative manifest schema; preferred for straightforward installs.
 - [authoring.md](authoring.md): end-to-end plugin authoring guide (scaffold, provider registration, publish checklist).

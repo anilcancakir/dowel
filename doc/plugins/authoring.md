@@ -1,7 +1,5 @@
 # Plugin Authoring Guide
 
-## Overview
-
 A plugin is a Dart package that ships a `DowelServiceProvider` subclass. The
 subclass declares the CLI commands and MCP tool descriptors the plugin contributes.
 When a consumer calls `plugin:install <name>`, dowel registers the provider in
@@ -9,8 +7,17 @@ When a consumer calls `plugin:install <name>`, dowel registers the provider in
 `DowelRegistry`. Commands appear in `dowel list`; MCP tool descriptors surface
 through the stdio JSON-RPC server so LLM agents can invoke them by name.
 
+- [Getting Started](#getting-started)
+- [DowelServiceProvider Contract](#dowelserviceprovider-contract)
+- [Writing Commands](#writing-commands)
+- [Adding MCP Tools](#adding-mcp-tools)
+- [Publishing](#publishing)
+- [Linking from a Consumer](#linking-from-consumer)
+- [Related Documentation](#related-documentation)
+
 ---
 
+<a name="getting-started"></a>
 ## Getting Started
 
 Scaffold the plugin skeleton with the `make:plugin` command:
@@ -38,6 +45,7 @@ injects `AwesomeDowelProvider.new` into the consumer's `_plugins.g.dart`.
 
 ---
 
+<a name="dowelserviceprovider-contract"></a>
 ## DowelServiceProvider Contract
 
 Every plugin must extend `DowelServiceProvider`
@@ -89,6 +97,7 @@ final class AwesomeDowelProvider extends DowelServiceProvider {
 
 ---
 
+<a name="writing-commands"></a>
 ## Writing Commands
 
 Each entry in `commands()` is a `DowelCommand` subclass. Declare the command
@@ -111,6 +120,7 @@ it in the provider's `commands()` list. See
 
 ---
 
+<a name="adding-mcp-tools"></a>
 ## Adding MCP Tools
 
 Override `mcpTools()` and return a `List<McpToolDescriptor>`. Each descriptor
@@ -162,6 +172,7 @@ match the package's `providerName` (or a recognizable abbreviation thereof).
 
 ---
 
+<a name="publishing"></a>
 ## Publishing
 
 1. Bump the version in `pubspec.yaml` following SemVer (patch for fixes, minor
@@ -189,6 +200,7 @@ match the package's `providerName` (or a recognizable abbreviation thereof).
 
 ---
 
+<a name="linking-from-consumer"></a>
 ## Linking from Consumer
 
 The consumer installs the plugin with:
@@ -204,7 +216,8 @@ See [plugin:install](../commands/plugin-install.md) for the two routing modes
 
 ---
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [install-yaml.md](install-yaml.md) - `install.yaml` manifest schema for
   declaring install steps declaratively.

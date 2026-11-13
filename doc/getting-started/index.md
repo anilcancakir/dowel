@@ -3,13 +3,19 @@
 Everything you need to add `dowel` to your project, run your first command, and wire
 the MCP server into your AI client.
 
+- [Pick your path](#pick-your-path)
+- [What is dowel?](#what-is-dowel)
+- [Next steps](#next-steps)
+
+<a name="pick-your-path"></a>
 ## Pick your path
 
-- [**Installation**](installation): Add dowel to a Dart or Flutter project.
-- [**Quickstart**](quickstart): 5-step end-to-end walkthrough from install to first running command.
-- [**MCP setup**](../mcp/setup): Wire the dowel MCP server into Claude Code, Cursor, Windsurf,
+- [**Installation**](installation.md): Add dowel to a Dart or Flutter project.
+- [**Quickstart**](quickstart.md): 5-step end-to-end walkthrough from install to first running command.
+- [**MCP setup**](../mcp/setup.md): Wire the dowel MCP server into Claude Code, Cursor, Windsurf,
   or another AI client.
 
+<a name="what-is-dowel"></a>
 ## What is dowel?
 
 "Composable CLI framework and stdio MCP server for Flutter and Dart. Scaffolding, code generation,
@@ -34,7 +40,8 @@ Service hooks for hot reload, hot restart, and connected REPL evaluation against
 app. No orchestration layer is needed between them; they share the same registry, the same provider
 contract, and the same binary entry point.
 
+<a name="next-steps"></a>
 ## Next steps
 
-- New here? Start with [Installation](installation).
-- Already installed? Run the [Quickstart](quickstart).
+- New here? Start with [Installation](installation.md).
+- Already installed? Run the [Quickstart](quickstart.md).

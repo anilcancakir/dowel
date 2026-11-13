@@ -2,10 +2,6 @@
 
 Scaffold the canonical Flutter consumer project structure and install the fast-CLI wrapper in a single step. Running `install` produces `bin/dispatcher.dart`, the two generated barrels, and `bin/dowel`, then injects `dowel` into `pubspec.yaml` so every future `plugin:install` and `make:command` invocation resolves cleanly.
 
----
-
-## Table of contents
-
 - [Prerequisites](#prerequisites)
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
@@ -14,7 +10,7 @@ Scaffold the canonical Flutter consumer project structure and install the fast-C
 - [Idempotency](#idempotency)
 - [Fast-CLI Auto-Chain](#fast-cli-auto-chain)
 - [Examples](#examples)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
@@ -209,8 +205,8 @@ The path-dep form is detected automatically and written to `pubspec.yaml`. No fl
 
 ---
 
-<a name="related"></a>
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [make:command](index.md): scaffold a single `DowelCommand` subclass under `lib/app/commands/` and regenerate `_index.g.dart`.
 - [plugin:install](plugin-install.md): register a third-party plugin after `flutter pub add`; requires the `lib/app/_plugins.g.dart` barrel that `install` writes.

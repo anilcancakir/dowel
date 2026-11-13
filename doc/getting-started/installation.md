@@ -1,11 +1,11 @@
 # Installation
 
+Getting started with dowel requires a few steps to wire the CLI binary and codegen scaffolding into your project.
+
 - [Requirements](#requirements)
 - [Installation](#installation-step)
 - [Basic Setup](#basic-setup)
 - [Verify Installation](#verify-installation)
-
-Getting started with dowel requires a few steps to wire the CLI binary and codegen scaffolding into your project.
 
 <a name="requirements"></a>
 ## Requirements
