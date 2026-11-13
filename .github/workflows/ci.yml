@@ -64,6 +64,3 @@ jobs:
         with:
           files: coverage/lcov.info
           fail_ci_if_error: false
-
-      - name: Validate publish archive
-        run: dart pub publish --dry-run

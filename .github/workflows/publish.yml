@@ -34,19 +34,18 @@ jobs:
             exit 1
           fi
 
-      # The tag, pubspec.yaml, the MCP registry manifest and the agent skill
-      # stamp must name one version, or pub.dev, the registry and the skill
-      # would each carry a different one. The MCP handshake string is checked by
-      # a unit test.
+      # The tag, pubspec.yaml and the MCP registry manifest must name one
+      # version, or pub.dev and the registry would each carry a different one.
+      # The MCP handshake string is checked by a unit test. The skill keeps its
+      # own version, independent of the package (REPO_SPEC section 3).
       - name: Check version stamps
         env:
           TAG: ${{ github.ref_name }}
         run: |
           pubspec="$(awk '/^version:/ { print $2 }' pubspec.yaml)"
           manifest="$(sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' server.json | head -n 1)"
-          skill="$(awk '/^version:/ { print $2; exit }' skills/dowel/SKILL.md)"
-          if [ "$TAG" != "$pubspec" ] || [ "$TAG" != "$manifest" ] || [ "$TAG" != "$skill" ]; then
-            echo "::error::Version mismatch: tag $TAG, pubspec.yaml $pubspec, server.json $manifest, skill $skill." >&2
+          if [ "$TAG" != "$pubspec" ] || [ "$TAG" != "$manifest" ]; then
+            echo "::error::Version mismatch: tag $TAG, pubspec.yaml $pubspec, server.json $manifest." >&2
             exit 1
           fi
 
