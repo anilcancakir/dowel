@@ -202,6 +202,63 @@ void main() {
           isFalse);
     });
 
+    test('uninstall drops the plugin from plugins.json and the barrel',
+        () async {
+      final root = Directory.systemTemp.createTempSync('plun_registry_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedInstalledProject(root, pluginName: 'demo_plugin');
+      final manifestPath = p.join(root.path, 'demo_install.yaml');
+      _writeInstallYaml(manifestPath, 'demo_plugin');
+
+      // The install left the plugin registered and the barrel generated.
+      Directory(p.join(root.path, 'lib', 'app')).createSync(recursive: true);
+      File(p.join(root.path, '.dowel', 'plugins.json')).writeAsStringSync(
+        jsonEncode(<String, dynamic>{
+          'version': 1,
+          'plugins': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'name': 'demo_plugin',
+              'providerImport': 'package:demo_plugin/cli.dart',
+              'providerClass': 'DemoPluginDowelProvider',
+              'registeredAt': '2025-01-01T00:00:00.000Z',
+            },
+            <String, dynamic>{
+              'name': 'other_plugin',
+              'providerImport': 'package:other_plugin/cli.dart',
+              'providerClass': 'OtherPluginDowelProvider',
+              'registeredAt': '2025-01-01T00:00:00.000Z',
+            },
+          ],
+        }),
+      );
+
+      final cmd = _TestablePluginUninstallCommand(
+        fakeProjectRoot: root.path,
+        fakeInstallYamlPath: manifestPath,
+      );
+      final ctx = _ctxWith(
+        _baseOpts(overrides: const {'force': true}),
+        positional: const ['demo_plugin'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+      expect(exit, 0);
+
+      final registry = jsonDecode(
+        File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync(),
+      ) as Map<String, dynamic>;
+      final names = (registry['plugins'] as List<dynamic>)
+          .map((dynamic e) => (e as Map<String, dynamic>)['name'])
+          .toList();
+      expect(names, equals(<String>['other_plugin']));
+
+      final barrel = File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+          .readAsStringSync();
+      expect(barrel, isNot(contains('DemoPluginDowelProvider')));
+      expect(barrel, contains('OtherPluginDowelProvider'));
+    });
+
     test(
         'uninstall purges .dowel/cli-bundle and .dowel/build.stamp '
         'after successful removal', () async {

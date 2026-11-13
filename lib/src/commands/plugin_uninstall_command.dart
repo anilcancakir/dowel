@@ -17,7 +17,10 @@ import '../installer/install_operation.dart';
 import '../installer/install_transaction.dart';
 import '../installer/manifest_installer.dart';
 import '../installer/manifest_parser.dart';
+import '../installer/plugins_registry_file.dart';
+import '../installer/virtual_fs.dart';
 import 'plugin_install_command.dart';
+import 'plugins_refresh_command.dart';
 
 /// `plugin:uninstall <name>`, reverse a manifest-driven plugin install.
 ///
@@ -193,7 +196,10 @@ class PluginUninstallCommand extends DowelInstallCommand {
     switch (result) {
       case Success():
         ctx.output.success(result.describe());
-        // 8. Purge the AOT cli-bundle so the next ./bin/dowel invocation rebuilds
+        // 8. Drop the plugin from the registry and regenerate the barrel,
+        //    otherwise the next run still loads its commands.
+        await _unregister(ctx, root: root, name: name);
+        // 9. Purge the AOT cli-bundle so the next ./bin/dowel invocation rebuilds
         //    against the updated lib/app/_plugins.g.dart (issue #9 GAP A).
         CliBundleCache.purge(root);
         return 0;
@@ -214,6 +220,38 @@ class PluginUninstallCommand extends DowelInstallCommand {
   // ---------------------------------------------------------------------------
   // Internal helpers
   // ---------------------------------------------------------------------------
+
+  /// Removes [name] from `.dowel/plugins.json` and regenerates
+  /// `lib/app/_plugins.g.dart`, the inverse of the registration
+  /// [PluginInstallCommand] performs after a manifest install.
+  ///
+  /// Best effort, like the registration: the reverse transaction already
+  /// committed, so a failure here warns instead of failing the uninstall.
+  /// Does nothing when the project has no registry file.
+  Future<void> _unregister(
+    DowelContext ctx, {
+    required String root,
+    required String name,
+  }) async {
+    if (!File(p.join(root, '.dowel', 'plugins.json')).existsSync()) return;
+    try {
+      await PluginsRegistryFile(const RealFs(), root).removePlugin(name);
+      final refreshed =
+          await PluginsRefreshCommand(projectRoot: root).handle(ctx);
+      if (refreshed != 0) {
+        ctx.output.warning(
+          'Plugin "$name" was uninstalled but lib/app/_plugins.g.dart was not '
+          'regenerated. Run `dart run dowel plugins:refresh`.',
+        );
+      }
+    } catch (e) {
+      ctx.output.warning(
+        'Plugin "$name" was uninstalled but its registry entry could not be '
+        'removed: $e. Run `dart run dowel plugins:refresh` after fixing '
+        '.dowel/plugins.json.',
+      );
+    }
+  }
 
   /// Builds an [InstallContext] pinned to [projectRoot]. Pinning explicitly
   /// here keeps the test / production paths symmetrical (tests pin to a
