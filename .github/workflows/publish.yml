@@ -133,7 +133,7 @@ jobs:
             "$FLAG"
 
   # The skill-registry sync (dispatch-to-registry.yml) is not called from here
-  # yet. The registry repository (anilcancakir/skills) is cut last, and a job
+  # yet. The registry repository (anilcancakir/ai) is cut last, and a job
   # that dispatches to a repository that does not exist would fail after every
   # release. Re-add `registry: uses: ./.github/workflows/dispatch-to-registry.yml`
   # with the REGISTRY_BOT_* secrets once the registry accepts the `dowel` source.
