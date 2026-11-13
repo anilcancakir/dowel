@@ -28,6 +28,13 @@ A change is not done while any of these is stale: `CHANGELOG.md` `[Unreleased]`,
 
 Red, green, refactor: the failing test comes first, and reverting the implementation must turn it red again. Branch from `master` as `<type>/<topic>` (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `release`), open a PR into `master`; nothing is pushed to `master` directly.
 
+## Testing
+
+- Tests mirror `lib/src/` one to one (`lib/src/installer/plugin_installer.dart` is tested by `test/installer/plugin_installer_test.dart`); import from the barrel or `package:dowel/src/...`.
+- No mocking library: hand-written `_Fake*`, `_Recording*` and `_Testable*` subclasses, kept file-private; `InMemoryFs` for operation staging, a real `Directory.systemTemp` project for content assertions.
+- An idempotency test runs the operation twice with separate instances and asserts one entry on disk.
+- Coverage stays at or above 80% of `lib/`.
+
 ## Architecture
 
 One barrel, `package:dowel/dowel.dart`. Two binaries: `bin/dowel.dart` (the CLI, and this package's own entry point, never a consumer wrapper) and `bin/mcp.dart` (MCP entry: forces `collectMcpTools: true` and `delegateToConsumer: false`). A consumer project's wrapper is `bin/dispatcher.dart`.
@@ -69,8 +76,10 @@ One barrel, `package:dowel/dowel.dart`. Two binaries: `bin/dowel.dart` (the CLI,
 4. A recovery after a failed `Validate` is forward: delete the tag, fix on a PR, tag the new merge commit.
 5. `dowel` is a new pub.dev package (renamed from `fluttersdk_artisan`), so the first publish is by hand: `dart pub publish --force` from a clean checkout of the merge commit, push the tag, cancel the tag run's `publish` job (the version already exists, so it can only fail), then `gh release create <tag> --title <tag> --verify-tag --notes-file <CHANGELOG section>`. After that the Admin tab gets automated publishing from `anilcancakir/dowel` with tag pattern `{{version}}`, and later tags publish themselves. The `registry` job that mirrors the skill is not wired yet (see the comment at the end of `publish.yml`).
 
-CI: `ci.yml` (`Lint & Test`: format, analyze, tests with coverage and the 80% floor, Codecov), `changelog.yml` (`Changelog`: shipped code under `lib/`, `bin/` or `assets/` needs a CHANGELOG entry, or the `skip-changelog` label), `docs-link-check.yml` (`Internal Links`, weekly `External Links`), `publish.yml`.
+## CI
 
-## Path-scoped rules
-
-`.claude/rules/installer.md`, `.claude/rules/tests.md` and `.claude/rules/docs.md` load when you touch the matching paths.
+- `ci.yml` (`Lint & Test`): push and PR, format, analyze, tests with coverage and the 80% floor, Codecov upload.
+- `changelog.yml` (`Changelog`): a PR that changes `lib/`, `bin/` or `assets/` must change `CHANGELOG.md`; Dependabot, `release:` PRs and the `skip-changelog` label are exempt.
+- `docs-link-check.yml` (`Internal Links`): `python3 tool/check-docs.py` plus an offline lychee pass on every PR; `External Links` on Mondays.
+- `publish.yml`: tag on master, stamps, analyze, format, test, dry-run, pana 160/160, CHANGELOG section, OIDC publish, GitHub Release.
+- `dispatch-to-registry.yml`: mirrors the skill into `anilcancakir/ai` once the `registry` job is wired.

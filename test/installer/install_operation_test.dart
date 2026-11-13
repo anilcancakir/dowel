@@ -1,10 +1,5 @@
 import 'package:test/test.dart';
 
-// ignore_for_file: unused_local_variable
-// Tests import the implementation once it exists.
-// This file is the red-phase: all tests will fail until install_operation.dart
-// is written.
-
 import 'package:dowel/dowel.dart';
 
 void main() {
