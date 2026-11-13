@@ -33,7 +33,7 @@ final RegExp _identifierPattern = RegExp(r'^[A-Z][a-zA-Z0-9_]*$');
 /// ## Failure modes
 ///
 /// - `lib/app/` missing → [FormatException] pointing the operator at
-///   `dart run magic:dowel install`.
+///   `dart run dowel install`.
 /// - Two registry entries claiming the same `providerClass` → [FormatException]
 ///   naming both colliding plugin names (mirrors the fail-fast collision
 ///   semantics already enforced by [DowelRegistry]).
@@ -97,8 +97,8 @@ class PluginsRefreshCommand extends DowelCommand {
     if (!_directoryExists(libAppDir)) {
       throw FormatException(
         'lib/app/ directory not found at $libAppDir. '
-        'Project does not look magic-structured. '
-        'Run `dart run magic:dowel install` first to bootstrap.',
+        'Project does not look dowel-structured. '
+        'Run `dart run dowel install` first to bootstrap.',
       );
     }
 
@@ -178,7 +178,7 @@ class PluginsRefreshCommand extends DowelCommand {
   String _renderSource(List<PluginEntry> entries) {
     final buf = StringBuffer()
       ..writeln('// GENERATED: do not edit by hand.')
-      ..writeln('// Regenerate via: dart run magic:dowel plugins:refresh')
+      ..writeln('// Regenerate via: dart run dowel plugins:refresh')
       ..writeln('//')
       ..writeln('// Source: .dowel/plugins.json')
       ..writeln()

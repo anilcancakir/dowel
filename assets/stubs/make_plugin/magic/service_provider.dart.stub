@@ -3,7 +3,7 @@ import 'package:magic/magic.dart';
 /// Magic ServiceProvider for {{ name }}.
 ///
 /// Auto-registered into the host app's `config/app.dart` providers list when
-/// the consumer runs `dart run <host>:dowel plugin:install {{ name }}` (the
+/// the consumer runs `dart run dowel plugin:install {{ name }}` (the
 /// install.yaml manifest's `magic.provider:` field drives the injection).
 ///
 /// Two-phase lifecycle:

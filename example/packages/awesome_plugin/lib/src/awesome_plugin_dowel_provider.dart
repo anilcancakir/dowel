@@ -3,7 +3,7 @@ import 'commands/greet_command.dart';
 
 /// DowelServiceProvider for awesome_plugin.
 ///
-/// Plugin commands live in `lib/src/commands/`. Use `dart run magic:dowel
+/// Plugin commands live in `lib/src/commands/`. Use `dart run dowel
 /// make:command Name` from inside the plugin directory to scaffold a new
 /// command. The generator writes the command file under `lib/src/commands/`
 /// AND auto-registers it in the [commands] list below (idempotent), so the

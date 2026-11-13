@@ -1,5 +1,5 @@
 // GENERATED: do not edit by hand.
-// Regenerate via: dart run magic:dowel plugins:refresh
+// Regenerate via: dart run dowel plugins:refresh
 //
 // Source: .dowel/plugins.json
 

@@ -220,7 +220,7 @@ void main() {
             'message',
             allOf(
               contains('lib/app/'),
-              contains('magic:dowel install'),
+              contains('dowel install'),
             ),
           ),
         ),
