@@ -117,7 +117,13 @@ class StateFile {
   /// The directory every dowel artifact lives under, session or not.
   static String get homeDir => '${_homePath()}/.dowel';
 
-  static String? _envPathOverride() => Platform.environment['DOWEL_STATE_FILE'];
+  /// Test injection seam: replaces the process environment the
+  /// `DOWEL_STATE_FILE` lookup reads. Production code never sets this.
+  @visibleForTesting
+  static Map<String, String>? debugEnvironmentOverride;
+
+  static String? _envPathOverride() =>
+      (debugEnvironmentOverride ?? Platform.environment)['DOWEL_STATE_FILE'];
 
   static String _projectRoot() =>
       projectRootFor(debugProjectRootOverride ?? Directory.current.path);

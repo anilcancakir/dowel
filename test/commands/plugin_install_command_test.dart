@@ -231,7 +231,6 @@ void main() {
       addTearDown(() => root.deleteSync(recursive: true));
       _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
 
-      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
       const opts = <String, dynamic>{
         'force': false,
         'no-bootstrap': false,
@@ -241,19 +240,27 @@ void main() {
         'bootstrap-command': null,
       };
 
-      await cmd.handle(_ctxWith(opts,
-          positional: const ['magic_logger'], signature: cmd.parsedSignature));
-      final firstSnapshot =
-          File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync();
+      // A fresh command per run: the second install must be idempotent on
+      // disk, not because the first instance remembered anything.
+      Future<void> runInstall() {
+        final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
+        return cmd.handle(_ctxWith(opts,
+            positional: const ['magic_logger'],
+            signature: cmd.parsedSignature));
+      }
 
-      await cmd.handle(_ctxWith(opts,
-          positional: const ['magic_logger'], signature: cmd.parsedSignature));
+      await runInstall();
+      await runInstall();
+
       final registry = jsonDecode(
         File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync(),
       ) as Map<String, dynamic>;
-
       expect(registry['plugins'] as List<dynamic>, hasLength(1));
-      expect(firstSnapshot, isNotEmpty);
+
+      final barrel = File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+          .readAsStringSync();
+      expect('MagicLoggerDowelProvider('.allMatches(barrel), hasLength(1));
+      expect("import 'package:magic_logger/".allMatches(barrel), hasLength(1));
     });
 
     test(

@@ -92,11 +92,19 @@ void main() {
       // Both spellings are documented as equivalent and `path` honours both,
       // so a guard that saw only the flag read the session the env var
       // pointed at and then refused to drive it.
+      StateFile.debugEnvironmentOverride = <String, String>{
+        'DOWEL_STATE_FILE': '/tmp/named.json',
+      };
+      addTearDown(() => StateFile.debugEnvironmentOverride = null);
+
+      final String? named = StateFile.explicitPath();
+
+      expect(named, '/tmp/named.json');
       expect(
         sessionOwnershipError(
           state: <String, dynamic>{'projectRoot': projectB.path},
           workingDirectory: projectA.path,
-          explicitStatePath: '/tmp/named.json',
+          explicitStatePath: named,
         ),
         isNull,
       );
