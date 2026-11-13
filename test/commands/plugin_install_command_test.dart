@@ -333,6 +333,136 @@ void main() {
       expect(out, contains('not listed in pubspec.yaml'));
     });
 
+    test('--dry-run previews the registration and writes nothing', () async {
+      final root = Directory.systemTemp.createTempSync('plinst_direct_dry_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+      final barrel = File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'));
+      final before = barrel.readAsStringSync();
+
+      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
+      final ctx = _ctxWith(
+        const <String, dynamic>{
+          'force': false,
+          'no-bootstrap': false,
+          'dry-run': true,
+          'non-interactive': false,
+          'use-yaml-only': false,
+          'bootstrap-command': null,
+        },
+        positional: const ['magic_logger'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 0);
+      expect((ctx.output as BufferedOutput).content, contains('Dry run'));
+      expect(
+        File(p.join(root.path, '.dowel', 'plugins.json')).existsSync(),
+        isFalse,
+      );
+      expect(barrel.readAsStringSync(), before);
+    });
+
+    test('a failed registration exits non-zero instead of reporting success',
+        () async {
+      final root = Directory.systemTemp.createTempSync('plinst_direct_fail_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+      // A directory where the registry file belongs makes the write fail.
+      Directory(p.join(root.path, '.dowel', 'plugins.json'))
+          .createSync(recursive: true);
+
+      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
+      final ctx = _ctxWith(
+        const <String, dynamic>{
+          'force': false,
+          'no-bootstrap': false,
+          'dry-run': false,
+          'non-interactive': false,
+          'use-yaml-only': false,
+          'bootstrap-command': null,
+        },
+        positional: const ['magic_logger'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 1);
+      expect(
+        (ctx.output as BufferedOutput).content,
+        isNot(contains('Registered "magic_logger"')),
+      );
+    });
+
+    test('--bootstrap-command chains the command after a direct registration',
+        () async {
+      final root = Directory.systemTemp.createTempSync('plinst_direct_boot_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+
+      final runner = _RecordingBootstrapRunner();
+      final cmd = _TestablePluginInstallCommand(
+        fakeProjectRoot: root.path,
+        fakeBootstrapRunner: runner,
+      );
+      final ctx = _ctxWith(
+        const <String, dynamic>{
+          'force': false,
+          'no-bootstrap': false,
+          'dry-run': false,
+          'non-interactive': false,
+          'use-yaml-only': false,
+          'bootstrap-command': 'logger:install',
+        },
+        positional: const ['magic_logger'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 0);
+      expect(runner.callCount, 1);
+      expect(runner.bootstrapCommand, 'logger:install');
+    });
+
+    test(
+        '--no-bootstrap keeps the chained command out of a direct registration',
+        () async {
+      final root = Directory.systemTemp.createTempSync('plinst_direct_nob_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+
+      final runner = _RecordingBootstrapRunner();
+      final cmd = _TestablePluginInstallCommand(
+        fakeProjectRoot: root.path,
+        fakeBootstrapRunner: runner,
+      );
+      final ctx = _ctxWith(
+        const <String, dynamic>{
+          'force': false,
+          'no-bootstrap': true,
+          'dry-run': false,
+          'non-interactive': false,
+          'use-yaml-only': false,
+          'bootstrap-command': 'logger:install',
+        },
+        positional: const ['magic_logger'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 0);
+      expect(runner.callCount, 0);
+      expect(
+        (ctx.output as BufferedOutput).content,
+        contains('Bootstrap with: dowel logger:install'),
+      );
+    });
+
     test('errors toward `dowel install` when there is no scaffold', () async {
       final root = Directory.systemTemp.createTempSync('plinst_no_scaffold_');
       addTearDown(() => root.deleteSync(recursive: true));

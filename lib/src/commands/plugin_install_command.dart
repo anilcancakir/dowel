@@ -166,10 +166,26 @@ class PluginInstallCommand extends DowelInstallCommand {
       return 1;
     }
 
-    await _registerDowelProvider(ctx, name: name);
+    if (isDryRun(ctx)) {
+      ctx.output.info(
+        'Dry run: would register "$name" in .dowel/plugins.json and '
+        'regenerate lib/app/_plugins.g.dart. Nothing was written.',
+      );
+      return 0;
+    }
+
+    // 5. A failed registration is the only thing this route does, so it must
+    //    not report success. The manifest route keeps it best-effort because
+    //    its install already committed.
+    final registered = await _registerDowelProvider(ctx, name: name);
+    if (!registered) return 1;
     ctx.output.success(
       'Registered "$name" via the dowel scaffold (no install.yaml needed).',
     );
+
+    // 6. A bootstrap command can only come from --bootstrap-command here,
+    //    since there is no manifest to declare one.
+    await _runBootstrapCommand(ctx);
     return 0;
   }
 
@@ -229,7 +245,7 @@ class PluginInstallCommand extends DowelInstallCommand {
   /// [ManifestInstaller]. On a non-dry-run [Success], also registers the
   /// plugin's [DowelServiceProvider] in `.dowel/plugins.json` and
   /// regenerates `lib/app/_plugins.g.dart` so commands appear in
-  /// `dart run magic:dowel list` without a separate `plugins:refresh` step.
+  /// `dart run dowel list` without a separate `plugins:refresh` step.
   Future<int> _runManifestFlow(
     DowelContext ctx, {
     required String manifestPath,
@@ -256,7 +272,7 @@ class PluginInstallCommand extends DowelInstallCommand {
     final exit = _renderResultAndExit(ctx, result);
     if (result is Success && !isDryRun(ctx)) {
       await _registerDowelProvider(ctx, name: manifest.pluginName);
-      await _runBootstrapCommand(ctx, manifest: manifest);
+      await _runBootstrapCommand(ctx, declared: manifest.bootstrapCommand);
     }
     return exit;
   }
@@ -277,11 +293,11 @@ class PluginInstallCommand extends DowelInstallCommand {
   /// resolvable (neither `bin/dowel` nor `bin/dispatcher.dart` exists).
   Future<void> _runBootstrapCommand(
     DowelContext ctx, {
-    required InstallManifest manifest,
+    String? declared,
   }) async {
     // 1. The --bootstrap-command override wins over the manifest declaration.
     final override = ctx.input.option('bootstrap-command') as String?;
-    final bootstrap = override ?? manifest.bootstrapCommand;
+    final bootstrap = override ?? declared;
 
     // 2. Nothing to do when no command is declared or the operator opted out.
     if (bootstrap == null) return;
@@ -342,7 +358,10 @@ class PluginInstallCommand extends DowelInstallCommand {
   /// `<PascalCaseName>DowelProvider` is the class name. Plugins that follow
   /// a different convention are out of scope here; they can run
   /// `plugins:refresh` manually after editing `.dowel/plugins.json` by hand.
-  Future<void> _registerDowelProvider(
+  ///
+  /// @return `true` when the entry was recorded and the barrel regenerated;
+  ///         `false` after a warning when either step failed.
+  Future<bool> _registerDowelProvider(
     DowelContext ctx, {
     required String name,
   }) async {
@@ -357,12 +376,15 @@ class PluginInstallCommand extends DowelInstallCommand {
 
     try {
       await PluginsRegistryFile(const RealFs(), root).addPlugin(entry);
-      await PluginsRefreshCommand(projectRoot: root).handle(ctx);
+      final refreshed =
+          await PluginsRefreshCommand(projectRoot: root).handle(ctx);
+      return refreshed == 0;
     } catch (e) {
       ctx.output.warning(
         'Plugin "$name" was installed but dowel command auto-registration '
-        'failed: $e. Run `dart run magic:dowel plugins:refresh` manually.',
+        'failed: $e. Run `dart run dowel plugins:refresh` manually.',
       );
+      return false;
     }
   }
 
