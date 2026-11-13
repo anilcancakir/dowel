@@ -247,8 +247,9 @@ class PluginUninstallCommand extends DowelInstallCommand {
     } catch (e) {
       ctx.output.warning(
         'Plugin "$name" was uninstalled but its registry entry could not be '
-        'removed: $e. Run `dart run dowel plugins:refresh` after fixing '
-        '.dowel/plugins.json.',
+        'removed: $e. Remove the "$name" entry from .dowel/plugins.json by '
+        'hand, then run `dart run dowel plugins:refresh`; refreshing first '
+        'would generate the plugin again.',
       );
     }
   }

@@ -260,6 +260,55 @@ void main() {
     });
 
     test(
+        'uninstall asks the operator to drop the registry entry by hand when '
+        'the registry cannot be written', () async {
+      final root = Directory.systemTemp.createTempSync('plun_registry_ro_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedInstalledProject(root, pluginName: 'demo_plugin');
+      final manifestPath = p.join(root.path, 'demo_install.yaml');
+      _writeInstallYaml(manifestPath, 'demo_plugin');
+
+      Directory(p.join(root.path, 'lib', 'app')).createSync(recursive: true);
+      File(p.join(root.path, '.dowel', 'plugins.json')).writeAsStringSync(
+        jsonEncode(<String, dynamic>{
+          'version': 1,
+          'plugins': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'name': 'demo_plugin',
+              'providerImport': 'package:demo_plugin/cli.dart',
+              'providerClass': 'DemoPluginDowelProvider',
+              'registeredAt': '2025-01-01T00:00:00.000Z',
+            },
+          ],
+        }),
+      );
+
+      // A read-only .dowel/ lets the registry's temp file fail to appear,
+      // while the install record under .dowel/installed/ stays removable.
+      final dowelDir = p.join(root.path, '.dowel');
+      Process.runSync('chmod', <String>['555', dowelDir]);
+      addTearDown(() => Process.runSync('chmod', <String>['755', dowelDir]));
+
+      final cmd = _TestablePluginUninstallCommand(
+        fakeProjectRoot: root.path,
+        fakeInstallYamlPath: manifestPath,
+      );
+      final ctx = _ctxWith(
+        _baseOpts(overrides: const {'force': true}),
+        positional: const ['demo_plugin'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 0);
+      expect(
+        (ctx.output as BufferedOutput).content,
+        contains('Remove the "demo_plugin" entry from .dowel/plugins.json'),
+      );
+    }, skip: Platform.isWindows ? 'chmod semantics' : false);
+
+    test(
         'uninstall purges .dowel/cli-bundle and .dowel/build.stamp '
         'after successful removal', () async {
       // Issue #9 GAP A: after `plugin:uninstall` reverses the install, the AOT
