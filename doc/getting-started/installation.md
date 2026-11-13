@@ -33,7 +33,7 @@ Alternatively, add it manually to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dowel: ^0.0.20
+  dowel: ^0.0.21
 ```
 
 Then fetch dependencies:
@@ -72,7 +72,7 @@ dart run dowel install --force
 The injection is automatic and follows two modes:
 
 - **Monorepo / path-dep workflow**: when your project already resolves `dowel` via a local path (detected from `.dart_tool/package_config.json`), the scaffold injects a `path:` reference pointing to the same checkout. This avoids a pub.dev fetch against a version that may not yet be published.
-- **pub.dev workflow**: when no local resolution is found, the scaffold injects the `any` constraint and lets pub resolve the version transitively. Replace `any` with a pinned range (e.g. `^0.0.20`) before committing.
+- **pub.dev workflow**: when no local resolution is found, the scaffold injects the `any` constraint and lets pub resolve the version transitively. Replace `any` with a pinned range (e.g. `^0.0.21`) before committing.
 
 <a name="verify-installation"></a>
 ## Verify Installation

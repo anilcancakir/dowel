@@ -99,6 +99,8 @@ migrate_working_dir/
 .mcp.json
 CLAUDE.md
 CLAUDE.local.md
+.sync-agents-cache.json
+pubspec_overrides.yaml
 
 # ---------------------------------------------------------------------------
 # Repository tooling and the agent skill: installed with

@@ -27,7 +27,7 @@ Equivalent manual edit, then `dart pub get`:
 
 ```yaml
 dependencies:
-  dowel: ^0.0.20
+  dowel: ^0.0.21
 ```
 
 `install` itself re-injects the dep at scaffold time (path-dep when `.dart_tool/package_config.json` resolves `dowel` to a relative `rootUri`, otherwise `dowel: any`), so the pub-add step is idempotent with the scaffold's own pubspec writes.
@@ -128,7 +128,7 @@ dependencies:
   dowel: any
 ```
 
-Run `dart pub get` (or `flutter pub get`) after `install` completes to resolve to a concrete version. Tighten the constraint by hand (e.g. `^0.0.20`) once the consumer has chosen a baseline.
+Run `dart pub get` (or `flutter pub get`) after `install` completes to resolve to a concrete version. Tighten the constraint by hand (e.g. `^0.0.21`) once the consumer has chosen a baseline.
 
 The injection is idempotent: if `pubspec.yaml` already contains a `dowel:` key under `dependencies:`, neither form is written again (regardless of `--force`).
 
@@ -177,7 +177,7 @@ Output:
   write   bin/dispatcher.dart
   write   lib/app/_plugins.g.dart
   write   lib/app/commands/_index.g.dart
-  inject  pubspec.yaml (dowel: ^0.0.20)
+  inject  pubspec.yaml (dowel: any)
   write   bin/dowel (Building dowel CLI, one-time ~8s...)
 Done. Run './bin/dowel status' to verify.
 ```

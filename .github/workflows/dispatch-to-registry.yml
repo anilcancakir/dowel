@@ -7,7 +7,7 @@
 # GITHUB_TOKEN, and GitHub starts no workflow run from an event raised by that
 # token, so such a trigger never fires. The registry's sync.yml receives the
 # repository_dispatch, pulls the skills/dowel/ subtree, bumps the version
-# triplet, and pushes to main.
+# triplet, and pushes to master.
 #
 # Deliberately NOT on every push. A skill edit that lands on master between
 # releases waits for the release that carries it, so the registry version

@@ -217,7 +217,7 @@ match the package's `providerName` (or a recognisable abbreviation thereof).
 
    ```yaml
    dependencies:
-     dowel: ^0.0.20
+     dowel: ^0.0.21
    ```
 
 3. Validate the archive before tagging:
