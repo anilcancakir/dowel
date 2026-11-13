@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack
 
-Pure Dart 3.4+ CLI framework. NO Flutter runtime dependency: the package is consumed by Flutter apps via `dart run fluttersdk_artisan <cmd>` but the framework itself runs on the Dart VM. Vendor deps locked: `args ^2.7`, `vm_service ^15.2` (DDS-aware), `dart_mcp ^0.5.1` (labs.dart.dev official MCP SDK), `stream_channel ^2.1`, `xml`, `yaml`, `yaml_edit ^2.2.3` (in-place YAML mutation), `crypto`, `meta`, `path`. Published on pub.dev as `fluttersdk_artisan ^0.0.10`; never reference `path:` local-dev syntax in user-facing artifacts.
+Pure Dart 3.4+ CLI framework. NO Flutter runtime dependency: the package is consumed by Flutter apps via `dart run dowel <cmd>` but the framework itself runs on the Dart VM. Vendor deps locked: `args ^2.7`, `vm_service ^15.2` (DDS-aware), `dart_mcp ^0.5.1` (labs.dart.dev official MCP SDK), `stream_channel ^2.1`, `xml`, `yaml`, `yaml_edit ^2.2.3` (in-place YAML mutation), `crypto`, `meta`, `path`. Published on pub.dev as `dowel ^0.0.10`; never reference `path:` local-dev syntax in user-facing artifacts.
 
 ## Commands
 
@@ -16,16 +16,16 @@ Pure Dart 3.4+ CLI framework. NO Flutter runtime dependency: the package is cons
 | `dart test --coverage=coverage && dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --packages=.dart_tool/package_config.json --report-on=lib` | Generate `coverage/lcov.info` for the 80% gate (Golden Rule 3). Both trailing flags are load-bearing and match `.github/workflows/ci.yml`: without `--report-on=lib` the report carries 736 files (551 of them dependencies, 100 of them tests) and reads 48% against a real 86%, which looks exactly like a change that broke the floor. |
 | `dart format lib/ test/ bin/` | Format. Must produce no diff. |
 | `dart analyze` | Static analysis. Zero issues required across `lib/ test/ bin/`. |
-| `dart run fluttersdk_artisan <cmd>` | Run a builtin command standalone (no consumer wrapper needed). |
-| `dart run fluttersdk_artisan:mcp` | Stdio JSON-RPC MCP server entry. Reads `~/.artisan/state.json` for VM Service URI; soft-fails when no Flutter app is running. |
+| `dart run dowel <cmd>` | Run a builtin command standalone (no consumer wrapper needed). |
+| `dart run dowel:mcp` | Stdio JSON-RPC MCP server entry. Reads `~/.dowel/state.json` for VM Service URI; soft-fails when no Flutter app is running. |
 | `dart pub publish --dry-run` | Validate publish archive. Target under 500 KB compressed. |
 
 ## Golden Rules (apply on every change)
 
-1. **Doc sync (`doc/`)**. If a code change touches behavior described in `doc/**/*.md`, update the relevant doc page in the same change. New feature without an existing page: add one matching the `doc/{getting-started,commands,mcp,plugins,reference}/<name>.md` structure. URL routing is `https://fluttersdk.com/artisan/X/Y` per file path.
-2. **Skill sync (`skills/`)**. Same rule for `skills/fluttersdk-artisan/SKILL.md` and `skills/fluttersdk-artisan/references/*.md`. When a change shifts behavior the LLM-agent skill describes (commands surface, install.yaml schema, installer DSL, MCP tools, plugin authoring), edit the matching reference file and update the SKILL.md surface when the change affects the cached overview.
+1. **Doc sync (`doc/`)**. If a code change touches behavior described in `doc/**/*.md`, update the relevant doc page in the same change. New feature without an existing page: add one matching the `doc/{getting-started,commands,mcp,plugins,reference}/<name>.md` structure. URL routing is `https://anilcancakir.com/dowel/docs/X/Y` per file path.
+2. **Skill sync (`skills/`)**. Same rule for `skills/dowel/SKILL.md` and `skills/dowel/references/*.md`. When a change shifts behavior the LLM-agent skill describes (commands surface, install.yaml schema, installer DSL, MCP tools, plugin authoring), edit the matching reference file and update the SKILL.md surface when the change affects the cached overview.
 3. **Test coverage stays at or above 80%**. Current line coverage is 84.93% (`coverage/lcov.info`). Run the coverage command above after behavioral changes; verify via `awk -F: '/^LF:/{lf+=$2} /^LH:/{lh+=$2} END{printf "%.2f%%\n", (lh/lf)*100}' coverage/lcov.info`. Drops below 80% block the change.
-4. **README sync**. When a change is significant enough for the package landing page (new command group, new MCP tool surface, new install flow, breaking change), update `README.md` and `llms.txt`. Use descriptive link labels pointing at `https://fluttersdk.com/artisan/...` paths.
+4. **README sync**. When a change is significant enough for the package landing page (new command group, new MCP tool surface, new install flow, breaking change), update `README.md` and `llms.txt`. Use descriptive link labels pointing at `https://anilcancakir.com/dowel/docs/...` paths.
 5. **CHANGELOG always under `[Unreleased]`**. Every behavioral or interface change lands an entry under `## [Unreleased]` in `CHANGELOG.md`. Categories: `Added` / `Changed` / `Fixed` / `Removed`. Promote to a dated section on `dart pub publish`.
 6. **Green gate plus TDD**. `dart format lib/ test/ bin/` produces zero diff, `dart analyze` returns zero issues, `dart test` returns all green. TDD red-green-refactor for behavioral changes: write the failing test first, then the implementation that turns it green. Reverting the implementation must turn the test red again.
 7. **GitHub Flow**. One long-lived branch: `master` (the canonical line every release is cut from). Cut every task branch from `master`, push the work, open a PR back into `master`. Releases ship by bumping `pubspec.yaml`, promoting `## [Unreleased]` in `CHANGELOG.md`, merging the bump PR, then tagging the commit on `master`; the tag is what publishes to pub.dev. No `develop` accumulator. See the Branching section below for the full flow.
@@ -39,17 +39,17 @@ Pure Dart 3.4+ CLI framework. NO Flutter runtime dependency: the package is cons
 
 ## Architecture
 
-Single barrel: `package:fluttersdk_artisan/artisan.dart` re-exports the full public API. `lib/fluttersdk_artisan.dart` is a convention sibling that re-exports the same. Two binaries under `bin/`: `fluttersdk_artisan.dart` (CLI) and `mcp.dart` (MCP server entry; prepends `mcp:serve`, forces `collectMcpTools: true`, forces `delegateToConsumer: false` so the substrate's complete builtin list owns dispatch). Subsystem-first layout under `lib/src/`:
+Single barrel: `package:dowel/dowel.dart` re-exports the full public API. `lib/dowel.dart` is a convention sibling that re-exports the same. Two binaries under `bin/`: `dowel.dart` (CLI) and `mcp.dart` (MCP server entry; prepends `mcp:serve`, forces `collectMcpTools: true`, forces `delegateToConsumer: false` so the substrate's complete builtin list owns dispatch). Subsystem-first layout under `lib/src/`:
 
 | Path | Purpose |
 |---|---|
-| `console/` | `ArtisanApplication` + `ArtisanRegistry` + `CommandSignature` (signature DSL) + `ArtisanContext` / `Input` / `Output`. `runArtisan(args, collectMcpTools:, delegateToConsumer:)` is the shared entry. |
-| `commands/` | 21 builtin commands. Naming: `<Verb>Command extends ArtisanCommand`. Six declare `String get signature`; five declare `configure(ArgParser)` with flags; ten have no flag surface. |
+| `console/` | `DowelApplication` + `DowelRegistry` + `CommandSignature` (signature DSL) + `DowelContext` / `Input` / `Output`. `runDowel(args, collectMcpTools:, delegateToConsumer:)` is the shared entry. |
+| `commands/` | 21 builtin commands. Naming: `<Verb>Command extends DowelCommand`. Six declare `String get signature`; five declare `configure(ArgParser)` with flags; ten have no flag surface. |
 | `installer/` | `PluginInstaller` fluent DSL + `ManifestInstaller` + `InstallTransaction` + `PluginsRegistryFile` + sealed `InstallOperation` hierarchy (28 variants). See `.claude/rules/installer.md`. |
-| `mcp/` | `McpServer extends MCPServer with ToolsSupport` (dart_mcp) + `McpToolDescriptor` + `McpFilterConfig` (3-layer Cargo-style: file + env + CLI). Substrate commands surface as `artisan_*` MCP tools via the 10-entry allowlist at `lib/src/mcp/mcp_server.dart:744-755`: `start` / `stop` / `status` / `logs` / `restart` / `reload` / `hot-restart` / `doctor` / `list` / `tinker`. |
+| `mcp/` | `McpServer extends MCPServer with ToolsSupport` (dart_mcp) + `McpToolDescriptor` + `McpFilterConfig` (3-layer Cargo-style: file + env + CLI). Substrate commands surface as `dowel_*` MCP tools via the 10-entry allowlist at `lib/src/mcp/mcp_server.dart:744-755`: `start` / `stop` / `status` / `logs` / `restart` / `reload` / `hot-restart` / `doctor` / `list` / `tinker`. |
 | `helpers/` | `FileHelper`, `ConfigEditor` (idempotent injects), `MainDartEditor`, `EnvEditor`, `PlistWriter`, `GradleEditor`, `PodfileEditor`, `HtmlEditor`, `JsonEditor`, `XmlEditor`, `RouteRegistryEditor`. |
 | `stubs/` | `StubLoader` (4-tier resolution: env, package_config, pubspec walk, fallback). Stub assets under `assets/stubs/`. |
-| `state/` | `StateFile`: one session directory PER PROJECT at `~/.artisan/sessions/<sha256(projectRoot)[0:12]>/` holding `state.json`, the log and the FIFO. `~/.artisan/state.json` remains a pointer to whichever session started last (read fallback, and the target of the hand-written recovery recipe). `--state=<path>` / `ARTISAN_STATE_FILE` override. `sessionOwnershipError` is what stops a command acting on another project's app. |
+| `state/` | `StateFile`: one session directory PER PROJECT at `~/.dowel/sessions/<sha256(projectRoot)[0:12]>/` holding `state.json`, the log and the FIFO. `~/.dowel/state.json` remains a pointer to whichever session started last (read fallback, and the target of the hand-written recovery recipe). `--state=<path>` / `DOWEL_STATE_FILE` override. `sessionOwnershipError` is what stops a command acting on another project's app. |
 | `tinker/`, `vm/` | REPL + `VmServiceClient` (wraps `package:vm_service`, no isolate-id cache to handle device-target switches). |
 
 User-facing assets:
@@ -58,15 +58,15 @@ User-facing assets:
 |---|---|
 | `README.md` | pub.dev + GitHub landing page. Wind-paralel structure (~383 lines). |
 | `llms.txt` | LLM-agent index per llmstxt.org spec (under 2 KB; links use `.md` extensions for direct Markdown fetch). |
-| `doc/` | 17-file URL-routable documentation tree (`getting-started/`, `commands/`, `mcp/`, `plugins/`, `reference/`). Maps to `https://fluttersdk.com/artisan/X/Y` per the path. |
-| `skills/fluttersdk-artisan/` | LLM-agent skill (`SKILL.md` + 5 references) mirroring the magic-framework skill pattern. |
+| `doc/` | 17-file URL-routable documentation tree (`getting-started/`, `commands/`, `mcp/`, `plugins/`, `reference/`). Maps to `https://anilcancakir.com/dowel/docs/X/Y` per the path. |
+| `skills/dowel/` | LLM-agent skill (`SKILL.md` + 5 references) mirroring the magic-framework skill pattern. |
 | `CHANGELOG.md` | Release notes; new entries land under `## [Unreleased]`. |
 
 ## Conventions
 
-- **Signature DSL primary**: command declaration via `String get signature => 'cmd:name {arg} {--flag}'`. `configure(ArgParser)` is the explicit fallback for cases the DSL cannot express. The grammar is artisan's own; reference docs describe it as the "signature DSL" without comparison-language.
+- **Signature DSL primary**: command declaration via `String get signature => 'cmd:name {arg} {--flag}'`. `configure(ArgParser)` is the explicit fallback for cases the DSL cannot express. The grammar is dowel's own; reference docs describe it as the "signature DSL" without comparison-language.
 - **`final class` universal** on every new public type (`McpServer`, `McpToolDescriptor`, `McpFilterConfig`, etc.). Sealed dispatch via Dart 3 exhaustiveness; no `default:` branch on sealed switches.
-- **Plugin MCP contract**: `ArtisanServiceProvider.mcpTools() => const <McpToolDescriptor>[]` default-empty. Plugins override to expose tools; the MCP server collects them when `runArtisan(collectMcpTools: true)`.
+- **Plugin MCP contract**: `DowelServiceProvider.mcpTools() => const <McpToolDescriptor>[]` default-empty. Plugins override to expose tools; the MCP server collects them when `runDowel(collectMcpTools: true)`.
 - **MCP tool descriptions** follow Claude Code canonical format: imperative opening sentence, brief context paragraph, `Usage:` bullet list, constraint-forward language. Per-property `inputSchema` descriptions include defaults plus concrete examples. Critical info first (CC truncates MCP descriptions at 2 KB chars).
 - **Idempotent installers**: `ConfigEditor.insertCodeAfterPattern` early-returns when `content.contains(code.trim())`; `PluginInstaller` injects via lookahead-anchored regex (`(?=\s*\n\s*\])`) so re-running `plugin:install` is a safe no-op.
 - **Atomic writes**: every persistent file write goes through `.tmp` + rename (`PluginsRegistryFile`, `InstallTransaction`, `PluginsRefreshCommand`, `StateFile`). Concurrent readers never see partial state.
@@ -78,20 +78,20 @@ User-facing assets:
 ## Off-limits
 
 - `example/` is a dev playground for live e2e validation. Production code does not depend on it. Pub.dev archive ships only `lib/`, `bin/`, `pubspec.yaml`, `README.md`, `CHANGELOG.md`, `LICENSE`, `assets/`, `doc/`, `llms.txt`, `skills/`, `analysis_options.yaml`; the rest is excluded via `.pubignore`.
-- `*.g.dart` files (`_index.g.dart`, `_plugins.g.dart`) are codegen output. Edit the source of truth (`.artisan/plugins.json` for plugins; `lib/app/commands/<name>_command.dart` for commands) and re-run the matching refresh command.
-- `magic_tinker` sibling package's `tinker_eval` MCP descriptor is OBSOLETE since artisan absorbed `artisan_tinker` as the 10th substrate tool. Any new code path or doc page must point at `artisan_tinker`, not `tinker_eval`.
-- `path:` deps in docs and the pub.dev archive are forbidden: README, install.yaml templates, doc pages, and `llms.txt` always use the current caret form (`^0.0.10`) (or `dart pub add` form). The `install` command itself picks the right dep shape at scaffold time: a `path:` entry when `.dart_tool/package_config.json` resolves `fluttersdk_artisan` to a relative `rootUri` (sibling-package monorepo workflow), otherwise `fluttersdk_artisan: any` so the next `pub get` pulls the published package. Never hand-write `path:` syntax in documentation, even when the codebase is monorepo-vendored.
-- `~/.artisan/` is machine-local state. Never commit; `.gitignore` already excludes it.
+- `*.g.dart` files (`_index.g.dart`, `_plugins.g.dart`) are codegen output. Edit the source of truth (`.dowel/plugins.json` for plugins; `lib/app/commands/<name>_command.dart` for commands) and re-run the matching refresh command.
+- `magic_tinker` sibling package's `tinker_eval` MCP descriptor is OBSOLETE since dowel absorbed `dowel_tinker` as the 10th substrate tool. Any new code path or doc page must point at `dowel_tinker`, not `tinker_eval`.
+- `path:` deps in docs and the pub.dev archive are forbidden: README, install.yaml templates, doc pages, and `llms.txt` always use the current caret form (`^0.0.10`) (or `dart pub add` form). The `install` command itself picks the right dep shape at scaffold time: a `path:` entry when `.dart_tool/package_config.json` resolves `dowel` to a relative `rootUri` (sibling-package monorepo workflow), otherwise `dowel: any` so the next `pub get` pulls the published package. Never hand-write `path:` syntax in documentation, even when the codebase is monorepo-vendored.
+- `~/.dowel/` is machine-local state. Never commit; `.gitignore` already excludes it.
 - Platform: V1 lifecycle commands (`start` / `stop` / `reload` / `hot-restart`) use POSIX FIFO stdin via `mkfifo`. macOS and Linux only; Windows unsupported.
 
 ## Release
 
-- Version: `0.0.20`. Bump per SemVer in `pubspec.yaml` and promote the `[Unreleased]` block of `CHANGELOG.md` to a dated section (with its footer compare link) before publishing.
-- SIX files carry the version, all hand-edited: `pubspec.yaml`, `lib/src/mcp/mcp_server.dart` (the MCP handshake string), `example/pubspec.yaml`, `example/packages/awesome_plugin/pubspec.yaml`, `server.json` (the MCP registry manifest), and the stamp comment in `skills/fluttersdk-artisan/SKILL.md`. Grep the old number before opening the release PR; every cut so far has missed one.
+- Version: `0.0.21`. Bump per SemVer in `pubspec.yaml` and promote the `[Unreleased]` block of `CHANGELOG.md` to a dated section (with its footer compare link) before publishing.
+- SIX files carry the version, all hand-edited: `pubspec.yaml`, `lib/src/mcp/mcp_server.dart` (the MCP handshake string), `example/pubspec.yaml`, `example/packages/awesome_plugin/pubspec.yaml`, `server.json` (the MCP registry manifest), and the stamp comment in `skills/dowel/SKILL.md`. Grep the old number before opening the release PR; every cut so far has missed one.
 - Four of the six are guarded. The MCP string shipped a release behind on the 0.0.9 cut, and `test/mcp/mcp_server_version_test.dart` now fails the build when it drifts from the pubspec. The two `example/**/pubspec.yaml` pins are enforced by `flutter pub get` itself: they both carry a `path:` dep on this package plus an explicit `version:`, so bumping one and not the other fails resolution with `version solving failed` in the CI install step. `server.json` is covered by `test/server_json_version_test.dart`, and it is the site where drift is least forgiving: the MCP registry refuses to rewrite a version it has already published, so a stale number fails the cut outright instead of shipping quietly. The `SKILL.md` stamp is the only one nothing checks.
 - Docs that quote the caret constraint (`doc/getting-started/installation.md`, `doc/commands/install.md`, `doc/plugins/authoring.md`) track the released version; a stale `^0.0.1` there tells a reader the package never moved.
 - Pub.dev topics (max 5, declared in `pubspec.yaml`): `cli`, `mcp-server`, `scaffolding`, `plugin-system`, `code-generation`.
-- Homepage and documentation URL: `https://fluttersdk.com/artisan`. Repository: `https://github.com/fluttersdk/artisan`.
+- Homepage and documentation URL: `https://anilcancakir.com/dowel`. Repository: `https://github.com/anilcancakir/dowel`.
 - `dart pub publish --dry-run` must end clean (0 errors). Dev-state warnings (uncommitted, gitignored-but-tracked) are acceptable in dev and cleared before publish via clean git checkout.
 - CI (`.github/workflows/ci.yml`) runs format, analyze, test with coverage, the 80% floor and `dart pub publish --dry-run` on every PR into `master`. `codecov.yml` pins Codecov to the same 80% floor so its verdict cannot drift from the build's. Tagging still publishes manually; run the same four locally before cutting a tag.
 

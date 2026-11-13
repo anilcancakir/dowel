@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Minimal no-op [PromptDriver] for conflict-detector tests.
@@ -57,7 +57,7 @@ void _writeRecord(
   String pluginName,
   Map<String, String> hashes,
 ) {
-  final recordPath = '/proj/.artisan/installed/$pluginName.json';
+  final recordPath = '/proj/.dowel/installed/$pluginName.json';
   final record = <String, dynamic>{
     'plugin': pluginName,
     'installedAt': '2025-01-01T00:00:00.000Z',

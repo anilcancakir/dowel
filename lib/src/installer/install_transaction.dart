@@ -48,19 +48,19 @@ import 'install_operation.dart';
 /// final result = await tx.commit();
 /// switch (result) {
 ///   case Success(:final opCount, :final recordPath):
-///     ctx.artisanContext.output.success('Installed $opCount ops; record: $recordPath');
+///     ctx.dowelContext.output.success('Installed $opCount ops; record: $recordPath');
 ///   case DryRun(:final opCount):
-///     ctx.artisanContext.output.info('Previewed $opCount ops; nothing written');
+///     ctx.dowelContext.output.info('Previewed $opCount ops; nothing written');
 ///   case Conflict(:final conflicts):
-///     ctx.artisanContext.output.warning('${conflicts.length} conflicts; pass --force to override');
+///     ctx.dowelContext.output.warning('${conflicts.length} conflicts; pass --force to override');
 ///   case Error(:final error, :final rolledBack):
-///     ctx.artisanContext.output.error('Failed: $error (rolled back: $rolledBack)');
+///     ctx.dowelContext.output.error('Failed: $error (rolled back: $rolledBack)');
 /// }
 /// ```
 class InstallTransaction {
   /// Creates a transaction bound to [ctx] for the plugin identified by
   /// [pluginName]. The plugin name threads into the
-  /// `.artisan/installed/<pluginName>.json` record path written on success.
+  /// `.dowel/installed/<pluginName>.json` record path written on success.
   ///
   /// @param ctx         The active [InstallContext] (fs / clock / output).
   /// @param pluginName  Identifier used for the install record filename.
@@ -245,7 +245,7 @@ class InstallTransaction {
     //    of install-state durability.
     final recordPath = p.join(
       _ctx.projectRoot,
-      '.artisan',
+      '.dowel',
       'installed',
       '$_pluginName.json',
     );
@@ -748,7 +748,7 @@ class InstallTransaction {
     for (final value in configured) {
       final relative = value.replaceFirst(_projectDirectoryVariable, '');
       if (_buildVariable.hasMatch(relative)) {
-        _ctx.artisanContext.output.warning(
+        _ctx.dowelContext.output.warning(
           'Skipped the entitlements file $value in $platform/Runner.xcodeproj: '
           'it names a build variable the installer cannot resolve. Add the '
           'keys to that file by hand.',
@@ -806,7 +806,7 @@ class InstallTransaction {
   void _pointXcodeAtEntitlements(String platform) {
     final pbxprojPath = _pbxprojPathFor(platform);
     if (!File(pbxprojPath).existsSync()) {
-      _ctx.artisanContext.output.info(
+      _ctx.dowelContext.output.info(
         'Skipping the $_entitlementsSetting build setting: no '
         '$platform/Runner.xcodeproj at ${_ctx.projectRoot}.',
       );
@@ -825,7 +825,7 @@ class InstallTransaction {
       // could not be resolved unambiguously. Same operator remedy as the two
       // skips above, so it reads as the same kind of line rather than as an
       // aborted install.
-      _ctx.artisanContext.output.warning(
+      _ctx.dowelContext.output.warning(
         'Left $_entitlementsSetting alone in $platform/Runner.xcodeproj: '
         '${e.message} The value it wants is $_entitlementsSettingValue on the '
         'application target; until the setting carries that, '
@@ -834,7 +834,7 @@ class InstallTransaction {
       return;
     }
     if (blocked.isNotEmpty) {
-      _ctx.artisanContext.output.warning(
+      _ctx.dowelContext.output.warning(
         'Left $_entitlementsSetting alone in $platform/Runner.xcodeproj: it '
         'already signs with ${blocked.join(', ')}. Copy the keys from '
         '$platform/Runner/Runner.entitlements into that file, or repoint '
@@ -857,7 +857,7 @@ class InstallTransaction {
       taskAffinity: op.taskAffinity,
       intentFilters: op.intentFilters,
     );
-    _ctx.artisanContext.output.warning(
+    _ctx.dowelContext.output.warning(
       'Left <activity android:name="${op.name}"> alone in '
       '${p.relative(manifestPath, from: _ctx.projectRoot)}: it already declares '
       'different intent filters. Make it match this block, or remove it and '
@@ -873,7 +873,7 @@ class InstallTransaction {
   /// Emits an info-level skip line to the command output when an op targeted
   /// a platform directory that does not exist on the consumer project.
   void _logSkip(String opName, String platform) {
-    _ctx.artisanContext.output.info(
+    _ctx.dowelContext.output.info(
       'Skipping $opName: no $platform/ directory at ${_ctx.projectRoot}.',
     );
   }
@@ -1000,17 +1000,17 @@ class InstallTransaction {
 
   /// Delegates dry-run rendering to [DryRunRenderer].
   ///
-  /// Emits the structured preview to [InstallContext.artisanContext]'s output
+  /// Emits the structured preview to [InstallContext.dowelContext]'s output
   /// without touching the filesystem.
   void _renderDryRun() {
     DryRunRenderer.render(
-      _ctx.artisanContext.output,
+      _ctx.dowelContext.output,
       _ops,
       pluginName: _pluginName,
     );
   }
 
-  /// Builds the `.artisan/installed/<plugin>.json` record payload.
+  /// Builds the `.dowel/installed/<plugin>.json` record payload.
   ///
   /// `stubHashes` covers two write surfaces:
   ///
@@ -1255,7 +1255,7 @@ final class Success extends TransactionResult {
   /// Number of operations applied.
   final int opCount;
 
-  /// Absolute path of the persisted `.artisan/installed/<plugin>.json` record.
+  /// Absolute path of the persisted `.dowel/installed/<plugin>.json` record.
   final String recordPath;
 
   /// Creates a [Success] result.

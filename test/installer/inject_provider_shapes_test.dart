@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -98,7 +98,7 @@ const Map<String, dynamic> appConfig = <String, dynamic>{
   late Directory tempDir;
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('artisan_inject_shapes_');
+    tempDir = Directory.systemTemp.createTempSync('dowel_inject_shapes_');
   });
 
   tearDown(() {

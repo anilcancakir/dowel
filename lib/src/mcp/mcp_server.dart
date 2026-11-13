@@ -8,11 +8,11 @@ import 'package:stream_channel/stream_channel.dart';
 import 'package:vm_service/vm_service.dart'
     show ErrorRef, InstanceRef, RPCError, SentinelException;
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
-import '../console/artisan_input.dart';
-import '../console/artisan_output.dart';
-import '../console/artisan_registry.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
+import '../console/dowel_input.dart';
+import '../console/dowel_output.dart';
+import '../console/dowel_registry.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 import '../vm/vm_service_client.dart';
@@ -31,7 +31,7 @@ typedef VmServiceClientFactory = VmServiceClient Function(String wsUri);
 /// a canned map so initialize is hermetic.
 typedef StateReader = Future<Map<String, dynamic>?> Function();
 
-/// MCP server that exposes [ArtisanRegistry.mcpTools] to a connected MCP
+/// MCP server that exposes [DowelRegistry.mcpTools] to a connected MCP
 /// client (Claude Code, Cursor, etc.) over a [StreamChannel] of newline-
 /// delimited JSON-RPC.
 ///
@@ -69,19 +69,19 @@ final class McpServer extends MCPServer with ToolsSupport {
         super.fromStreamChannel(
           channel,
           implementation: Implementation(
-            name: 'fluttersdk_artisan_mcp',
+            name: 'dowel_mcp',
             // Kept in sync with pubspec.yaml `version:` on each release
             // cut, and test/mcp/mcp_server_version_test.dart fails the
             // build when it is not. The 0.0.9 cut missed it and shipped a
             // handshake one release behind.
-            version: '0.0.20',
+            version: '0.0.21',
           ),
         );
 
   /// Production factory: wires stdin / stdout through [stdioChannel] and
   /// uses the real [VmServiceClient] + [StateFile.read] for discovery.
   factory McpServer.stdio({
-    required ArtisanRegistry registry,
+    required DowelRegistry registry,
     required McpFilterConfig filter,
   }) =>
       McpServer._(
@@ -95,7 +95,7 @@ final class McpServer extends MCPServer with ToolsSupport {
   /// Test factory: caller supplies the channel + every external seam.
   factory McpServer.test({
     required StreamChannel<String> channel,
-    required ArtisanRegistry registry,
+    required DowelRegistry registry,
     required McpFilterConfig filter,
     required VmServiceClientFactory vmClientFactory,
     required StateReader stateReader,
@@ -109,7 +109,7 @@ final class McpServer extends MCPServer with ToolsSupport {
       );
 
   /// Source of the tool catalog and provider attribution.
-  final ArtisanRegistry registry;
+  final DowelRegistry registry;
 
   /// Effective allow/deny axes applied once at initialize time.
   final McpFilterConfig filter;
@@ -138,9 +138,9 @@ final class McpServer extends MCPServer with ToolsSupport {
     final result = await super.initialize(request);
 
     // 2. Discover the running Flutter app via the state file written by
-    //    `artisan start`. State file absence is NOT fatal: the MCP server
+    //    `dowel start`. State file absence is NOT fatal: the MCP server
     //    stays online, registers every tool, and individual tool calls
-    //    soft-fail at dispatch time with an actionable "run artisan start"
+    //    soft-fail at dispatch time with an actionable "run dowel start"
     //    message. This lets MCP clients (Claude Code, Cursor, Windsurf) stay
     //    connected across the natural dev cycle of starting / stopping the
     //    Flutter app without having to reconnect the server every time.
@@ -162,33 +162,33 @@ final class McpServer extends MCPServer with ToolsSupport {
         vmClient.onIsolateRefreshed.listen((fresh) => _isolateId = fresh);
       } catch (e) {
         stderr.writeln(
-          '[fluttersdk_artisan_mcp] VM Service connect failed: $e. '
+          '[dowel_mcp] VM Service connect failed: $e. '
           'Tool calls requiring VM connection will return an error; '
           'restart the Flutter app and the next call will reconnect.',
         );
       }
     } else {
       stderr.writeln(
-        '[fluttersdk_artisan_mcp] no running Flutter app detected '
-        '(~/.artisan/state.json missing or empty). Tools register but VM '
-        'Service calls will fail until you run `artisan start`.',
+        '[dowel_mcp] no running Flutter app detected '
+        '(~/.dowel/state.json missing or empty). Tools register but VM '
+        'Service calls will fail until you run `dowel start`.',
       );
     }
 
     // 3. Apply the filter once; survivors get registered, denied tools never
     //    reach `registerTool` so dart_mcp's native "no tool" error covers
     //    denied call attempts. The plugin-side tools (registry.mcpTools) AND
-    //    the substrate-side tools (artisan command adapter below) flow
+    //    the substrate-side tools (dowel command adapter below) flow
     //    through the same filter so a deny rule like `tools.deny:
-    //    [artisan_start]` works the same as `tools.deny: [dusk_snap]`.
+    //    [dowel_start]` works the same as `tools.deny: [tapir_snap]`.
     final pluginTools = registry.mcpTools;
-    final substrateTools = _artisanCommandTools();
+    final substrateTools = _dowelCommandTools();
     final allTools = <McpToolDescriptor>[...pluginTools, ...substrateTools];
     final filtered = filter.apply(allTools, (tool) {
-      // Substrate tools belong to the synthetic provider 'fluttersdk_artisan';
+      // Substrate tools belong to the synthetic provider 'dowel';
       // plugin tools defer to the registry's provider lookup.
-      if (tool.extensionMethod.startsWith(_artisanDispatchPrefix)) {
-        return 'fluttersdk_artisan';
+      if (tool.extensionMethod.startsWith(_dowelDispatchPrefix)) {
+        return 'dowel';
       }
       return registry.providerNameFor(tool.name) ?? '';
     });
@@ -196,7 +196,7 @@ final class McpServer extends MCPServer with ToolsSupport {
     // 4. Register each surviving tool with its dispatch handler. dart_mcp
     //    auto-validates arguments against the wrapped ObjectSchema. The
     //    handler routes by `extensionMethod` prefix: substrate commands
-    //    (prefix `artisan:`) run in-process via the registry; everything
+    //    (prefix `dowel:`) run in-process via the registry; everything
     //    else dispatches through the VM Service.
     for (final descriptor in filtered) {
       registerTool(
@@ -210,7 +210,7 @@ final class McpServer extends MCPServer with ToolsSupport {
     }
 
     stderr.writeln(
-      '[fluttersdk_artisan_mcp] initialized with ${filtered.length} tools '
+      '[dowel_mcp] initialized with ${filtered.length} tools '
       '(${allTools.length - filtered.length} filtered; '
       '${pluginTools.length} plugin + ${substrateTools.length} substrate)',
     );
@@ -225,20 +225,20 @@ final class McpServer extends MCPServer with ToolsSupport {
     CallToolRequest request,
     String extensionMethod,
   ) async {
-    // Substrate command: extensionMethod looks like `artisan:<cmd>`. Routes
+    // Substrate command: extensionMethod looks like `dowel:<cmd>`. Routes
     // in-process via the registry; no VM Service required. Lets MCP clients
-    // bootstrap the Flutter app (`artisan_start`) before any plugin tool
+    // bootstrap the Flutter app (`dowel_start`) before any plugin tool
     // becomes available.
-    if (extensionMethod.startsWith(_artisanDispatchPrefix)) {
-      return _dispatchArtisanCommand(
+    if (extensionMethod.startsWith(_dowelDispatchPrefix)) {
+      return _dispatchDowelCommand(
         request,
-        extensionMethod.substring(_artisanDispatchPrefix.length),
+        extensionMethod.substring(_dowelDispatchPrefix.length),
       );
     }
 
     // Lazy-reconnect: when initialize ran without a Flutter app present
     // (state.json absent) the VM Service client is null. Retry connect on
-    // every dispatch so users can `artisan start` AFTER the MCP server is
+    // every dispatch so users can `dowel start` AFTER the MCP server is
     // already serving and the very next tool call picks up the new app
     // without a reconnect cycle.
     //
@@ -256,7 +256,7 @@ final class McpServer extends MCPServer with ToolsSupport {
           content: [
             TextContent(
               text: '### Error\nVM Service connect failed: $e\n\n'
-                  'Run `artisan start` to launch the Flutter app, then '
+                  'Run `dowel start` to launch the Flutter app, then '
                   'retry the tool call.',
             ),
           ],
@@ -274,8 +274,8 @@ final class McpServer extends MCPServer with ToolsSupport {
         content: [
           TextContent(
             text: '### Error\nNo Flutter app detected '
-                '(~/.artisan/state.json missing or has no vmServiceUri).\n\n'
-                'Run `artisan start` to launch the Flutter app, then retry '
+                '(~/.dowel/state.json missing or has no vmServiceUri).\n\n'
+                'Run `dowel start` to launch the Flutter app, then retry '
                 'the tool call. The MCP server will lazy-connect on the '
                 'next invocation.',
           ),
@@ -283,10 +283,10 @@ final class McpServer extends MCPServer with ToolsSupport {
       );
     }
 
-    // Special-case: dusk_evaluate routes through vm.evaluate (issue #9
-    // GAP F); the dusk-side ext.dusk.evaluate handler is a no-op sentinel
+    // Special-case: tapir_evaluate routes through vm.evaluate (issue #9
+    // GAP F); the tapir-side ext.tapir.evaluate handler is a no-op sentinel
     // by design. Reuses the just-validated vmClient + isolateId.
-    if (request.name == 'dusk_evaluate') {
+    if (request.name == 'tapir_evaluate') {
       return _dispatchEvaluate(request, vmClient, isolateId);
     }
 
@@ -307,10 +307,10 @@ final class McpServer extends MCPServer with ToolsSupport {
     }
   }
 
-  /// Routes `dusk_evaluate` MCP tool calls through VM Service `evaluate`
-  /// (issue #9 GAP F). The dusk-side `ext.dusk.evaluate` handler returns
+  /// Routes `tapir_evaluate` MCP tool calls through VM Service `evaluate`
+  /// (issue #9 GAP F). The tapir-side `ext.tapir.evaluate` handler returns
   /// a no-op sentinel because the actual evaluation requires the
-  /// `vm.evaluate` RPC, which only artisan's connected MCP server can
+  /// `vm.evaluate` RPC, which only dowel's connected MCP server can
   /// invoke. Surfaces the success path (InstanceRef), the runtime
   /// exception path (ErrorRef returned as value), the compile-error
   /// path (RPCError code 113), and the stale-isolate path
@@ -371,7 +371,7 @@ final class McpServer extends MCPServer with ToolsSupport {
         content: [
           TextContent(
             text: '### Error\nIsolate sentinel encountered '
-                '(kind: ${e.sentinel.kind}).\n\nRun `artisan restart` to '
+                '(kind: ${e.sentinel.kind}).\n\nRun `dowel restart` to '
                 'mint a fresh isolate, then retry the evaluation.',
           ),
         ],
@@ -408,7 +408,7 @@ final class McpServer extends MCPServer with ToolsSupport {
         isError: true,
         content: [
           TextContent(
-            text: '### Error\nUnexpected error during dusk_evaluate: $e',
+            text: '### Error\nUnexpected error during tapir_evaluate: $e',
           ),
         ],
       );
@@ -446,12 +446,12 @@ final class McpServer extends MCPServer with ToolsSupport {
     // _isolateId in lock-step with the wrapper's own retry-driven refresh.
     vmClient.onIsolateRefreshed.listen((fresh) => _isolateId = fresh);
     stderr.writeln(
-      '[fluttersdk_artisan_mcp] lazy-connected to VM Service at $wsUri',
+      '[dowel_mcp] lazy-connected to VM Service at $wsUri',
     );
   }
 
   /// Walks the registry's command list and emits an [McpToolDescriptor] for
-  /// every command in [_safeArtisanCommandNames]. The allowlist excludes
+  /// every command in [_safeDowelCommandNames]. The allowlist excludes
   /// interactive (`tinker`, `help`), codegen (`make:*`, `*:refresh`), MCP
   /// meta (`mcp:*`), installer (`plugin:*`, `install`) commands
   /// that either need a TTY or recurse into the MCP server itself.
@@ -460,15 +460,15 @@ final class McpServer extends MCPServer with ToolsSupport {
   /// tool names must match `[a-zA-Z][a-zA-Z0-9_]*` (no colons). The
   /// substrate's CLI name is recovered from the extensionMethod prefix
   /// during dispatch.
-  List<McpToolDescriptor> _artisanCommandTools() {
+  List<McpToolDescriptor> _dowelCommandTools() {
     final tools = <McpToolDescriptor>[];
     for (final command in registry.all()) {
-      if (!_safeArtisanCommandNames.contains(command.name)) continue;
+      if (!_safeDowelCommandNames.contains(command.name)) continue;
       // MCP tool names are kebab-incompatible in some clients; replace both
       // `:` (namespace) and `-` (kebab) with `_` so every name matches
       // `[a-zA-Z][a-zA-Z0-9_]*` cleanly.
       final toolName =
-          'artisan_${command.name.replaceAll(':', '_').replaceAll('-', '_')}';
+          'dowel_${command.name.replaceAll(':', '_').replaceAll('-', '_')}';
       tools.add(
         McpToolDescriptor(
           name: toolName,
@@ -479,7 +479,7 @@ final class McpServer extends MCPServer with ToolsSupport {
           // constraint-forward language; truncated by CC at 2KB chars).
           description: _mcpDescriptionFor(command),
           inputSchema: _commandInputSchema(command),
-          extensionMethod: '$_artisanDispatchPrefix${command.name}',
+          extensionMethod: '$_dowelDispatchPrefix${command.name}',
         ),
       );
     }
@@ -489,7 +489,7 @@ final class McpServer extends MCPServer with ToolsSupport {
   /// Per-command MCP tool description in canonical Claude Code format.
   /// Falls back to the CLI [command.description] for any future allowlist
   /// addition that lacks an explicit case.
-  String _mcpDescriptionFor(ArtisanCommand command) {
+  String _mcpDescriptionFor(DowelCommand command) {
     switch (command.name) {
       case 'start':
         return 'Boot a Flutter app in detached mode and record its VM '
@@ -497,15 +497,15 @@ final class McpServer extends MCPServer with ToolsSupport {
             '\n'
             'Spawns `flutter run -d <device>` as a background process and '
             'writes the resulting VM Service URI + pid + web port to a '
-            'session file under `~/.artisan/sessions/`, keyed by project. '
-            'Other tools (artisan_status, artisan_logs, dusk_*, telescope_*, '
-            'artisan_tinker) read it to find the running app. Sessions are '
+            'session file under `~/.dowel/sessions/`, keyed by project. '
+            'Other tools (dowel_status, dowel_logs, tapir_*, crumbs_*, '
+            'dowel_tinker) read it to find the running app. Sessions are '
             'PER PROJECT, so two projects can be driven at once and neither '
             'overwrites the other.\n'
             '\n'
             'Usage:\n'
-            '- Call this BEFORE invoking any plugin tool (dusk_snap, '
-            'telescope_tail, artisan_tinker) that needs VM Service access.\n'
+            '- Call this BEFORE invoking any plugin tool (tapir_snap, '
+            'crumbs_tail, dowel_tinker) that needs VM Service access.\n'
             '- Default device is the first available; pass `device: '
             '"chrome"` for web (port 3100), `device: "macos"` for desktop, '
             'or `device: "<serial>"` for a connected mobile.\n'
@@ -514,24 +514,24 @@ final class McpServer extends MCPServer with ToolsSupport {
             '- IF THIS CALL TIMES OUT, the app is probably still starting '
             'rather than broken: a cold iOS or Android build routinely takes '
             'longer than an MCP client allows a single tool call. The '
-            'session is recorded before the wait, so call artisan_status to '
+            'session is recorded before the wait, so call dowel_status to '
             'see it. A `booting: true` there means the app is up and the URI '
             'has not landed yet; the next connected tool call recovers it '
             'from the log. Do NOT re-run start, and do NOT hand-write the '
             'state file.\n'
-            '- To stop call `artisan_stop`. To full-cycle restart call '
-            '`artisan_restart`. For source-change reload call '
-            '`artisan_reload` (state preserved) or `artisan_hot_restart` '
+            '- To stop call `dowel_stop`. To full-cycle restart call '
+            '`dowel_restart`. For source-change reload call '
+            '`dowel_reload` (state preserved) or `dowel_hot_restart` '
             '(state dropped).\n'
             '- Fails with "another app is recorded" when this project\'s '
-            'session already has a running pid; call `artisan_stop` first.';
+            'session already has a running pid; call `dowel_stop` first.';
 
       case 'stop':
         return 'Stop the currently-running Flutter app and clear its state '
             'file.\n'
             '\n'
             'Sends SIGTERM to the process group of the `flutter run` '
-            'recorded in `~/.artisan/state.json` (frontend_server and the '
+            'recorded in `~/.dowel/state.json` (frontend_server and the '
             'other children included), waits up to 5s, SIGKILLs the group '
             'if a member is left and waits up to 5s again, then waits up to '
             '5s for a web session\'s port; Chrome gets the same on a CDP '
@@ -540,10 +540,10 @@ final class McpServer extends MCPServer with ToolsSupport {
             'Safe to call when no app is running (returns success, no-op).\n'
             '\n'
             'Usage:\n'
-            '- Call after development is done OR before `artisan_start` if '
+            '- Call after development is done OR before `dowel_start` if '
             'the previous app process is stale. A start straight after it '
             'does not need a wait of its own.\n'
-            '- No-op when `~/.artisan/state.json` is absent; never errors '
+            '- No-op when `~/.dowel/state.json` is absent; never errors '
             'on missing state.\n'
             '- Fails with "still alive after SIGKILL" and keeps the state '
             'when the app cannot be stopped; call it again.';
@@ -551,14 +551,14 @@ final class McpServer extends MCPServer with ToolsSupport {
       case 'status':
         return 'Return the JSON status of the recorded Flutter app.\n'
             '\n'
-            'Reads `~/.artisan/state.json` and reports pid, vmServiceUri, '
+            'Reads `~/.dowel/state.json` and reports pid, vmServiceUri, '
             'device, webPort, profile, startedAt. Also probes whether the '
             'recorded pid is still alive (process may have crashed without '
             'cleaning state).\n'
             '\n'
             'Usage:\n'
             '- Use to discover the VM Service URI before manually '
-            'connecting other tooling, or to confirm `artisan_start` '
+            'connecting other tooling, or to confirm `dowel_start` '
             'succeeded.\n'
             '- Returns `{"running": false}` when no state file exists.';
 
@@ -566,7 +566,7 @@ final class McpServer extends MCPServer with ToolsSupport {
         return 'Read the captured `flutter run` log output.\n'
             '\n'
             'Reads the stdout/stderr captured by the background Flutter '
-            'process started via `artisan_start`. Returns recent lines OR '
+            'process started via `dowel_start`. Returns recent lines OR '
             'tails the live stream with `follow: true`.\n'
             '\n'
             'Usage:\n'
@@ -578,15 +578,15 @@ final class McpServer extends MCPServer with ToolsSupport {
         return 'Stop and re-start the running Flutter app preserving the '
             'same device.\n'
             '\n'
-            'Convenience wrapper around `artisan_stop` + `artisan_start`. '
-            'Slower than `artisan_reload` (which preserves Dart state) and '
-            '`artisan_hot_restart` (which keeps the process alive but '
+            'Convenience wrapper around `dowel_stop` + `dowel_start`. '
+            'Slower than `dowel_reload` (which preserves Dart state) and '
+            '`dowel_hot_restart` (which keeps the process alive but '
             'drops state). Only use when the others cannot apply the '
             'change (e.g. native plugin added, pubspec dep change).\n'
             '\n'
             'Usage:\n'
             '- No parameters; uses the device + flags from the prior '
-            '`artisan_start`.\n'
+            '`dowel_start`.\n'
             '- Reuses the same VM Service port + web port when possible.';
 
       case 'reload':
@@ -602,7 +602,7 @@ final class McpServer extends MCPServer with ToolsSupport {
             'immediately.\n'
             '- If hot reload fails (state mismatch, breaking source '
             'change), Flutter logs the error to the captured output; check '
-            '`artisan_logs` and consider `artisan_hot_restart` instead.\n'
+            '`dowel_logs` and consider `dowel_hot_restart` instead.\n'
             '- Returns the response Flutter wrote back to stdin (typically '
             'blank on success).';
 
@@ -611,13 +611,13 @@ final class McpServer extends MCPServer with ToolsSupport {
             'keeps process).\n'
             '\n'
             'Sends `R` to the `flutter run` process stdin. Stronger than '
-            '`artisan_reload`: drops all Dart state but keeps the same '
+            '`dowel_reload`: drops all Dart state but keeps the same '
             'process + VM Service connection. Use when hot reload cannot '
             'apply the change (e.g. const constructors changed, top-level '
             'state corrupted).\n'
             '\n'
             'Usage:\n'
-            '- Slower than `artisan_reload`; faster than `artisan_restart` '
+            '- Slower than `dowel_reload`; faster than `dowel_restart` '
             '(no process re-spawn).\n'
             '- Call when source changes invalidate existing app state but '
             'the process itself is fine.\n'
@@ -640,12 +640,12 @@ final class McpServer extends MCPServer with ToolsSupport {
             'not a hard failure).';
 
       case 'list':
-        return 'List every registered artisan command grouped by '
+        return 'List every registered dowel command grouped by '
             'namespace.\n'
             '\n'
             'Returns the full CLI command surface available to the '
             'consumer app: builtins (start, stop, doctor, etc.), plugin '
-            'commands (dusk:*, telescope:*, plugin:*), make:* generators, '
+            'commands (tapir:*, crumbs:*, plugin:*), make:* generators, '
             'mcp:* meta. Useful for discovering what is available without '
             'inspecting source.\n'
             '\n'
@@ -672,8 +672,8 @@ final class McpServer extends MCPServer with ToolsSupport {
             '- Use to TRIGGER an action programmatically (call a '
             'controller method, fire a facade event, mutate a singleton) '
             'without going through the UI surface.\n'
-            '- Requires an artisan-managed running app: call '
-            '`artisan_start` first so `~/.artisan/state.json` records the '
+            '- Requires a dowel-managed running app: call '
+            '`dowel_start` first so `~/.dowel/state.json` records the '
             'VM Service URI.\n'
             '- Errors (compile, runtime, breakpoints) surface as the '
             'evaluate RPC\'s error response; the model receives the '
@@ -688,8 +688,8 @@ final class McpServer extends MCPServer with ToolsSupport {
   /// allowlisted commands explicitly; each schema is verified against the
   /// command's `configure(ArgParser)` declarations so the MCP wire contract
   /// does not drift from the CLI surface. Auto-deriving from
-  /// [ArtisanCommand.signature] / `parser.options` is a V1.x follow-up.
-  Map<String, dynamic> _commandInputSchema(ArtisanCommand command) {
+  /// [DowelCommand.signature] / `parser.options` is a V1.x follow-up.
+  Map<String, dynamic> _commandInputSchema(DowelCommand command) {
     switch (command.name) {
       case 'start':
         // Mirrors `StartCommand.configure(ArgParser)` exactly. All option
@@ -777,7 +777,7 @@ final class McpServer extends MCPServer with ToolsSupport {
         // Defensive empty schema: catches any future allowlist addition
         // that lands without an explicit per-command schema. The
         // accompanying test asserts every allowlisted name has a non-default
-        // entry so adding to `_safeArtisanCommandNames` without updating
+        // entry so adding to `_safeDowelCommandNames` without updating
         // this switch fails CI before it ships.
         return <String, dynamic>{
           'type': 'object',
@@ -789,7 +789,7 @@ final class McpServer extends MCPServer with ToolsSupport {
   /// In-process dispatch for substrate commands. Builds a [MapInput] from
   /// the MCP arguments, captures stdout/stderr via a [BufferedOutput], and
   /// returns the combined output (plus exit code) as MCP text content.
-  Future<CallToolResult> _dispatchArtisanCommand(
+  Future<CallToolResult> _dispatchDowelCommand(
     CallToolRequest request,
     String commandName,
   ) async {
@@ -798,7 +798,7 @@ final class McpServer extends MCPServer with ToolsSupport {
       return CallToolResult(
         isError: true,
         content: [
-          TextContent(text: '### Error\nUnknown artisan command: $commandName'),
+          TextContent(text: '### Error\nUnknown dowel command: $commandName'),
         ],
       );
     }
@@ -812,7 +812,7 @@ final class McpServer extends MCPServer with ToolsSupport {
     // process commands (start, stop, doctor, list, etc.); connected for
     // commands that need a VM Service client (tinker). Connected dispatch
     // shares the same lazy-reconnect path used by plugin VM-extension tools.
-    ArtisanContext ctx;
+    DowelContext ctx;
     if (command.boot == CommandBoot.connected) {
       if (_vmClient == null) {
         _reconnecting ??= _lazyReconnect();
@@ -829,26 +829,26 @@ final class McpServer extends MCPServer with ToolsSupport {
           content: [
             TextContent(
               text: '### Error\nNot connected to a running Flutter app. '
-                  'Run `dart run fluttersdk_artisan start` first so '
-                  '`~/.artisan/state.json` records the VM Service URI.',
+                  'Run `dart run dowel start` first so '
+                  '`~/.dowel/state.json` records the VM Service URI.',
             ),
           ],
         );
       }
-      ctx = ArtisanContext.connected(
+      ctx = DowelContext.connected(
         input,
         output,
         vmClient,
         registry: registry,
       );
     } else {
-      ctx = ArtisanContext.bare(input, output, registry: registry);
+      ctx = DowelContext.bare(input, output, registry: registry);
     }
 
     try {
       final exitCode = await command.handle(ctx);
       final combined = StringBuffer()
-        ..writeln('# `artisan $commandName` exit $exitCode')
+        ..writeln('# `dowel $commandName` exit $exitCode')
         ..writeln()
         ..write(output.content);
       return CallToolResult(
@@ -866,7 +866,7 @@ final class McpServer extends MCPServer with ToolsSupport {
   /// Convenience entry: build a stdio-wired server and block until the
   /// peer closes the channel. Intended for `bin/mcp.dart` (Step 22).
   static Future<void> serve({
-    required ArtisanRegistry registry,
+    required DowelRegistry registry,
     required McpFilterConfig filter,
   }) async {
     final server = McpServer.stdio(registry: registry, filter: filter);
@@ -878,7 +878,7 @@ final class McpServer extends MCPServer with ToolsSupport {
 /// `extensionMethod`. The dispatcher routes any descriptor whose method
 /// starts with this prefix through the in-process command runner instead of
 /// the VM Service.
-const String _artisanDispatchPrefix = 'artisan:';
+const String _dowelDispatchPrefix = 'dowel:';
 
 /// Substrate commands the MCP server exposes as tools by default. The
 /// allowlist intentionally excludes codegen (`make:*`, `*:refresh`),
@@ -887,12 +887,12 @@ const String _artisanDispatchPrefix = 'artisan:';
 /// by the client's own file tools, or recurse into the MCP server itself.
 ///
 /// `tinker` is included even though it boots as [CommandBoot.connected];
-/// the dispatcher in [McpServer._dispatchArtisanCommand] detects the boot
-/// mode and constructs an [ArtisanContext.connected] using the lazily
+/// the dispatcher in [McpServer._dispatchDowelCommand] detects the boot
+/// mode and constructs an [DowelContext.connected] using the lazily
 /// established VM Service client. From the MCP client's point of view it is
 /// an ordinary substrate tool that takes an `eval` argument and returns the
 /// evaluated Dart expression as text.
-const Set<String> _safeArtisanCommandNames = <String>{
+const Set<String> _safeDowelCommandNames = <String>{
   'start',
   'stop',
   'status',

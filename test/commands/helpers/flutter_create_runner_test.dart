@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/src/commands/helpers/flutter_create_runner.dart';
+import 'package:dowel/src/commands/helpers/flutter_create_runner.dart';
 import 'package:test/test.dart';
 
 // ---------------------------------------------------------------------------

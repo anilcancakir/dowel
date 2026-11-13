@@ -8,6 +8,14 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Renamed from `fluttersdk_artisan` to `dowel`.** The package, the repository (`anilcancakir/dowel`), the barrel (`package:dowel/dowel.dart`), every `Artisan*` class (now `Dowel*`, `runArtisan` is `runDowel`), the executable and the MCP server (`dowel_mcp`) carry the new name. **Breaking:** `dart pub remove fluttersdk_artisan && dart pub add dowel`, then re-run `dart run dowel install` and `dart run dowel make:fast-cli` (the wrapper is `bin/dowel`, the build state `.dowel/`). Also renamed: the MCP tools (`artisan_*` is `dowel_*`), the `.mcp.json` server key (`fluttersdk` is `dowel`), the environment variables (`ARTISAN_*` is `DOWEL_*`, `FSA_LOCK_TIMEOUT` is `DOWEL_LOCK_TIMEOUT`), the state directories (`~/.artisan/` is `~/.dowel/`, `.artisan/` is `.dowel/`, including `plugins.json` and `mcp.json`) and the generated plugin provider (`<name>_artisan_provider.dart` is `<name>_dowel_provider.dart`). Nothing is migrated automatically: move the state directories and delete the old `fluttersdk` entry from `.mcp.json` by hand. The plugin names in the docs follow the renames of their packages: `dusk` is `tapir` and `telescope` is `crumbs`.
+
+### Removed
+
+- **`bin/dowel.dart` is no longer accepted as a consumer wrapper.** It is this package's own entry point, so a repository that ships it (this one) delegated to itself. Only `bin/dispatcher.dart` marks a consumer wrapper. The `fluttersdk_` convention prefix is no longer stripped by `make:plugin` and `plugin:install` (`magic_` still is).
+
 ## [0.0.20] - 2026-10-11
 
 ### Added
@@ -412,6 +420,7 @@ Both write through `.tmp` + atomic rename; never hand-edit.
 
 ---
 
+[Unreleased]: https://github.com/anilcancakir/dowel/compare/0.0.20...HEAD
 [0.0.20]: https://github.com/fluttersdk/artisan/compare/0.0.19...0.0.20
 [0.0.19]: https://github.com/fluttersdk/artisan/compare/0.0.18...0.0.19
 [0.0.18]: https://github.com/fluttersdk/artisan/compare/0.0.17...0.0.18

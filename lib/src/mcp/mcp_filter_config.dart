@@ -82,7 +82,7 @@ final class McpFilterConfig {
   // Factory: fromFile
   // ---------------------------------------------------------------------------
 
-  /// Parses `.artisan/mcp.json` at [path] synchronously.
+  /// Parses `.dowel/mcp.json` at [path] synchronously.
   ///
   /// Expected JSON shape:
   /// ```json
@@ -147,18 +147,18 @@ final class McpFilterConfig {
   ///
   /// | Variable | Effect |
   /// |----------|--------|
-  /// | `ARTISAN_MCP_PACKAGES_ALLOW` | CSV of package names to include |
-  /// | `ARTISAN_MCP_PACKAGES_DENY`  | CSV of package names to exclude |
-  /// | `ARTISAN_MCP_TOOLS_ALLOW`    | CSV of tool names to include |
-  /// | `ARTISAN_MCP_TOOLS_DENY`     | CSV of tool names to exclude |
+  /// | `DOWEL_MCP_PACKAGES_ALLOW` | CSV of package names to include |
+  /// | `DOWEL_MCP_PACKAGES_DENY`  | CSV of package names to exclude |
+  /// | `DOWEL_MCP_TOOLS_ALLOW`    | CSV of tool names to include |
+  /// | `DOWEL_MCP_TOOLS_DENY`     | CSV of tool names to exclude |
   ///
   /// An absent or blank variable is treated as "no opinion" (null for allow
   /// lists, empty set for deny lists).
   static McpFilterConfig fromEnv(Map<String, String> env) => McpFilterConfig(
-        packagesAllow: _parseCsvAllow(env['ARTISAN_MCP_PACKAGES_ALLOW']),
-        packagesDeny: _parseCsvDeny(env['ARTISAN_MCP_PACKAGES_DENY']),
-        toolsAllow: _parseCsvAllow(env['ARTISAN_MCP_TOOLS_ALLOW']),
-        toolsDeny: _parseCsvDeny(env['ARTISAN_MCP_TOOLS_DENY']),
+        packagesAllow: _parseCsvAllow(env['DOWEL_MCP_PACKAGES_ALLOW']),
+        packagesDeny: _parseCsvDeny(env['DOWEL_MCP_PACKAGES_DENY']),
+        toolsAllow: _parseCsvAllow(env['DOWEL_MCP_TOOLS_ALLOW']),
+        toolsDeny: _parseCsvDeny(env['DOWEL_MCP_TOOLS_DENY']),
       );
 
   // ---------------------------------------------------------------------------
@@ -171,10 +171,10 @@ final class McpFilterConfig {
   ///
   /// | Parameter | Flag (example) |
   /// |-----------|---------------|
-  /// | [includePackage] | `--include-package=fluttersdk_dusk` |
-  /// | [excludePackage] | `--exclude-package=fluttersdk_telescope` |
-  /// | [includeTool] | `--include-tool=dusk_snap` |
-  /// | [excludeTool] | `--exclude-tool=telescope_http` |
+  /// | [includePackage] | `--include-package=tapir` |
+  /// | [excludePackage] | `--exclude-package=crumbs` |
+  /// | [includeTool] | `--include-tool=tapir_snap` |
+  /// | [excludeTool] | `--exclude-tool=crumbs_http` |
   ///
   /// An empty or absent list is treated as "no opinion" for allow, empty set
   /// for deny. Repeated flags within the same layer accumulate into a set.
@@ -208,7 +208,7 @@ final class McpFilterConfig {
   /// Deny sets from all three layers are UNIONed. A name denied by any layer is
   /// denied in the result.
   ///
-  /// @param file Config parsed from `.artisan/mcp.json`.
+  /// @param file Config parsed from `.dowel/mcp.json`.
   /// @param env Config parsed from environment variables.
   /// @param cli Config parsed from CLI flags.
   static McpFilterConfig merge(

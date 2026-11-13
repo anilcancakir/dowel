@@ -1,18 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-/// Builds a bare [ArtisanContext] with the given option map and a
+/// Builds a bare [DowelContext] with the given option map and a
 /// [BufferedOutput] for assertion.
-ArtisanContext _ctx(Map<String, dynamic> options) {
-  return ArtisanContext.bare(MapInput(options), BufferedOutput());
+DowelContext _ctx(Map<String, dynamic> options) {
+  return DowelContext.bare(MapInput(options), BufferedOutput());
 }
 
 /// Reads the output captured on [ctx]'s [BufferedOutput].
-String _output(ArtisanContext ctx) => (ctx.output as BufferedOutput).content;
+String _output(DowelContext ctx) => (ctx.output as BufferedOutput).content;
 
 void main() {
   late Directory tempDir;
@@ -40,17 +40,17 @@ void main() {
   });
 
   group(
-      'McpUninstallCommand handle: post-fix entry shapes (./bin/fsa mcp:serve, '
+      'McpUninstallCommand handle: post-fix entry shapes (./bin/dowel mcp:serve, '
       'dart run :dispatcher mcp:serve) and pre-fix fluttersdk_artisan:mcp', () {
     test(
-        'removes fluttersdk entry that uses the post-fix fsa shape (./bin/fsa mcp:serve)',
+        'removes dowel entry that uses the post-fix dowel shape (./bin/dowel mcp:serve)',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed the post-fix fsa entry shape.
+      // 1. Seed the post-fix dowel entry shape.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
-          'fluttersdk': {
-            'command': './bin/fsa',
+          'dowel': {
+            'command': './bin/dowel',
             'args': ['mcp:serve'],
             'cwd': '.',
           },
@@ -65,17 +65,17 @@ void main() {
       final decoded =
           jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
       final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
-      expect(servers, isNot(contains('fluttersdk')));
+      expect(servers, isNot(contains('dowel')));
     });
 
     test(
-        'removes fluttersdk entry that uses the post-fix dart fallback shape (dart run :dispatcher mcp:serve)',
+        'removes dowel entry that uses the post-fix dart fallback shape (dart run :dispatcher mcp:serve)',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       // 1. Seed the post-fix dart-fallback entry shape.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', ':dispatcher', 'mcp:serve'],
             'cwd': '.',
@@ -91,16 +91,15 @@ void main() {
       final decoded =
           jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
       final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
-      expect(servers, isNot(contains('fluttersdk')));
+      expect(servers, isNot(contains('dowel')));
     });
 
-    test('removes fluttersdk entry that uses the new artisan args shape',
-        () async {
+    test('removes dowel entry that uses the new dowel args shape', () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       // 1. Seed new-shape entry.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', 'fluttersdk_artisan:mcp'],
             'cwd': '.',
@@ -116,11 +115,10 @@ void main() {
       final decoded =
           jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
       final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
-      expect(servers, isNot(contains('fluttersdk')));
+      expect(servers, isNot(contains('dowel')));
     });
 
-    test(
-        'preserves laravel-boost entry when removing new-shape fluttersdk entry',
+    test('preserves laravel-boost entry when removing new-shape dowel entry',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       // 1. Seed both entries.
@@ -130,7 +128,7 @@ void main() {
             'command': 'npx',
             'args': ['-y', 'laravel-boost'],
           },
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', 'fluttersdk_artisan:mcp'],
             'cwd': '.',
@@ -147,20 +145,19 @@ void main() {
           jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
       expect(servers, containsPair('laravel-boost', isA<Map>()));
-      expect(servers, isNot(contains('fluttersdk')));
+      expect(servers, isNot(contains('dowel')));
     });
   });
 
   group(
       'McpUninstallCommand handle — legacy entry shape (fluttersdk_mcp:server)',
       () {
-    test('removes fluttersdk entry that uses the legacy mcp args shape',
-        () async {
+    test('removes dowel entry that uses the legacy mcp args shape', () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       // 1. Seed legacy-shape entry.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', 'fluttersdk_mcp:server'],
             'cwd': '.',
@@ -176,11 +173,10 @@ void main() {
       final decoded =
           jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
       final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
-      expect(servers, isNot(contains('fluttersdk')));
+      expect(servers, isNot(contains('dowel')));
     });
 
-    test(
-        'preserves laravel-boost entry when removing legacy-shape fluttersdk entry',
+    test('preserves laravel-boost entry when removing legacy-shape dowel entry',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       // 1. Seed both entries.
@@ -190,7 +186,7 @@ void main() {
             'command': 'npx',
             'args': ['-y', 'laravel-boost'],
           },
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', 'fluttersdk_mcp:server'],
             'cwd': '.',
@@ -207,7 +203,7 @@ void main() {
           jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
       expect(servers, containsPair('laravel-boost', isA<Map>()));
-      expect(servers, isNot(contains('fluttersdk')));
+      expect(servers, isNot(contains('dowel')));
     });
   });
 
@@ -216,7 +212,7 @@ void main() {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', 'fluttersdk_artisan:mcp'],
             'cwd': '.',
@@ -237,10 +233,10 @@ void main() {
   });
 
   group('McpUninstallCommand handle — missing entry', () {
-    test('warns and returns 0 when fluttersdk key is absent from mcpServers',
+    test('warns and returns 0 when dowel key is absent from mcpServers',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed .mcp.json without a fluttersdk entry.
+      // 1. Seed .mcp.json without a dowel entry.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
           'laravel-boost': {
@@ -275,10 +271,10 @@ void main() {
         'does NOT delete the .mcp.json file even when mcpServers becomes empty',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // Only entry is fluttersdk — after removal mcpServers is empty.
+      // Only entry is dowel — after removal mcpServers is empty.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', 'fluttersdk_artisan:mcp'],
             'cwd': '.',
@@ -302,7 +298,7 @@ void main() {
       File(mcpPath).writeAsStringSync(jsonEncode({
         'version': 1,
         'mcpServers': {
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', 'fluttersdk_artisan:mcp'],
           },

@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question / Discussion
-    url: https://github.com/fluttersdk/artisan/discussions
-    about: Ask questions and discuss fluttersdk_artisan with the community
+    url: https://github.com/anilcancakir/dowel/discussions
+    about: Ask questions and discuss dowel with the community
   - name: Documentation
-    url: https://fluttersdk.com/artisan
+    url: https://anilcancakir.com/dowel
     about: Browse the canonical documentation site

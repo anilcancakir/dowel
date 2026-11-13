@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
@@ -124,7 +124,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_xml_editor_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_xml_editor_');
     });
 
     tearDown(() {

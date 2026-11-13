@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -14,10 +14,10 @@ void main() {
       expect(command.description, isNotEmpty);
     });
 
-    test('inherits from ArtisanCommand', () {
+    test('inherits from DowelCommand', () {
       final command = RestartCommand();
 
-      expect(command, isA<ArtisanCommand>());
+      expect(command, isA<DowelCommand>());
     });
 
     test('description mentions stop + start', () {
@@ -104,10 +104,10 @@ void main() {
     late Directory tempProfileRoot;
 
     setUp(() async {
-      tempHome = await Directory.systemTemp.createTemp('artisan_restart_cdp_');
+      tempHome = await Directory.systemTemp.createTemp('dowel_restart_cdp_');
       StateFile.debugHomeOverride = tempHome.path;
       tempProfileRoot =
-          await Directory.systemTemp.createTemp('artisan_restart_cdp_profile_');
+          await Directory.systemTemp.createTemp('dowel_restart_cdp_profile_');
       // Reset seams.
       StopCommand.stopKillFunction = _noOpKill;
       StopCommand.stopIsAlive = _alwaysDead;
@@ -197,7 +197,7 @@ void main() {
 
       final command = RestartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -262,7 +262,7 @@ void main() {
 
       final command = RestartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -311,7 +311,7 @@ void main() {
 
       final command = RestartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -355,7 +355,7 @@ void main() {
 
         final output = BufferedOutput();
         final code = await RestartCommand().handle(
-          ArtisanContext.bare(MapInput(input), output),
+          DowelContext.bare(MapInput(input), output),
         );
         expect(code, 0, reason: output.content);
         return StateFile.read();
@@ -384,7 +384,7 @@ void main() {
         () async {
       // `stop` returned straight after the SIGTERM, so the relaunch raced the
       // old tool for its port: a start with --cdp-port failed at once on
-      // "Port 3100 is already in use", and dusk's perf campaign grew its own
+      // "Port 3100 is already in use", and tapir's perf campaign grew its own
       // wait to get around it.
       await _writeFakeState(tempHome, cdpPort: null);
       const int pgid = 12340;
@@ -433,7 +433,7 @@ void main() {
 
       final output = BufferedOutput();
       final int code = await RestartCommand().handle(
-        ArtisanContext.bare(MapInput(<String, dynamic>{'dds': false}), output),
+        DowelContext.bare(MapInput(<String, dynamic>{'dds': false}), output),
       );
 
       expect(code, 0, reason: output.content);
@@ -447,10 +447,10 @@ void main() {
       // which is the `Address already in use` restart exists to stop
       // producing.
       final Directory sibling =
-          Directory.systemTemp.createTempSync('artisan_restart_sibling_');
+          Directory.systemTemp.createTempSync('dowel_restart_sibling_');
       addTearDown(() => sibling.deleteSync(recursive: true));
 
-      final Directory stateDir = Directory('${tempHome.path}/.artisan');
+      final Directory stateDir = Directory('${tempHome.path}/.dowel');
       stateDir.createSync(recursive: true);
       File('${stateDir.path}/state.json').writeAsStringSync(
         jsonEncode(<String, dynamic>{
@@ -464,7 +464,7 @@ void main() {
 
       final output = BufferedOutput();
       final int code = await RestartCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(code, 1);
@@ -486,11 +486,10 @@ void main() {
     late Directory tempProfileRoot;
 
     setUp(() async {
-      tempHome =
-          await Directory.systemTemp.createTemp('artisan_start_fwd_cdp_');
+      tempHome = await Directory.systemTemp.createTemp('dowel_start_fwd_cdp_');
       StateFile.debugHomeOverride = tempHome.path;
-      tempProfileRoot = await Directory.systemTemp
-          .createTemp('artisan_start_fwd_cdp_profile_');
+      tempProfileRoot =
+          await Directory.systemTemp.createTemp('dowel_start_fwd_cdp_profile_');
     });
 
     tearDown(() async {
@@ -547,7 +546,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -607,7 +606,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -672,7 +671,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -709,15 +708,15 @@ bool _alwaysDead(int pid) => false;
 Future<ProcessResult> _noProcessRunner(String executable, List<String> args) =>
     Future<ProcessResult>.value(ProcessResult(0, 1, '', ''));
 
-/// Writes a minimal state.json to [tempHome]/.artisan/state.json.
+/// Writes a minimal state.json to [tempHome]/.dowel/state.json.
 Future<void> _writeFakeState(Directory tempHome,
     {required int? cdpPort, String profile = 'debug'}) async {
-  final artisanDir = Directory('${tempHome.path}/.artisan');
-  await artisanDir.create(recursive: true);
-  final file = File('${artisanDir.path}/state.json');
+  final dowelDir = Directory('${tempHome.path}/.dowel');
+  await dowelDir.create(recursive: true);
+  final file = File('${dowelDir.path}/state.json');
   await file.writeAsString(jsonEncode(<String, dynamic>{
     'pid': 12345,
-    'stdinPipe': '${artisanDir.path}/flutter-dev.fifo',
+    'stdinPipe': '${dowelDir.path}/flutter-dev.fifo',
     'stdinHolderPid': 12346,
     'vmServiceUri': 'ws://127.0.0.1:8181/abc/ws',
     'webPort': 3100,

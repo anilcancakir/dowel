@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 /// `{{ commandPrefix }}:install`, installs {{ name }} into the host project.
 ///
@@ -8,7 +8,7 @@ import 'package:fluttersdk_artisan/artisan.dart';
 /// procedural override is the escape hatch for plugins that need conditional
 /// logic the YAML schema cannot express (env-specific branches, runtime
 /// platform detection, dynamic prompts).
-class InstallCommand extends ArtisanInstallCommand {
+class InstallCommand extends DowelInstallCommand {
   @override
   String get signature => '{{ commandPrefix }}:install $baseFlags';
 
@@ -16,10 +16,10 @@ class InstallCommand extends ArtisanInstallCommand {
   String get description => 'Install {{ name }} into the host project.';
 
   @override
-  String pluginName(ArtisanContext ctx) => '{{ name }}';
+  String pluginName(DowelContext ctx) => '{{ name }}';
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final installer = PluginInstaller(
       buildContext(ctx),
       pluginName: pluginName(ctx),

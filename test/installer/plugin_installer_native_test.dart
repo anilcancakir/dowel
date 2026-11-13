@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
@@ -569,7 +569,7 @@ void main() {
 
       expect(result, isA<Success>());
       expect(_readManifest(tempDir), handEdited);
-      final output = (ctx.artisanContext.output as BufferedOutput).content;
+      final output = (ctx.dowelContext.output as BufferedOutput).content;
       expect(output, contains(_callbackName));
       expect(output, contains('AndroidManifest.xml'));
       // The warning carries the block that would have been written.

@@ -206,7 +206,7 @@ Platform-scoped ops are silently skipped when the target platform directory is a
 renders an empty affinity, `null` omits the attribute) and a list of `AndroidIntentFilter`, each with
 `autoVerify`, `actions`, `categories` and a list of `AndroidIntentData` (`scheme`, `host`, `path`,
 `pathPrefix`). `AndroidIntentFilter` and `AndroidIntentData` come from
-`package:fluttersdk_artisan/artisan.dart`.
+`package:dowel/dowel.dart`.
 
 ```dart
 installer.injectAndroidActivity(
@@ -341,7 +341,7 @@ mutations independently.
 5. **Rename into place** (line 193): `.tmp` files are renamed over their targets; deletes are
    applied. POSIX `rename(2)` is atomic, so readers never see partial state. Failures past this
    point surface as `Error(rolledBack: false)`.
-6. **Install record** (line 213): `.artisan/installed/<plugin>.json` is written BEFORE shell ops
+6. **Install record** (line 213): `.dowel/installed/<plugin>.json` is written BEFORE shell ops
    so the install is always reversible even when a shell step fails later.
 7. **Shell ops** (line 228): `RunShell` ops execute last. A non-zero exit returns `Error`; the
    record from phase 6 stays intact.
@@ -366,9 +366,9 @@ Pattern from `assets/stubs/make_plugin/magic/install_command.dart.stub`, with a 
 backend branch illustrating IMMEDIATE prompt + DEFERRED ops:
 
 ```dart
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
-class AnalyticsInstallCommand extends ArtisanInstallCommand {
+class AnalyticsInstallCommand extends DowelInstallCommand {
   @override
   String get signature => 'analytics:install $baseFlags';
 
@@ -376,10 +376,10 @@ class AnalyticsInstallCommand extends ArtisanInstallCommand {
   String get description => 'Install the Analytics plugin into the host project.';
 
   @override
-  String pluginName(ArtisanContext ctx) => 'analytics';
+  String pluginName(DowelContext ctx) => 'analytics';
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final installer = PluginInstaller(buildContext(ctx), pluginName: pluginName(ctx));
 
     // 1. IMMEDIATE prompt: answer is readable in vars before any op is enqueued.

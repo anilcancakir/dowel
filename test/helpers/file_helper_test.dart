@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -9,7 +9,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_file_helper_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_file_helper_');
     });
 
     tearDown(() {
@@ -88,11 +88,11 @@ void main() {
 
     test('readYamlFile parses a simple YAML map', () {
       final yamlPath = p.join(tempDir.path, 'config.yaml');
-      File(yamlPath).writeAsStringSync('name: artisan\nversion: 1.0.0\n');
+      File(yamlPath).writeAsStringSync('name: dowel\nversion: 1.0.0\n');
 
       final parsed = FileHelper.readYamlFile(yamlPath);
 
-      expect(parsed['name'], 'artisan');
+      expect(parsed['name'], 'dowel');
       expect(parsed['version'], '1.0.0');
     });
 

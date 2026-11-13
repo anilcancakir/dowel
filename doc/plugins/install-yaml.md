@@ -45,7 +45,7 @@ The schema is intentionally tolerant: every section except `plugin_name` is opti
 
 ## plugin_name
 
-The plugin's pubspec package name. Used to scope `.artisan/installed/<plugin>.json` reversibility records, the `plugins.json` registry entry, and the generated `lib/app/_plugins.g.dart` import line.
+The plugin's pubspec package name. Used to scope `.dowel/installed/<plugin>.json` reversibility records, the `plugins.json` registry entry, and the generated `lib/app/_plugins.g.dart` import line.
 
 **Validation regex** (`manifest_parser.dart:31`):
 
@@ -320,9 +320,9 @@ Optional plugin-specific bootstrap command name AUTO-RUN after a Success result.
 
 Dispatcher resolution:
 
-1. `./bin/fsa <name> --non-interactive` when a `bin/fsa` wrapper exists at the consumer project root (the AOT fast-CLI path).
-2. Otherwise `dart run <consumer>:artisan <name> --non-interactive`, deriving the consumer package name from the project's `pubspec.yaml` `name:` field.
-3. When neither resolves, `plugin:install` prints the one-line bootstrap hint (`Bootstrap with: artisan <name>`) instead, so the operator can run it manually.
+1. `./bin/dowel <name> --non-interactive` when a `bin/dowel` wrapper exists at the consumer project root (the AOT fast-CLI path).
+2. Otherwise `dart run <consumer>:dowel <name> --non-interactive`, deriving the consumer package name from the project's `pubspec.yaml` `name:` field.
+3. When neither resolves, `plugin:install` prints the one-line bootstrap hint (`Bootstrap with: dowel <name>`) instead, so the operator can run it manually.
 
 `--non-interactive` is ALWAYS forwarded to the chained command so an interactive bootstrap (e.g. `starter:install`) cannot hang waiting on stdin.
 
@@ -331,7 +331,7 @@ Override and opt-out:
 - `--bootstrap-command=<name>` on the `plugin:install` invocation overrides the manifest value (the override command runs instead of the declared one).
 - `--no-bootstrap` skips the auto-run entirely; the command falls back to printing the hint.
 
-This was hint-only before `0.0.9`: prior versions only printed `Bootstrap with: artisan <name>` and never executed the command.
+This was hint-only before `0.0.9`: prior versions only printed `Bootstrap with: dowel <name>` and never executed the command.
 
 ```yaml
 bootstrap_command: example:install

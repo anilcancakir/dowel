@@ -1,33 +1,33 @@
-# fluttersdk_artisan
+# dowel
 
 > Composable CLI framework and stdio MCP server for Flutter and Dart. Scaffolding, code generation, transactional plugin installs, hot reload orchestration, REPL, and AI agent tool surfaces in one binary.
 
-Pure Dart 3.4+ CLI framework. Consumed via `dart run fluttersdk_artisan <command>`. 21 built-in commands plus a stdio MCP server for AI coding agents (Claude Code, Cursor, Windsurf).
+Pure Dart 3.4+ CLI framework. Consumed via `dart run dowel <command>`. 21 built-in commands plus a stdio MCP server for AI coding agents (Claude Code, Cursor, Windsurf).
 
 ## Docs
-- [Installation](https://fluttersdk.com/artisan/getting-started/installation.md)
-- [Quickstart](https://fluttersdk.com/artisan/getting-started/quickstart.md)
-- [Command catalog](https://fluttersdk.com/artisan/commands/index.md)
-- [start](https://fluttersdk.com/artisan/commands/start.md): records the session per project under `~/.artisan/sessions/<hash>/`, so two apps can be driven at once. `~/.artisan/state.json` stays as a pointer to whichever started last. Override with `--state=<path>` or `ARTISAN_STATE_FILE`; commands refuse to act on another project's app.
-- [plugin:install](https://fluttersdk.com/artisan/commands/plugin-install.md)
-- [mcp:serve](https://fluttersdk.com/artisan/commands/mcp-serve.md)
-- [make:plugin](https://fluttersdk.com/artisan/commands/make-plugin.md)
-- [install](https://fluttersdk.com/artisan/commands/install.md)
-- [tinker](https://fluttersdk.com/artisan/commands/tinker.md)
-- [MCP overview](https://fluttersdk.com/artisan/mcp/overview.md)
-- [MCP setup](https://fluttersdk.com/artisan/mcp/setup.md)
-- [MCP tool reference](https://fluttersdk.com/artisan/mcp/tool-reference.md)
-- [Plugin authoring](https://fluttersdk.com/artisan/plugins/authoring.md)
-- [install.yaml schema](https://fluttersdk.com/artisan/plugins/install-yaml.md)
-- [Installer DSL](https://fluttersdk.com/artisan/plugins/installer-dsl.md)
-- [Signature DSL](https://fluttersdk.com/artisan/reference/signature-dsl.md)
+- [Installation](https://anilcancakir.com/dowel/docs/getting-started/installation.md)
+- [Quickstart](https://anilcancakir.com/dowel/docs/getting-started/quickstart.md)
+- [Command catalog](https://anilcancakir.com/dowel/docs/commands/index.md)
+- [start](https://anilcancakir.com/dowel/docs/commands/start.md): records the session per project under `~/.dowel/sessions/<hash>/`, so two apps can be driven at once. `~/.dowel/state.json` stays as a pointer to whichever started last. Override with `--state=<path>` or `DOWEL_STATE_FILE`; commands refuse to act on another project's app.
+- [plugin:install](https://anilcancakir.com/dowel/docs/commands/plugin-install.md)
+- [mcp:serve](https://anilcancakir.com/dowel/docs/commands/mcp-serve.md)
+- [make:plugin](https://anilcancakir.com/dowel/docs/commands/make-plugin.md)
+- [install](https://anilcancakir.com/dowel/docs/commands/install.md)
+- [tinker](https://anilcancakir.com/dowel/docs/commands/tinker.md)
+- [MCP overview](https://anilcancakir.com/dowel/docs/mcp/overview.md)
+- [MCP setup](https://anilcancakir.com/dowel/docs/mcp/setup.md)
+- [MCP tool reference](https://anilcancakir.com/dowel/docs/mcp/tool-reference.md)
+- [Plugin authoring](https://anilcancakir.com/dowel/docs/plugins/authoring.md)
+- [install.yaml schema](https://anilcancakir.com/dowel/docs/plugins/install-yaml.md)
+- [Installer DSL](https://anilcancakir.com/dowel/docs/plugins/installer-dsl.md)
+- [Signature DSL](https://anilcancakir.com/dowel/docs/reference/signature-dsl.md)
 
 ## Source
-- [GitHub](https://github.com/fluttersdk/artisan)
-- [pub.dev](https://pub.dev/packages/fluttersdk_artisan)
-- [CHANGELOG](https://github.com/fluttersdk/artisan/blob/master/CHANGELOG.md)
+- [GitHub](https://github.com/anilcancakir/dowel)
+- [pub.dev](https://pub.dev/packages/dowel)
+- [CHANGELOG](https://github.com/anilcancakir/dowel/blob/master/CHANGELOG.md)
 
 ## Optional
-- [README](https://github.com/fluttersdk/artisan/blob/master/README.md)
-- [LICENSE](https://github.com/fluttersdk/artisan/blob/master/LICENSE)
-- [Issues](https://github.com/fluttersdk/artisan/issues)
+- [README](https://github.com/anilcancakir/dowel/blob/master/README.md)
+- [LICENSE](https://github.com/anilcancakir/dowel/blob/master/LICENSE)
+- [Issues](https://github.com/anilcancakir/dowel/issues)

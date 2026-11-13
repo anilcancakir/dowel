@@ -1,14 +1,14 @@
 // GENERATED: do not edit by hand.
-// Regenerate via: dart run magic:artisan plugins:refresh
+// Regenerate via: dart run magic:dowel plugins:refresh
 //
-// Source: .artisan/plugins.json
+// Source: .dowel/plugins.json
 
-import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:awesome_plugin/cli.dart' show AwesomePluginArtisanProvider;
+import 'package:dowel/dowel.dart';
+import 'package:awesome_plugin/cli.dart' show AwesomePluginDowelProvider;
 
-List<ArtisanServiceProvider> autoDiscoveredProviders() {
-  return <ArtisanServiceProvider>[
-    AwesomePluginArtisanProvider(),
+List<DowelServiceProvider> autoDiscoveredProviders() {
+  return <DowelServiceProvider>[
+    AwesomePluginDowelProvider(),
   ];
 }
 

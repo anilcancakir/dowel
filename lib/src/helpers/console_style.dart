@@ -1,4 +1,4 @@
-/// Console output styling utilities for Laravel Artisan-style CLI commands.
+/// Console output styling utilities for CLI commands.
 ///
 /// Provides ANSI color formatting, banners, progress indicators, and
 /// structured output formatting (tables, key-value pairs).

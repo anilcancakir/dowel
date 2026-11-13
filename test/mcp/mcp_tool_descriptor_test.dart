@@ -1,11 +1,11 @@
 import 'package:test/test.dart';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 void main() {
   group('McpToolDescriptor', () {
     const descriptor = McpToolDescriptor(
-      name: 'dusk_tap',
+      name: 'tapir_tap',
       description: 'Tap a widget by semantic label.',
       inputSchema: {
         'type': 'object',
@@ -14,11 +14,11 @@ void main() {
         },
         'required': ['label'],
       },
-      extensionMethod: 'ext.dusk.tap',
+      extensionMethod: 'ext.tapir.tap',
     );
 
     test('constructor populates all 4 fields', () {
-      expect(descriptor.name, 'dusk_tap');
+      expect(descriptor.name, 'tapir_tap');
       expect(descriptor.description, 'Tap a widget by semantic label.');
       expect(descriptor.inputSchema, {
         'type': 'object',
@@ -27,7 +27,7 @@ void main() {
         },
         'required': ['label'],
       });
-      expect(descriptor.extensionMethod, 'ext.dusk.tap');
+      expect(descriptor.extensionMethod, 'ext.tapir.tap');
     });
 
     test(
@@ -40,7 +40,7 @@ void main() {
       expect(json.containsKey('inputSchema'), isTrue);
       expect(json.containsKey('extensionMethod'), isFalse);
 
-      expect(json['name'], 'dusk_tap');
+      expect(json['name'], 'tapir_tap');
       expect(json['description'], 'Tap a widget by semantic label.');
       expect(json['inputSchema'], descriptor.inputSchema);
     });
@@ -48,8 +48,8 @@ void main() {
     test('toString is useful for collision diagnostics', () {
       final str = descriptor.toString();
 
-      expect(str, contains('dusk_tap'));
-      expect(str, contains('ext.dusk.tap'));
+      expect(str, contains('tapir_tap'));
+      expect(str, contains('ext.tapir.tap'));
     });
   });
 }

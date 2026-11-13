@@ -1,9 +1,9 @@
 # plugin:install
 
-Register a third-party artisan plugin into the consumer project. After adding a
+Register a third-party dowel plugin into the consumer project. After adding a
 package to `pubspec.yaml` and running `flutter pub get`, `plugin:install` wires
-the plugin's `ArtisanServiceProvider` without requiring manual edits to
-`bin/artisan.dart` or `lib/app/_plugins.g.dart`.
+the plugin's `DowelServiceProvider` without requiring manual edits to
+`bin/dowel.dart` or `lib/app/_plugins.g.dart`.
 
 ---
 
@@ -11,7 +11,7 @@ the plugin's `ArtisanServiceProvider` without requiring manual edits to
 ## Basic Usage
 
 ```bash
-dart run fluttersdk_artisan plugin:install <name>
+dart run dowel plugin:install <name>
 ```
 
 `<name>` is the plugin's pubspec package name (e.g. `magic_logger`). The
@@ -19,7 +19,7 @@ package must be listed in `pubspec.yaml` and resolved via `flutter pub get`
 before this command runs.
 
 Pre-flight checks (`lib/src/commands/plugin_install_command.dart:197-241`):
-`bin/artisan.dart` must exist, the package must appear in `pubspec.yaml`, and
+`bin/dowel.dart` must exist, the package must appear in `pubspec.yaml`, and
 `.dart_tool/package_config.json` must contain the package name. Any failure
 exits with code `1` before any write is attempted.
 
@@ -37,18 +37,18 @@ plugin:install
   {--provider=           : Override the auto-derived provider class name}
   {--bootstrap-command=  : Plugin install sub-command to chain after registration}
   {--use-yaml-only       : Fail if install.yaml not found instead of falling back to legacy injection}
-  {--force               : Bypass conflict detection (inherited from ArtisanInstallCommand)}
+  {--force               : Bypass conflict detection (inherited from DowelInstallCommand)}
   {--dry-run             : Print staged ops without writing (inherited)}
   {--non-interactive     : Skip prompts, use defaults (inherited)}
   {--no-bootstrap        : Skip post-install bootstrap hint message (inherited)}
 ```
 
-The four inherited flags come from `ArtisanInstallCommand.baseFlags` and are
+The four inherited flags come from `DowelInstallCommand.baseFlags` and are
 available on every install command, not only `plugin:install`.
 
 | Flag | Effect |
 |---|---|
-| `--provider=ClassName` | Overrides `<PascalCaseName>ArtisanProvider` convention (Mode 3 only). |
+| `--provider=ClassName` | Overrides `<PascalCaseName>DowelProvider` convention (Mode 3 only). |
 | `--bootstrap-command=cmd` | Overrides the post-registration bootstrap hint (e.g. `logger:install`). |
 | `--use-yaml-only` | Error out when no `install.yaml` found; no Mode 2 or Mode 3 fallback. |
 | `--force` | Bypass conflict detection; overwrite user-modified files. |
@@ -78,7 +78,7 @@ checks `<plugin_root>/install.yaml` first, then `<plugin_root>/assets/install.ya
 `InstallTransaction.commit` writes every file to a `.tmp` path first; on full
 success, all `.tmp` files are renamed atomically. Any `.tmp` write failure deletes
 all staged temps and returns `Error(rolledBack: true)`. On `Success`, the plugin
-entry is written to `.artisan/plugins.json` and `PluginsRefreshCommand` regenerates
+entry is written to `.dowel/plugins.json` and `PluginsRefreshCommand` regenerates
 `lib/app/_plugins.g.dart` in-process.
 
 Preferred authoring path: declarative, conflict-checked, dry-run-capable, and
@@ -89,23 +89,23 @@ partially reversible via `plugin:uninstall` (V1 limitations; see Reversibility).
 **Condition**: No `install.yaml` found AND `lib/app/_plugins.g.dart` exists at
 the project root (`lib/src/commands/plugin_install_command.dart:172-178`).
 
-`_registerArtisanProvider` runs directly: writes a `PluginEntry` to
-`.artisan/plugins.json` and regenerates `_plugins.g.dart`. No `bin/artisan.dart`
+`_registerDowelProvider` runs directly: writes a `PluginEntry` to
+`.dowel/plugins.json` and regenerates `_plugins.g.dart`. No `bin/dowel.dart`
 edit occurs. Covers plugins without a manifest whose consumers used
 `install`. Naming convention: `my_plugin` maps to
-`package:my_plugin/cli.dart` and class `MyPluginArtisanProvider`.
+`package:my_plugin/cli.dart` and class `MyPluginDowelProvider`.
 
-### Mode 3: Legacy bin/artisan.dart Injection
+### Mode 3: Legacy bin/dowel.dart Injection
 
 **Condition**: No `install.yaml` found AND `lib/app/_plugins.g.dart` does not
 exist (`lib/src/commands/plugin_install_command.dart:180`).
 
-1. `import 'package:<name>/cli.dart';` is appended to `bin/artisan.dart` via
+1. `import 'package:<name>/cli.dart';` is appended to `bin/dowel.dart` via
    `ConfigEditor.addImportToFile` (idempotent; skips when already present).
 2. `registry.registerProvider(<ProviderClass>());` is inserted after the
    `registry.registerAll(auto.commands, ...)` anchor, or before the
-   `ArtisanApplication` construction line when the anchor is absent.
-3. Provider class defaults to `<PascalCaseName>ArtisanProvider`; override with
+   `DowelApplication` construction line when the anchor is absent.
+3. Provider class defaults to `<PascalCaseName>DowelProvider`; override with
    `--provider=ClassName`.
 
 Retained for backward compatibility with plugins predating the `install.yaml`
@@ -120,20 +120,20 @@ schema. Pass `--use-yaml-only` to error out instead of reaching this fallback.
 
 ```bash
 flutter pub add magic_logger
-dart run fluttersdk_artisan plugin:install magic_logger
+dart run dowel plugin:install magic_logger
 ```
 
 Output:
 ```
-Success: applied 4 ops; record at .artisan/installed/magic_logger.json
-Bootstrap with: artisan logger:install
+Success: applied 4 ops; record at .dowel/installed/magic_logger.json
+Bootstrap with: dowel logger:install
 ```
 
 ### 2. Canonical scaffold, no install.yaml (Mode 2)
 
 ```bash
 flutter pub add awesome_plugin
-dart run fluttersdk_artisan plugin:install awesome_plugin
+dart run dowel plugin:install awesome_plugin
 ```
 
 Output:
@@ -144,7 +144,7 @@ Registered "awesome_plugin" via canonical scaffold (no install.yaml needed).
 ### 3. Dry-run preview
 
 ```bash
-dart run fluttersdk_artisan plugin:install magic_logger --dry-run
+dart run dowel plugin:install magic_logger --dry-run
 ```
 
 Output:
@@ -162,7 +162,7 @@ DryRun: previewed 4 ops; no changes written
 ## Idempotency
 
 Re-running `plugin:install` for the same plugin is safe in all three modes.
-`PluginsRegistryFile.addPlugin` replaces by name so `.artisan/plugins.json`
+`PluginsRegistryFile.addPlugin` replaces by name so `.dowel/plugins.json`
 always contains exactly one entry per plugin. `ConfigEditor.addImportToFile`
 and `insertCodeAfterPattern` skip injection when the target content is already
 present. Mode 3's `registerProvider` line is also checked before insertion
@@ -178,7 +178,7 @@ all staged temps and returns `Error(rolledBack: true)` before any rename occurs.
 ## Reversibility
 
 `plugin:uninstall <name>` is the complement to `plugin:install`. A Mode 1
-manifest commit writes `.artisan/installed/<name>.json` listing every op and
+manifest commit writes `.dowel/installed/<name>.json` listing every op and
 content hash. V1 reversibility is partial: `WriteFile` ops are fully reversed
 (tamper-check then delete); `InjectImport`, `InjectBeforePattern`, and
 `InjectAfterPattern` ops are logged as `[skipped]` (no anchor-bracketed markers
@@ -192,8 +192,8 @@ reversibility is planned for V1.1.
 ## Related
 
 - [plugin:uninstall](index.md): removes a plugin registered via
-  `plugin:install`, using the `.artisan/installed/<name>.json` record.
+  `plugin:install`, using the `.dowel/installed/<name>.json` record.
 - [plugins:refresh](index.md): regenerates `lib/app/_plugins.g.dart`
-  from `.artisan/plugins.json` when the codegen barrel drifts out of sync.
+  from `.dowel/plugins.json` when the codegen barrel drifts out of sync.
 - [install.yaml schema](../plugins/install-yaml.md): full reference for the
   declarative manifest format consumed by Mode 1.

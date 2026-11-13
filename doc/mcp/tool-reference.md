@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-Catalog of every MCP tool surfaced by `fluttersdk_artisan` directly. The MCP server exposes
+Catalog of every MCP tool surfaced by `dowel` directly. The MCP server exposes
 **10 substrate tools** (always available) plus plugin-contributed tools when the matching
 provider is registered in the consumer's `bin/dispatcher.dart`. Plugin tool catalogs live on
 each plugin's own documentation site (see [Plugin Tools](#plugin-tools) below).
@@ -9,16 +9,16 @@ each plugin's own documentation site (see [Plugin Tools](#plugin-tools) below).
 
 - [Tool Naming Convention](#tool-naming-convention)
 - [Substrate Tools](#substrate-tools)
-  - [artisan_start](#artisan_start)
-  - [artisan_stop](#artisan_stop)
-  - [artisan_status](#artisan_status)
-  - [artisan_logs](#artisan_logs)
-  - [artisan_restart](#artisan_restart)
-  - [artisan_reload](#artisan_reload)
-  - [artisan_hot_restart](#artisan_hot_restart)
-  - [artisan_doctor](#artisan_doctor)
-  - [artisan_list](#artisan_list)
-  - [artisan_tinker](#artisan_tinker)
+  - [dowel_start](#dowel_start)
+  - [dowel_stop](#dowel_stop)
+  - [dowel_status](#dowel_status)
+  - [dowel_logs](#dowel_logs)
+  - [dowel_restart](#dowel_restart)
+  - [dowel_reload](#dowel_reload)
+  - [dowel_hot_restart](#dowel_hot_restart)
+  - [dowel_doctor](#dowel_doctor)
+  - [dowel_list](#dowel_list)
+  - [dowel_tinker](#dowel_tinker)
 - [Plugin Tools](#plugin-tools)
 - [Filter Configuration](#filter-configuration)
 - [Related](#related)
@@ -29,23 +29,23 @@ each plugin's own documentation site (see [Plugin Tools](#plugin-tools) below).
 
 ### Substrate tools
 
-Substrate tools are built-in artisan commands exposed by `McpServer` directly. Their names
-follow the pattern `artisan_<command>` where the artisan command name is transformed:
+Substrate tools are built-in dowel commands exposed by `McpServer` directly. Their names
+follow the pattern `dowel_<command>` where the dowel command name is transformed:
 
 - `:` (namespace separator) becomes `_`
 - `-` (word separator) becomes `_`
 
-Examples: `start` maps to `artisan_start`; `hot-restart` maps to `artisan_hot_restart`.
+Examples: `start` maps to `dowel_start`; `hot-restart` maps to `dowel_hot_restart`.
 
 ### Plugin tools
 
-Plugin tools are contributed via `ArtisanServiceProvider.mcpTools()`. Each plugin package
+Plugin tools are contributed via `DowelServiceProvider.mcpTools()`. Each plugin package
 owns a prefix that matches the package name or domain:
 
 | Plugin package | Tool prefix | Reference |
 |---|---|---|
-| `fluttersdk_dusk` | `dusk_` | [fluttersdk.com/dusk/mcp/tool-reference](https://fluttersdk.com/dusk/mcp/tool-reference) |
-| `fluttersdk_telescope` | `telescope_` | [fluttersdk.com/telescope/mcp/tool-reference](https://fluttersdk.com/telescope/mcp/tool-reference) |
+| `tapir` | `tapir_` | [anilcancakir.com/tapir/docs/mcp/tool-reference](https://anilcancakir.com/tapir/docs/mcp/tool-reference) |
+| `crumbs` | `crumbs_` | [anilcancakir.com/crumbs/docs/mcp/tool-reference](https://anilcancakir.com/crumbs/docs/mcp/tool-reference) |
 
 The same `:` and `-` transformation applies inside the suffix part.
 
@@ -55,7 +55,7 @@ Interactive (`help`), codegen (`make:*`, `*:refresh`), installer (`plugin:*`,
 `install`), and MCP meta (`mcp:*`) commands are intentionally excluded. They
 either require a TTY, mutate source on disk (better served by the client's own file tools),
 or recurse into the MCP server itself. `tinker` was previously excluded as interactive but
-is now absorbed into the substrate as `artisan_tinker` (the `--eval` one-shot path drives
+is now absorbed into the substrate as `dowel_tinker` (the `--eval` one-shot path drives
 the MCP surface).
 
 ---
@@ -63,15 +63,15 @@ the MCP surface).
 ## Substrate Tools
 
 The 10 substrate tools are always present when the MCP server starts. They are served
-in-process: the server builds a `MapInput` from the MCP arguments, runs the artisan command
+in-process: the server builds a `MapInput` from the MCP arguments, runs the dowel command
 via `BufferedOutput`, and returns the combined stdout + exit code as MCP text content.
 
-### artisan_start
+### dowel_start
 
-Maps to artisan command: `start`
+Maps to dowel command: `start`
 
 Starts the Flutter app in debug mode and records the process PID and VM Service URI in
-this project's session file. Once it exists the plugin tools (dusk, telescope,
+this project's session file. Once it exists the plugin tools (tapir, crumbs,
 tinker) can connect to the running VM.
 
 | Parameter | Type | Default | Description |
@@ -82,9 +82,9 @@ tinker) can connect to the running VM.
 | `dds` | boolean | `false` | Enable the Dart Development Service (DDS) proxy. Set `true` when a tool requires DDS-only features. |
 | `profile-static` | boolean | `false` | Run a device (Android, iOS, desktop) with `flutter run --profile`: release-like performance, no hot reload. On `chrome` it only tags the session, because a web profile build has no VM Service. |
 
-### artisan_stop
+### dowel_stop
 
-Maps to artisan command: `stop`
+Maps to dowel command: `stop`
 
 Sends `SIGTERM` to the process group of the recorded Flutter tool, so `frontend_server` and
 the other children stop with it, and waits up to 5 seconds for the group. A member still
@@ -92,26 +92,26 @@ there is sent `SIGKILL` and waited on for up to 5 seconds more; then, on a web s
 web port gets up to 5 seconds to come free. A CDP session's Chrome is stopped the same way,
 with its CDP port. A pid that now belongs to a process started after the session was recorded
 is left alone. The call returns once the app is gone (about 15 seconds at worst, 30 with
-Chrome), so an `artisan_start` straight after it does not race the old app for its port. Then it deletes this project's session; an app that outlives `SIGKILL`
+Chrome), so an `dowel_start` straight after it does not race the old app for its port. Then it deletes this project's session; an app that outlives `SIGKILL`
 keeps its session and fails the call, so it can be retried. On an Android device it also runs
 `adb -s <serial> shell am force-stop <applicationId>` (the id comes from
 `android/app/build.gradle*`), because signalling the flutter tool leaves the app running.
-After this call, plugin tools will fail until `artisan_start` is called again.
+After this call, plugin tools will fail until `dowel_start` is called again.
 
 No parameters.
 
-### artisan_status
+### dowel_status
 
-Maps to artisan command: `status`
+Maps to dowel command: `status`
 
 Reads this project's session and returns the current process state as JSON: PID, device,
 VM Service URI, start timestamp, and whether the process is still alive.
 
 No parameters.
 
-### artisan_logs
+### dowel_logs
 
-Maps to artisan command: `logs`
+Maps to dowel command: `logs`
 
 Returns buffered stdout/stderr lines produced by the Flutter process since it started. Use
 this to see compilation errors, framework warnings, and `print()` output from the app.
@@ -120,9 +120,9 @@ this to see compilation errors, framework warnings, and `print()` output from th
 |---|---|---|---|
 | `follow` | boolean | `false` | When `true`, tail the live log stream until the client disconnects (`-f` on the CLI). When `false`, return the most recent buffered lines and exit immediately. |
 
-### artisan_restart
+### dowel_restart
 
-Maps to artisan command: `restart`
+Maps to dowel command: `restart`
 
 Sends a full restart signal to the running Flutter process via the VM Service. Equivalent to
 pressing `R` in the flutter run terminal. All widget state is destroyed; static state in Dart
@@ -130,20 +130,20 @@ globals persists.
 
 No parameters.
 
-### artisan_reload
+### dowel_reload
 
-Maps to artisan command: `reload`
+Maps to dowel command: `reload`
 
 Sends a hot reload signal to the running Flutter process via the VM Service. Equivalent to
 pressing `r` in the flutter run terminal. Updates code in place; widget state is preserved.
-Faster than `artisan_restart` but does not pick up changes to `initState` or constructor
+Faster than `dowel_restart` but does not pick up changes to `initState` or constructor
 bodies.
 
 No parameters.
 
-### artisan_hot_restart
+### dowel_hot_restart
 
-Maps to artisan command: `hot-restart`
+Maps to dowel command: `hot-restart`
 
 Alias for the hot-restart cycle: tears down the widget tree and rebuilds from `main()` while
 keeping the Dart VM alive. Faster than a full process restart; slower than hot reload. Use
@@ -152,29 +152,29 @@ when hot reload cannot pick up the change (e.g. changes to `StatefulWidget.creat
 
 No parameters.
 
-### artisan_doctor
+### dowel_doctor
 
-Maps to artisan command: `doctor`
+Maps to dowel command: `doctor`
 
-Checks the artisan environment: Flutter SDK on `PATH`, `flutter devices` reachability,
+Checks the dowel environment: Flutter SDK on `PATH`, `flutter devices` reachability,
 state file presence, and VM Service connectivity. Returns a summary report with per-check
 status (OK / WARNING / ERROR). Run this first when plugin tools fail unexpectedly.
 
 No parameters.
 
-### artisan_list
+### dowel_list
 
-Maps to artisan command: `list`
+Maps to dowel command: `list`
 
-Lists every registered artisan command with its signature and description. Output mirrors
-`dart run artisan list`. Useful for discovering commands contributed by plugin providers
+Lists every registered dowel command with its signature and description. Output mirrors
+`dart run dowel list`. Useful for discovering commands contributed by plugin providers
 registered in the consumer's `bin/dispatcher.dart`.
 
 No parameters.
 
-### artisan_tinker
+### dowel_tinker
 
-Maps to artisan command: `tinker`
+Maps to dowel command: `tinker`
 
 Evaluate a Dart expression inside the running Flutter app via the VM Service evaluate RPC.
 Takes required `eval` argument (Dart expression). Returns the formatted evaluation result
@@ -190,35 +190,35 @@ expression runs in the foreground isolate's root library scope and is passed thr
 
 ## Plugin Tools
 
-Plugin tools are contributed by sibling packages via `ArtisanServiceProvider.mcpTools()`.
+Plugin tools are contributed by sibling packages via `DowelServiceProvider.mcpTools()`.
 They surface in the MCP server only when the corresponding provider is registered in the
-consumer's `bin/dispatcher.dart` and the MCP server is restarted (run `./bin/fsa mcp:serve` or
-`dart run :dispatcher mcp:serve` on Windows or when `bin/fsa` is absent).
+consumer's `bin/dispatcher.dart` and the MCP server is restarted (run `./bin/dowel mcp:serve` or
+`dart run :dispatcher mcp:serve` on Windows or when `bin/dowel` is absent).
 
 Each plugin tool dispatches over a `ext.<domain>.*` VM Service extension registered by the
 plugin inside the running Flutter app.
 
 ---
 
-### fluttersdk_dusk
+### tapir
 
-E2E interaction driver. Tools operate over `ext.dusk.*` VM Service extensions installed by
-`fluttersdk_dusk` inside the running app. Tool names use the `dusk_` prefix.
+E2E interaction driver. Tools operate over `ext.tapir.*` VM Service extensions installed by
+`tapir` inside the running app. Tool names use the `tapir_` prefix.
 
 The plugin's MCP tool catalog evolves alongside the package; the canonical reference lives
-at [fluttersdk.com/dusk/mcp/tool-reference](https://fluttersdk.com/dusk/mcp/tool-reference)
+at [anilcancakir.com/tapir/docs/mcp/tool-reference](https://anilcancakir.com/tapir/docs/mcp/tool-reference)
 (per-tool input schema, required parameters, return shape, example invocations).
 
 ---
 
-### fluttersdk_telescope
+### crumbs
 
-Runtime inspector. Tools read ring buffers populated by `ext.telescope.*` VM Service
-extensions installed by `fluttersdk_telescope` inside the running app. Tool names use the
-`telescope_` prefix.
+Runtime inspector. Tools read ring buffers populated by `ext.crumbs.*` VM Service
+extensions installed by `crumbs` inside the running app. Tool names use the
+`crumbs_` prefix.
 
 The plugin's MCP tool catalog evolves alongside the package; the canonical reference lives
-at [fluttersdk.com/telescope/mcp/tool-reference](https://fluttersdk.com/telescope/mcp/tool-reference)
+at [anilcancakir.com/crumbs/docs/mcp/tool-reference](https://anilcancakir.com/crumbs/docs/mcp/tool-reference)
 (per-tool input schema, required parameters, return shape, example invocations).
 
 ---
@@ -226,9 +226,9 @@ at [fluttersdk.com/telescope/mcp/tool-reference](https://fluttersdk.com/telescop
 ### Tinker (absorbed into the substrate)
 
 The connected REPL is no longer a plugin tool: it ships as the substrate's
-`artisan_tinker` (see above). `magic_tinker` is still consumed by the host app for the
-interactive REPL CLI (`dart run artisan tinker`), but its MCP surface has been removed
-to avoid duplicating the substrate path. Use `artisan_tinker` from any MCP client for
+`dowel_tinker` (see above). `magic_tinker` is still consumed by the host app for the
+interactive REPL CLI (`dart run dowel tinker`), but its MCP surface has been removed
+to avoid duplicating the substrate path. Use `dowel_tinker` from any MCP client for
 live state inspection, controller calls, or facade events.
 
 ---
@@ -247,7 +247,7 @@ and union for deny lists.
 - **Deny wins over allow**: when a name appears in both the effective allow set and the
   effective deny set, the deny wins.
 
-### Layer 1: `.artisan/mcp.json`
+### Layer 1: `.dowel/mcp.json`
 
 Place this file in the project root (next to `bin/dispatcher.dart`):
 
@@ -273,36 +273,36 @@ Field reference:
 | `tools.allow` | `null` or `string[]` | `null` = allow all tool names; array = allow only named tools |
 | `tools.deny` | `string[]` | Tool names always excluded (wins over allow) |
 
-Package names match `ArtisanServiceProvider.providerName`: `fluttersdk_artisan` (substrate),
-`fluttersdk_dusk`, `fluttersdk_telescope`. Tool names match `McpToolDescriptor.name` exactly
-(e.g. `artisan_tinker`, or any name listed on each plugin's tool-reference site).
+Package names match `DowelServiceProvider.providerName`: `dowel` (substrate),
+`tapir`, `crumbs`. Tool names match `McpToolDescriptor.name` exactly
+(e.g. `dowel_tinker`, or any name listed on each plugin's tool-reference site).
 
 ### Layer 2: environment variables
 
 | Variable | Effect |
 |---|---|
-| `ARTISAN_MCP_PACKAGES_ALLOW` | CSV of package names to allow |
-| `ARTISAN_MCP_PACKAGES_DENY` | CSV of package names to deny |
-| `ARTISAN_MCP_TOOLS_ALLOW` | CSV of tool names to allow |
-| `ARTISAN_MCP_TOOLS_DENY` | CSV of tool names to deny |
+| `DOWEL_MCP_PACKAGES_ALLOW` | CSV of package names to allow |
+| `DOWEL_MCP_PACKAGES_DENY` | CSV of package names to deny |
+| `DOWEL_MCP_TOOLS_ALLOW` | CSV of tool names to allow |
+| `DOWEL_MCP_TOOLS_DENY` | CSV of tool names to deny |
 
 ### Layer 3: CLI flags
 
 Pass flags directly to the MCP server invocation:
 
 ```bash
-./bin/fsa mcp:serve \
-  --include-package=fluttersdk_dusk \
-  --exclude-tool=artisan_stop
+./bin/dowel mcp:serve \
+  --include-package=tapir \
+  --exclude-tool=dowel_stop
 ```
 
 CLI flags replace the env + file allow lists and are unioned into the deny sets.
 
-**Example: expose dusk tools only**
-`{ "packages": { "allow": ["fluttersdk_dusk"], "deny": [] }, "tools": { "allow": null, "deny": [] } }`
+**Example: expose tapir tools only**
+`{ "packages": { "allow": ["tapir"], "deny": [] }, "tools": { "allow": null, "deny": [] } }`
 
 **Example: hide destructive substrate tools**
-`{ "packages": { "allow": null, "deny": [] }, "tools": { "allow": null, "deny": ["artisan_stop"] } }`
+`{ "packages": { "allow": null, "deny": [] }, "tools": { "allow": null, "deny": ["dowel_stop"] } }`
 
 ---
 

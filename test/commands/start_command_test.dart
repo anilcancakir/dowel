@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -193,10 +193,10 @@ void main() {
     late Directory tempProfileRoot;
 
     setUp(() async {
-      tempHome = await Directory.systemTemp.createTemp('artisan_start_cdp_');
+      tempHome = await Directory.systemTemp.createTemp('dowel_start_cdp_');
       StateFile.debugHomeOverride = tempHome.path;
       tempProfileRoot =
-          await Directory.systemTemp.createTemp('artisan_start_cdp_profile_');
+          await Directory.systemTemp.createTemp('dowel_start_cdp_profile_');
     });
 
     tearDown(() async {
@@ -235,7 +235,7 @@ void main() {
         '(no silent fallback to the default flow)', () async {
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -258,7 +258,7 @@ void main() {
         () async {
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'macos',
           'port': '3100',
@@ -303,7 +303,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -334,7 +334,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -373,7 +373,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -417,7 +417,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -487,7 +487,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -523,7 +523,7 @@ void main() {
       expect(state!['chromePid'], 7777);
       expect(state['cdpPort'], 9223);
       expect(
-          state['tmpProfileDir'], '${tempProfileRoot.path}/dusk-chrome-9223');
+          state['tmpProfileDir'], '${tempProfileRoot.path}/tapir-chrome-9223');
       expect(state['vmServiceUri'], 'ws://127.0.0.1:8181/abc/ws');
       expect(state['vmServicePort'], 8181);
 
@@ -566,7 +566,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -621,7 +621,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'web-server',
           'port': '3100',
@@ -685,7 +685,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -752,7 +752,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -771,10 +771,11 @@ void main() {
               'error');
       expect(killedPids, containsAll(<int>[100, 200, 7777]),
           reason: 'flutter holder + child and Chrome pids must be SIGTERMed');
-      final fifoPath = '${tempHome.path}/.artisan/flutter-dev.fifo';
+      final fifoPath = '${tempHome.path}/.dowel/flutter-dev.fifo';
       expect(File(fifoPath).existsSync(), isFalse,
           reason: 'FIFO must be deleted on failure');
-      expect(Directory('${tempProfileRoot.path}/dusk-chrome-9223').existsSync(),
+      expect(
+          Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
           isFalse,
           reason: 'tmp profile dir must be removed on failure');
     });
@@ -825,7 +826,7 @@ void main() {
       };
       final output = BufferedOutput();
 
-      final code = await StartCommand().handle(ArtisanContext.bare(
+      final code = await StartCommand().handle(DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -840,10 +841,11 @@ void main() {
       expect(output.content, contains('Page.navigate failed'));
       expect(killedPids, containsAll(<int>[100, 200, 7777]));
       expect(
-        File('${tempHome.path}/.artisan/flutter-dev.fifo').existsSync(),
+        File('${tempHome.path}/.dowel/flutter-dev.fifo').existsSync(),
         isFalse,
       );
-      expect(Directory('${tempProfileRoot.path}/dusk-chrome-9223').existsSync(),
+      expect(
+          Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
           isFalse);
     });
 
@@ -887,7 +889,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -905,10 +907,11 @@ void main() {
           reason: 'surfaced error must be the original throw');
       expect(killedPids, containsAll(<int>[300, 400, 4242]),
           reason: 'flutter holder + child and Chrome pids must be SIGTERMed');
-      final fifoPath = '${tempHome.path}/.artisan/flutter-dev.fifo';
+      final fifoPath = '${tempHome.path}/.dowel/flutter-dev.fifo';
       expect(File(fifoPath).existsSync(), isFalse,
           reason: 'FIFO must be deleted on failure');
-      expect(Directory('${tempProfileRoot.path}/dusk-chrome-9223').existsSync(),
+      expect(
+          Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
           isFalse,
           reason: 'tmp profile dir must be removed on failure');
     });
@@ -950,7 +953,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -972,7 +975,8 @@ void main() {
       expect(flutterSpawned, isFalse,
           reason:
               'flutter must not have been spawned (FIFO setup threw first)');
-      expect(Directory('${tempProfileRoot.path}/dusk-chrome-9223').existsSync(),
+      expect(
+          Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
           isFalse,
           reason: 'tmp profile dir must be removed on failure');
     });
@@ -993,7 +997,7 @@ void main() {
         () async {
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -1015,7 +1019,7 @@ void main() {
     test('--timeout rejects zero: exit 1 + actionable error', () async {
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -1040,7 +1044,7 @@ void main() {
         () async {
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -1110,7 +1114,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -1137,7 +1141,7 @@ void main() {
 
     test('live scrape loop returns the normalized URI when the log yields one',
         () async {
-      final dir = Directory.systemTemp.createTempSync('artisan_scrape_');
+      final dir = Directory.systemTemp.createTempSync('dowel_scrape_');
       addTearDown(() => dir.deleteSync(recursive: true));
       final log = File('${dir.path}/run.log')
         ..writeAsStringSync(
@@ -1152,7 +1156,7 @@ void main() {
     test(
         'live scrape loop throws after the configured timeout when no URI '
         'appears (deadline honors the configured value)', () async {
-      final dir = Directory.systemTemp.createTempSync('artisan_scrape_');
+      final dir = Directory.systemTemp.createTempSync('dowel_scrape_');
       addTearDown(() => dir.deleteSync(recursive: true));
       final log = File('${dir.path}/run.log')
         ..writeAsStringSync('starting up, no service uri yet\n');
@@ -1204,7 +1208,7 @@ void main() {
 
       final output = BufferedOutput();
       final code = await StartCommand().handle(
-        ArtisanContext.bare(
+        DowelContext.bare(
           MapInput(<String, dynamic>{
             'device': 'chrome',
             'port': '3100',
@@ -1222,7 +1226,7 @@ void main() {
     });
 
     test('live web-server wait throws at the configured deadline', () async {
-      final dir = Directory.systemTemp.createTempSync('artisan_ready_');
+      final dir = Directory.systemTemp.createTempSync('dowel_ready_');
       addTearDown(() => dir.deleteSync(recursive: true));
       final log = File('${dir.path}/run.log')
         ..writeAsStringSync('Compiling lib/main.dart for the Web...\n');
@@ -1327,7 +1331,7 @@ void main() {
 
       final output = BufferedOutput();
       final code = await StartCommand().handle(
-        ArtisanContext.bare(
+        DowelContext.bare(
           MapInput(<String, dynamic>{
             'device': 'chrome',
             'port': '3100',
@@ -1370,7 +1374,7 @@ void main() {
       StartCommand.startIsAlive = (int _) => true;
 
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'emulator-5554',
           'port': '3100',
@@ -1384,7 +1388,7 @@ void main() {
       final code =
           await StartCommand().handle(ctx).timeout(const Duration(seconds: 10));
 
-      expect(code, ArtisanCommand.exitTryAgain);
+      expect(code, DowelCommand.exitTryAgain);
       expect(output.content, contains('still building after 1s'));
     });
 
@@ -1411,7 +1415,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',
@@ -1456,7 +1460,7 @@ void main() {
 
       final command = StartCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           'device': 'chrome',
           'port': '3100',

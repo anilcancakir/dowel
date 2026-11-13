@@ -1,6 +1,6 @@
 import 'dart:developer' as developer;
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 Future<developer.ServiceExtensionResponse> _handler(

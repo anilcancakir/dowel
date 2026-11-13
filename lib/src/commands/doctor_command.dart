@@ -3,16 +3,16 @@ import 'dart:io';
 
 import 'package:meta/meta.dart';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 
 /// Advisory warning emitted when `.mcp.json` still references the removed
 /// `fluttersdk_mcp` package. Instructs the user to run `mcp:install` to fix.
 const _staleMcpWarning =
     'WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the '
-    'removed fluttersdk_mcp package. Run: ./bin/fsa mcp:install (or: '
-    'dart run fluttersdk_artisan mcp:install) to refresh the entry.';
+    'removed fluttersdk_mcp package. Run: ./bin/dowel mcp:install (or: '
+    'dart run dowel mcp:install) to refresh the entry.';
 
 /// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
 /// `fluttersdk_artisan:mcp` args shape. That shape routes through the substrate
@@ -21,7 +21,7 @@ const _staleMcpWarning =
 const _preFixMcpWarning =
     'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
     'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Run: ./bin/fsa mcp:install (or: dart run fluttersdk_artisan mcp:install) '
+    'Run: ./bin/dowel mcp:install (or: dart run dowel mcp:install) '
     'to upgrade to the correct entry shape.';
 
 /// Minimum Flutter SDK version required for the WebSocket hot reload fix that
@@ -32,12 +32,12 @@ const _minSdkVersion = '3.30.0';
 /// [_minSdkVersion]. Instructs the user to run `flutter upgrade`.
 const _cdpUpgradeWarning =
     'WARN: Flutter SDK is older than $_minSdkVersion. CDP commands '
-    '(dusk:resize, dusk:device, artisan start --cdp-port) require the '
+    '(tapir:resize, tapir:device, dowel start --cdp-port) require the '
     'WebSocket hot reload fix from flutter/flutter#170612. '
     'Run `flutter upgrade` and re-check.';
 
-/// Runs environment preflight checks (artisan toolchain).
-class DoctorCommand extends ArtisanCommand {
+/// Runs environment preflight checks (dowel toolchain).
+class DoctorCommand extends DowelCommand {
   /// Creates a [DoctorCommand].
   ///
   /// [workingDir] pins the directory used for `.mcp.json` detection. Defaults
@@ -81,7 +81,7 @@ class DoctorCommand extends ArtisanCommand {
       _checkFlutterSdkVersion();
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Run hard preflight checks.
     final checks = <_Check>[
       _Check('flutter --version', _checkFlutter),
@@ -115,7 +115,7 @@ class DoctorCommand extends ArtisanCommand {
   /// substrate-standalone shape that never loads consumer plugin providers).
   /// Does nothing when the file is absent or cannot be parsed.
   /// This is advisory only and never influences the exit code.
-  static void _checkStaleMcpJson(String dir, ArtisanContext ctx) {
+  static void _checkStaleMcpJson(String dir, DowelContext ctx) {
     final file = File('$dir/.mcp.json');
     if (!file.existsSync()) return;
 
@@ -131,7 +131,7 @@ class DoctorCommand extends ArtisanCommand {
     if (servers is! Map<String, dynamic>) return;
 
     // 1. Scan all server entries for the legacy fluttersdk_mcp:server shape
-    //    (the removed package from before the artisan absorption).
+    //    (the removed package from before the dowel absorption).
     for (final entry in servers.values) {
       if (entry is! Map<String, dynamic>) continue;
       final args = entry['args'];
@@ -158,7 +158,7 @@ class DoctorCommand extends ArtisanCommand {
 
   /// Emits [_cdpUpgradeWarning] to [ctx] when [_checkFlutterSdkVersion]
   /// returns false. Advisory only; never influences the exit code.
-  static Future<void> _checkCdpReadiness(ArtisanContext ctx) async {
+  static Future<void> _checkCdpReadiness(DowelContext ctx) async {
     final sdkOk = await _checkFlutterSdkVersion();
     if (!sdkOk) {
       ctx.output.writeln(_cdpUpgradeWarning);

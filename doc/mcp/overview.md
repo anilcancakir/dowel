@@ -3,7 +3,7 @@
 <a name="toc"></a>
 
 - [What is MCP](#what-is-mcp)
-- [Why MCP in artisan](#why-mcp-in-artisan)
+- [Why MCP in dowel](#why-mcp-in-dowel)
 - [10 Substrate Tools](#substrate-tools)
 - [Plugin-Contributed Tools](#plugin-contributed-tools)
 - [State File Contract](#state-file-contract)
@@ -26,9 +26,9 @@ done), so the same server can serve multiple AI clients without code duplication
 
 ---
 
-<a name="why-mcp-in-artisan"></a>
+<a name="why-mcp-in-dowel"></a>
 
-## Why MCP in artisan
+## Why MCP in dowel
 
 LLM agents working on Flutter codebases traditionally had one interaction mode: read source files and
 shell out to CLI commands. That works for static analysis and compilation, but it breaks down the
@@ -37,8 +37,8 @@ snapshot, tailing HTTP traffic, evaluating an expression in the live isolate, or
 a code change all require a live connection to the Dart VM Service. Passing raw VM Service WebSocket
 URIs and protocol bytes through shell commands is fragile and opaque.
 
-artisan's MCP integration solves this by surfacing the running Flutter app's capabilities as
-first-class MCP tools. The agent calls `artisan_start` to launch the app, `artisan_reload` to push a
+dowel's MCP integration solves this by surfacing the running Flutter app's capabilities as
+first-class MCP tools. The agent calls `dowel_start` to launch the app, `dowel_reload` to push a
 hot reload, and plugin-contributed tools to snap the widget tree or tail HTTP requests, all without
 copy-pasting commands or parsing raw output. The MCP server handles VM Service discovery, lazy
 reconnect across stop-restart cycles, and structured error formatting so the model can self-correct.
@@ -49,25 +49,25 @@ reconnect across stop-restart cycles, and structured error formatting so the mod
 
 ## 10 Substrate Tools
 
-The MCP server always registers the following ten tools, derived from the artisan CLI's built-in
+The MCP server always registers the following ten tools, derived from the dowel CLI's built-in
 command set. Tool names are normalized from `cmd:name` to `cmd_name` so they satisfy the MCP
-identifier constraint (`[a-zA-Z][a-zA-Z0-9_]*`). These tools run in-process via the artisan
-registry; nine of them require no VM Service connection (so `artisan_start` works even before any
-Flutter app is running), while `artisan_tinker` dispatches over the VM Service and lazy-reconnects
+identifier constraint (`[a-zA-Z][a-zA-Z0-9_]*`). These tools run in-process via the dowel
+registry; nine of them require no VM Service connection (so `dowel_start` works even before any
+Flutter app is running), while `dowel_tinker` dispatches over the VM Service and lazy-reconnects
 on first call.
 
 | Tool | Maps to CLI command | Purpose |
 |---|---|---|
-| `artisan_start` | `start` | Launch the Flutter app via `flutter run` and write `state.json` |
-| `artisan_stop` | `stop` | Stop the running Flutter process group, wait until it is gone, and delete `state.json` |
-| `artisan_status` | `status` | Read `state.json` and return the current process metadata as JSON |
-| `artisan_logs` | `logs` | Stream the most recent stdout lines captured from `flutter run` |
-| `artisan_restart` | `restart` | Full restart (equivalent to `R` in the flutter run TTY) |
-| `artisan_reload` | `reload` | Hot reload the running app without losing widget state |
-| `artisan_hot_restart` | `hot-restart` | Hot restart the running app, resetting ephemeral state |
-| `artisan_doctor` | `doctor` | Run `flutter doctor` and return the diagnostics report |
-| `artisan_list` | `list` | List all registered artisan commands with their signatures |
-| `artisan_tinker` | `tinker` | Evaluate Dart expression in running app via VM Service. Maps to: tinker command. Requires running app (artisan_start first). |
+| `dowel_start` | `start` | Launch the Flutter app via `flutter run` and write `state.json` |
+| `dowel_stop` | `stop` | Stop the running Flutter process group, wait until it is gone, and delete `state.json` |
+| `dowel_status` | `status` | Read `state.json` and return the current process metadata as JSON |
+| `dowel_logs` | `logs` | Stream the most recent stdout lines captured from `flutter run` |
+| `dowel_restart` | `restart` | Full restart (equivalent to `R` in the flutter run TTY) |
+| `dowel_reload` | `reload` | Hot reload the running app without losing widget state |
+| `dowel_hot_restart` | `hot-restart` | Hot restart the running app, resetting ephemeral state |
+| `dowel_doctor` | `doctor` | Run `flutter doctor` and return the diagnostics report |
+| `dowel_list` | `list` | List all registered dowel commands with their signatures |
+| `dowel_tinker` | `tinker` | Evaluate Dart expression in running app via VM Service. Maps to: tinker command. Requires running app (dowel_start first). |
 
 Commands intentionally excluded from the MCP allowlist: interactive commands (`help`),
 codegen commands (`make:*`, `*:refresh`), installer commands (`plugin:*`, `install`), and
@@ -81,20 +81,20 @@ client's own file tools, or recurse into the MCP server itself.
 ## Plugin-Contributed Tools
 
 Beyond the ten substrate tools, plugins extend the MCP catalog by overriding
-`ArtisanServiceProvider.mcpTools()`. The default implementation returns an empty list; plugins return
+`DowelServiceProvider.mcpTools()`. The default implementation returns an empty list; plugins return
 a list of `McpToolDescriptor` instances that the MCP server collects at initialize time and registers
 alongside the substrate tools. The same `McpFilterConfig` allow/deny rules apply uniformly, so a
-deny rule against a plugin tool name works identically to `tools.deny: [artisan_start]`.
+deny rule against a plugin tool name works identically to `tools.deny: [dowel_start]`.
 
 Plugin tools dispatch through the VM Service (not in-process), so they require a running Flutter app.
-The MCP server lazy-reconnects on each dispatch call, meaning the agent can call `artisan_start`
+The MCP server lazy-reconnects on each dispatch call, meaning the agent can call `dowel_start`
 first and the very next plugin tool call picks up the new app automatically.
 
 **Plugin registration is explicit.** The consumer's `bin/dispatcher.dart` wrapper must list each
-provider in the `baseProviders` list it passes to `runArtisan(...)` (auto-discovery via
+provider in the `baseProviders` list it passes to `runDowel(...)` (auto-discovery via
 `lib/app/_plugins.g.dart` handles this for `plugin:install`-registered packages). Consumers
-invoke `./bin/fsa mcp:serve` (post-install via `mcp:install`) or `dart run :dispatcher mcp:serve`
-(Windows / no-fsa fallback) to start the MCP server with plugins collected. The legacy
+invoke `./bin/dowel mcp:serve` (post-install via `mcp:install`) or `dart run :dispatcher mcp:serve`
+(Windows / no-dowel fallback) to start the MCP server with plugins collected. The legacy
 `bin/mcp.dart` entry point is preserved for backward compatibility and loads only the substrate
 commands without plugin tools.
 
@@ -102,14 +102,14 @@ The two sibling packages that ship production plugin tools are:
 
 | Package | MCP tool reference |
 |---|---|
-| `fluttersdk_dusk` | [fluttersdk.com/dusk/mcp/tool-reference](https://fluttersdk.com/dusk/mcp/tool-reference) |
-| `fluttersdk_telescope` | [fluttersdk.com/telescope/mcp/tool-reference](https://fluttersdk.com/telescope/mcp/tool-reference) |
+| `tapir` | [anilcancakir.com/tapir/docs/mcp/tool-reference](https://anilcancakir.com/tapir/docs/mcp/tool-reference) |
+| `crumbs` | [anilcancakir.com/crumbs/docs/mcp/tool-reference](https://anilcancakir.com/crumbs/docs/mcp/tool-reference) |
 
-Each package's provider is wired by the consumer (`DuskArtisanProvider`, `TelescopeArtisanProvider`)
-registered in the wrapper's `artisanProviders` list. See the per-package CLAUDE.md for registration
+Each package's provider is wired by the consumer (`TapirDowelProvider`, `CrumbsDowelProvider`)
+registered in the wrapper's `dowelProviders` list. See the per-package CLAUDE.md for registration
 details and each plugin's tool reference site for the current tool catalog. `magic_tinker` remains
-the CLI REPL host for `dart run artisan tinker`, but its MCP surface is now the substrate's
-`artisan_tinker`.
+the CLI REPL host for `dart run dowel tinker`, but its MCP surface is now the substrate's
+`dowel_tinker`.
 
 ---
 
@@ -117,14 +117,14 @@ the CLI REPL host for `dart run artisan tinker`, but its MCP surface is now the 
 
 ## State File Contract
 
-`artisan start` writes a JSON file per project at `~/.artisan/sessions/<hash>/state.json` (the path is machine-local and
+`dowel start` writes a JSON file per project at `~/.dowel/sessions/<hash>/state.json` (the path is machine-local and
 user-scoped). The MCP server reads this file during `initialize` to discover the running Flutter
 app's VM Service WebSocket URI. If the file is absent or lacks a `vmServiceUri` key, the server
 stays online and registers all tools, but VM Service dispatch calls return an actionable error until
 the app is started.
 
 The state file is a single-slot store: starting a second app overwrites the previous record. It is
-never committed to version control (`.gitignore` / `.pubignore` exclude `.artisan/`).
+never committed to version control (`.gitignore` / `.pubignore` exclude `.dowel/`).
 
 Fields (from `lib/src/state/state_file.dart`):
 
@@ -152,30 +152,30 @@ Fields (from `lib/src/state/state_file.dart`):
         |
         | stdio JSON-RPC  (initialize / tools/call)
         |
-  ./bin/fsa mcp:serve
+  ./bin/dowel mcp:serve
   (or: dart run :dispatcher mcp:serve)
         |
    McpServer (mcp:serve)
         |
-        +-- substrate tools (artisan_start, artisan_stop, ...)
+        +-- substrate tools (dowel_start, dowel_stop, ...)
         |         |
         |         v
-        |   ArtisanRegistry  (in-process command dispatch)
+        |   DowelRegistry  (in-process command dispatch)
         |
-        +-- plugin tools (dusk_*, telescope_*) + artisan_tinker
+        +-- plugin tools (tapir_*, crumbs_*) + dowel_tinker
                   |
                   | VM Service WebSocket
                   | ws://localhost:PORT/<token>/ws
                   |
              VmServiceClient
                   |
-                  | ext.dusk.* / ext.telescope.* / VM evaluate RPC
+                  | ext.tapir.* / ext.crumbs.* / VM evaluate RPC
                   |
           Flutter app isolate (debug mode)
                   |
           +-------+-------+
           |               |
-  DuskIntegration   TelescopeIntegration
+  TapirIntegration   CrumbsIntegration
   (widget tree)     (HTTP + logs + exceptions)
 ```
 
@@ -185,8 +185,8 @@ Fields (from `lib/src/state/state_file.dart`):
 2. `McpServer` reads this project's session and opens a VM Service WebSocket to the running Flutter
    app.
 3. All registered tools become available to the client model.
-4. Substrate tool calls (prefix `artisan:`) route in-process through `ArtisanRegistry` without VM
-   Service involvement, so `artisan_start` works even when no app is running.
+4. Substrate tool calls (prefix `dowel:`) route in-process through `DowelRegistry` without VM
+   Service involvement, so `dowel_start` works even when no app is running.
 5. Plugin tool calls dispatch through `VmServiceClient.callServiceExtension`, reaching the Flutter
    app's registered extension handlers in the debug isolate.
 6. Results return as `CallToolResult` text content; errors carry `isError: true` with an actionable
@@ -198,7 +198,7 @@ Fields (from `lib/src/state/state_file.dart`):
 
 ## Related
 
-- [Setup guide](setup.md): install the MCP server, configure `.artisan/mcp.json`, and wire provider
-  registration in `bin/artisan.dart`.
+- [Setup guide](setup.md): install the MCP server, configure `.dowel/mcp.json`, and wire provider
+  registration in `bin/dowel.dart`.
 - [Tool reference](tool-reference.md): per-tool input schema, example calls, and error codes for all
   ten substrate tools, plus links to each plugin's own MCP tool reference site.

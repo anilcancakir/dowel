@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -201,7 +201,7 @@ void main() {
     });
   });
 
-  group('ArtisanCommand integration', () {
+  group('DowelCommand integration', () {
     test('name derives from signature when not overridden', () {
       final cmd = _SignatureOnlyCommand();
       expect(cmd.name, 'sync:monitors');
@@ -241,7 +241,7 @@ void main() {
   });
 }
 
-class _SignatureOnlyCommand extends ArtisanCommand {
+class _SignatureOnlyCommand extends DowelCommand {
   @override
   String get signature =>
       'sync:monitors {team} {scope=all} {--force} {--limit=50}';
@@ -253,10 +253,10 @@ class _SignatureOnlyCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async => 0;
+  Future<int> handle(DowelContext ctx) async => 0;
 }
 
-class _NameOverrideCommand extends ArtisanCommand {
+class _NameOverrideCommand extends DowelCommand {
   @override
   String get name => 'overridden';
 
@@ -267,10 +267,10 @@ class _NameOverrideCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async => 0;
+  Future<int> handle(DowelContext ctx) async => 0;
 }
 
-class _BareCommand extends ArtisanCommand {
+class _BareCommand extends DowelCommand {
   @override
   String get description => 'no name, no signature → should throw';
 
@@ -278,5 +278,5 @@ class _BareCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async => 0;
+  Future<int> handle(DowelContext ctx) async => 0;
 }

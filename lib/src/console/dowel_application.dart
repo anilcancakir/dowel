@@ -1,0 +1,268 @@
+import 'dart:io';
+
+import 'package:args/args.dart';
+
+import '../helpers/console_style.dart';
+import '../state/state_file.dart';
+import '../state/vm_service_log.dart';
+import '../vm/extension_not_registered_exception.dart';
+import '../vm/vm_service_client.dart';
+import 'dowel_command.dart';
+import 'dowel_context.dart';
+import 'dowel_input.dart';
+import 'dowel_output.dart';
+import 'dowel_registry.dart';
+import 'command_boot.dart';
+import 'process_alive.dart';
+
+/// Core console application + dispatcher.
+///
+/// Boot lifecycle per [CommandBoot]:
+/// - [CommandBoot.none]: `DowelContext.bare(input, output)`, no Magic, no VM.
+/// - [CommandBoot.connected]: read `~/.dowel/state.json`, dial VM Service
+///   WebSocket, `DowelContext.connected(input, output, vmClient)`. Fails fast
+///   when no state.json (`Run dowel start first.`).
+///
+/// V1 has 2 boot modes; headless is deferred to V1.x (would force a Flutter
+/// dep into pure-Dart dowel + circular dep with magic).
+class DowelApplication {
+  DowelApplication({required this.registry, this.version = '1.0.0-alpha.1'});
+
+  static const String defaultVersion = '1.0.0-alpha.1';
+
+  final DowelRegistry registry;
+  final String version;
+
+  /// Dispatch a raw argv list. Returns the process exit code (0 = success).
+  Future<int> dispatch(List<String> args) async {
+    if (args.isEmpty || args[0] == '--help' || args[0] == '-h') {
+      _printRootHelp();
+      return 0;
+    }
+    if (args[0] == '--version' || args[0] == '-V') {
+      stdout.writeln('dowel $version');
+      return 0;
+    }
+
+    final commandName = args[0];
+    final command = registry.find(commandName);
+    if (command == null) {
+      stderr.writeln(
+        ConsoleStyle.error(
+          'Unknown command: "$commandName". Try `dowel list`.',
+        ),
+      );
+      return 1;
+    }
+
+    final parser = ArgParser();
+    parser.addFlag(
+      'help',
+      abbr: 'h',
+      help: 'Show command help',
+      negatable: false,
+    );
+    command.configure(parser);
+
+    final commandArgs = args.sublist(1);
+    final ArgResults parsed;
+    try {
+      parsed = parser.parse(commandArgs);
+    } on ArgParserException catch (e) {
+      // An unknown flag must fail loudly rather than silently printing help as
+      // if it were requested: name the offending option, then show the help so
+      // the caller can find the correct flag. Other parse failures (missing
+      // value, bad value, mandatory option) keep their original message.
+      if (_isUnknownOption(e)) {
+        stderr.writeln(
+          ConsoleStyle.error('Unknown option: ${e.argumentName ?? e.message}'),
+        );
+      } else {
+        stderr.writeln(ConsoleStyle.error(e.message));
+      }
+      _printCommandHelp(command, parser);
+      return 1;
+    } on FormatException catch (e) {
+      stderr.writeln(ConsoleStyle.error(e.message));
+      _printCommandHelp(command, parser);
+      return 1;
+    }
+
+    if (parsed.wasParsed('help')) {
+      _printCommandHelp(command, parser);
+      return 0;
+    }
+
+    final input = ArgvInput(parsed, signature: command.parsedSignature);
+    final output = StdioOutput(verbosity: input.verbosity);
+
+    switch (command.boot) {
+      case CommandBoot.none:
+        return await _runWithBare(command, input, output);
+      case CommandBoot.connected:
+        return await _runWithConnected(command, input, output);
+    }
+  }
+
+  Future<int> _runWithBare(
+    DowelCommand command,
+    DowelInput input,
+    DowelOutput output,
+  ) async {
+    try {
+      return await command.handle(
+        DowelContext.bare(input, output, registry: registry),
+      );
+    } catch (e, s) {
+      output.error('Unexpected error in ${command.name}: $e');
+      stderr.writeln(s);
+      return 3;
+    }
+  }
+
+  Future<int> _runWithConnected(
+    DowelCommand command,
+    DowelInput input,
+    DowelOutput output,
+  ) async {
+    final state = await StateFile.read();
+    if (state == null) {
+      output.error(
+        'No running Flutter app detected (state file: ${StateFile.path}).\n'
+        'Run `dowel start --device=<chrome|macos|linux|windows|UDID>` first.',
+      );
+      return 1;
+    }
+    // Refuse a session that belongs to somebody else BEFORE dialling it.
+    // The failure this prevents is silent: every command succeeds, against
+    // the wrong app.
+    final String? ownership = sessionOwnershipError(
+      state: state,
+      workingDirectory: Directory.current.path,
+      explicitStatePath: StateFile.explicitPath(),
+    );
+    if (ownership != null) {
+      output.error(ownership);
+      return 1;
+    }
+
+    // A `start` cut short by its caller records the session without the URI
+    // (see StartCommand.bootingState): the MCP client gives up at 60s and an
+    // iOS build routinely takes longer, so the URI lands in the log after the
+    // process that was going to write it is gone. Read it back and keep it,
+    // rather than making the operator hand-write the file.
+    String? wsUri = state['vmServiceUri'] as String?;
+    if (wsUri == null) {
+      wsUri = vmServiceUriFromLog(
+        File('${File(StateFile.path).parent.path}/flutter-dev.log'),
+      );
+      if (wsUri != null) {
+        await StateFile.write(<String, dynamic>{
+          ...state,
+          'vmServiceUri': wsUri,
+        }..remove('booting'));
+      }
+    }
+    if (wsUri == null) {
+      output.error(
+        'The session has no vmServiceUri yet and the log has not announced '
+        'one. The app may still be building: run `dowel status` and retry, '
+        'or `dowel start` again if it is not.',
+      );
+      // A live app mid-build is the retry `start` pointed the caller at when
+      // it timed out with the same exit code; anything else is a failure.
+      final Object? pid = state['pid'];
+      final bool building =
+          state['booting'] == true && pid is int && processAlive(pid);
+      return building ? DowelCommand.exitTryAgain : 1;
+    }
+    final vmClient = VmServiceClient(wsUri);
+    try {
+      await vmClient.connect();
+      return await command.handle(
+        DowelContext.connected(input, output, vmClient, registry: registry),
+      );
+    } on ExtensionNotRegisteredException catch (e) {
+      // An expected state, not a crash: the stack would only point into
+      // vm_service, and the line below says everything the operator can act on.
+      output.error(e.message);
+      return DowelCommand.exitTryAgain;
+    } catch (e, s) {
+      output.error('Connected command ${command.name} failed: $e');
+      stderr.writeln(s);
+      return 3;
+    } finally {
+      await vmClient.disconnect();
+    }
+  }
+
+  /// Whether [e] reports an unknown option / flag rather than a missing value,
+  /// a disallowed value, or a mandatory-option violation.
+  ///
+  /// Dart's `args` has no dedicated unknown-flag error type, so the signal is
+  /// the message prefix the parser emits for every "Could not find an option"
+  /// path (`--long` and `-short` both share it). Matching the prefix keeps the
+  /// other [ArgParserException] causes on their original, helpful messages.
+  bool _isUnknownOption(ArgParserException e) {
+    return e.message.startsWith('Could not find an option');
+  }
+
+  void _printRootHelp() {
+    stdout.writeln(ConsoleStyle.header('dowel $version'));
+    stdout.writeln('');
+    stdout.writeln(ConsoleStyle.info('Usage:'));
+    stdout.writeln('  dowel <command> [arguments]');
+    stdout.writeln('');
+    stdout.writeln(ConsoleStyle.info('Global options:'));
+    stdout.writeln(
+      '  -h, --help     Show this help, or `dowel help <command>` for command help.',
+    );
+    stdout.writeln('  -V, --version  Show dowel version.');
+    stdout.writeln('');
+    stdout.writeln(ConsoleStyle.info('Hint:'));
+    stdout.writeln(
+      '  Run `dowel list` to see every registered command (grouped by `:` namespace).',
+    );
+  }
+
+  void _printCommandHelp(DowelCommand command, ArgParser parser) {
+    final signature = command.parsedSignature;
+    final argsHint = signature == null
+        ? '[arguments]'
+        : signature.arguments.map((a) {
+            final base = a.isOptional ? '[${a.name}]' : '<${a.name}>';
+            return a.isVariadic ? '$base...' : base;
+          }).join(' ');
+
+    stdout.writeln(ConsoleStyle.info('Description:'));
+    stdout.writeln('  ${command.description}');
+    stdout.writeln('');
+    stdout.writeln(ConsoleStyle.info('Usage:'));
+    stdout.writeln('  dowel ${command.name} [options] $argsHint');
+    stdout.writeln('');
+    stdout.writeln(ConsoleStyle.info('Boot mode:'));
+    stdout.writeln('  ${command.boot.name}');
+    stdout.writeln('');
+    if (signature != null && signature.arguments.isNotEmpty) {
+      stdout.writeln(ConsoleStyle.info('Arguments:'));
+      for (final a in signature.arguments) {
+        final attrs = <String>[
+          if (a.isOptional) 'optional',
+          if (a.isVariadic) 'variadic',
+          if (a.defaultValue != null) 'default=${a.defaultValue}',
+        ];
+        final attrsTail = attrs.isEmpty ? '' : '   [${attrs.join(', ')}]';
+        final desc =
+            a.description == null ? '' : '\n             ${a.description}';
+        stdout.writeln('  ${a.name.padRight(10)} $attrsTail$desc');
+      }
+      stdout.writeln('');
+    }
+    if (parser.options.isNotEmpty) {
+      stdout.writeln(ConsoleStyle.info('Options:'));
+      stdout.writeln(
+        parser.usage.replaceAll(RegExp(r'^', multiLine: true), '  '),
+      );
+    }
+  }
+}

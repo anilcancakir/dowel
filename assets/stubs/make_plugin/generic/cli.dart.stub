@@ -6,4 +6,4 @@
 /// runtime). Runtime-only classes belong in `package:{{ name }}/{{ name }}.dart`.
 library;
 
-export 'src/{{ name }}_artisan_provider.dart';
+export 'src/{{ name }}_dowel_provider.dart';

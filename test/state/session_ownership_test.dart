@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Verifies that a connected command refuses to drive an app belonging to a
@@ -18,8 +18,8 @@ void main() {
     late Directory projectB;
 
     setUp(() async {
-      projectA = await Directory.systemTemp.createTemp('artisan_own_a_');
-      projectB = await Directory.systemTemp.createTemp('artisan_own_b_');
+      projectA = await Directory.systemTemp.createTemp('dowel_own_a_');
+      projectB = await Directory.systemTemp.createTemp('dowel_own_b_');
     });
 
     tearDown(() async {
@@ -67,7 +67,7 @@ void main() {
     test('accepts state with no recorded projectRoot', () {
       // Hand-written state from the documented recovery recipe often omits
       // it. Refusing there would break the escape hatch people reach for
-      // precisely when `artisan start` has already failed them.
+      // precisely when `dowel start` has already failed them.
       expect(
         sessionOwnershipError(
           state: <String, dynamic>{'pid': 1},
@@ -88,7 +88,7 @@ void main() {
       );
     });
 
-    test('ARTISAN_STATE_FILE counts as naming the session', () {
+    test('DOWEL_STATE_FILE counts as naming the session', () {
       // Both spellings are documented as equivalent and `path` honours both,
       // so a guard that saw only the flag read the session the env var
       // pointed at and then refused to drive it.

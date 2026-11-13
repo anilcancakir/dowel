@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -61,7 +61,7 @@ void main() {
 
     test('returns empty registry when the file exists but is empty', () async {
       final fs = InMemoryFs();
-      fs.writeAsString('/proj/.artisan/plugins.json', '');
+      fs.writeAsString('/proj/.dowel/plugins.json', '');
       final registryFile = PluginsRegistryFile(fs, '/proj');
 
       final registry = await registryFile.read();
@@ -83,7 +83,7 @@ void main() {
           },
         ],
       });
-      fs.writeAsString('/proj/.artisan/plugins.json', payload);
+      fs.writeAsString('/proj/.dowel/plugins.json', payload);
       final registryFile = PluginsRegistryFile(fs, '/proj');
 
       final registry = await registryFile.read();
@@ -99,7 +99,7 @@ void main() {
         'version': 2,
         'plugins': <dynamic>[],
       });
-      fs.writeAsString('/proj/.artisan/plugins.json', payload);
+      fs.writeAsString('/proj/.dowel/plugins.json', payload);
       final registryFile = PluginsRegistryFile(fs, '/proj');
 
       expect(registryFile.read(), throwsA(isA<FormatException>()));
@@ -136,12 +136,12 @@ void main() {
 
       // The temporary file must be gone and the target must exist.
       expect(
-        fs.exists('/proj/.artisan/plugins.json.tmp'),
+        fs.exists('/proj/.dowel/plugins.json.tmp'),
         isFalse,
         reason: '.tmp file must not survive after successful rename',
       );
       expect(
-        fs.exists('/proj/.artisan/plugins.json'),
+        fs.exists('/proj/.dowel/plugins.json'),
         isTrue,
         reason: 'Target file must exist after write',
       );

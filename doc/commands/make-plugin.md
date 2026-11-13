@@ -1,6 +1,6 @@
 # make:plugin
 
-Scaffold a new `fluttersdk_artisan` plugin skeleton under `packages/<name>/` (or a
+Scaffold a new `dowel` plugin skeleton under `packages/<name>/` (or a
 custom target directory). Produces a fully wired, immediately testable plugin package
 in a single command.
 
@@ -22,7 +22,7 @@ in a single command.
 ## Basic Usage
 
 ```bash
-dart run fluttersdk_artisan make:plugin <name>
+dart run dowel make:plugin <name>
 ```
 
 `<name>` must be a valid Dart package name: snake_case, starts with a lowercase
@@ -56,10 +56,10 @@ Running without `--magic` produces a Magic-free plugin. Stubs sourced from
 `assets/stubs/make_plugin/generic/`:
 
 `pubspec.yaml`, `bin/<name>.dart`, `lib/cli.dart`, `lib/<name>.dart`,
-`lib/src/<name>_artisan_provider.dart`, `test/<name>_artisan_provider_test.dart`,
+`lib/src/<name>_dowel_provider.dart`, `test/<name>_dowel_provider_test.dart`,
 `README.md`.
 
-The generic plugin exposes a single `ArtisanServiceProvider` subclass with an empty
+The generic plugin exposes a single `DowelServiceProvider` subclass with an empty
 `mcpTools()` override. No dependency on `magic` or any other framework is added.
 
 ### Magic mode (`--magic`)
@@ -99,7 +99,7 @@ automatically.
 
 4. **Render generic stubs.** Seven files from `assets/stubs/make_plugin/generic/`
    overwrite `flutter create`'s defaults. Placeholders (`{{ name }}`,
-   `{{ pascalName }}`, `{{ artisanPath }}`, `{{ commandPrefix }}`) are substituted at
+   `{{ pascalName }}`, `{{ dowelPath }}`, `{{ commandPrefix }}`) are substituted at
    render time. In magic mode, four stubs are sourced from `assets/stubs/make_plugin/magic/`
    instead.
 
@@ -129,7 +129,7 @@ packages/<name>/
 │   ├── <name>.dart                        # Runtime barrel
 │   ├── cli.dart                           # CLI barrel
 │   └── src/
-│       ├── <name>_artisan_provider.dart   # ArtisanServiceProvider subclass
+│       ├── <name>_dowel_provider.dart   # DowelServiceProvider subclass
 │       ├── <name>_service_provider.dart   # [magic] Magic ServiceProvider
 │       └── commands/
 │           ├── install_command.dart       # [magic]
@@ -137,7 +137,7 @@ packages/<name>/
 ├── assets/stubs/install/
 │   └── <name>_config.dart.stub            # [magic] config template
 ├── test/
-│   ├── <name>_artisan_provider_test.dart
+│   ├── <name>_dowel_provider_test.dart
 │   └── cli/
 │       └── install_command_test.dart      # [magic]
 ├── install.yaml                           # [magic] ManifestInstaller manifest
@@ -154,16 +154,16 @@ Items without `[magic]` are present in both modes.
 **Generic plugin at the default location:**
 
 ```bash
-dart run fluttersdk_artisan make:plugin fluttersdk_logger
+dart run dowel make:plugin magic_logger
 ```
 
-Writes to `packages/fluttersdk_logger/`. Strips the `fluttersdk_` prefix:
+Writes to `packages/magic_logger/`. Strips the `magic_` prefix:
 `commandPrefix=logger`, bootstrap command defaults to `logger:install`.
 
 **Magic-aware plugin:**
 
 ```bash
-dart run fluttersdk_artisan make:plugin fluttersdk_logger --magic
+dart run dowel make:plugin magic_logger --magic
 ```
 
 Same layout plus `install.yaml`, `service_provider.dart`, install/uninstall commands,
@@ -172,7 +172,7 @@ a config stub, and the `magic` path dependency in `pubspec.yaml`.
 **Plugin at a custom path:**
 
 ```bash
-dart run fluttersdk_artisan make:plugin my_analytics --path=/workspace/plugins/my_analytics
+dart run dowel make:plugin my_analytics --path=/workspace/plugins/my_analytics
 ```
 
 Writes to the absolute path. Workspace enrollment still runs: if a parent Flutter app
@@ -198,9 +198,9 @@ standalone package and the success banner reports the outcome.
 
 ## Related
 
-- [make:command](index.md): scaffold a single `ArtisanCommand` subclass inside an
+- [make:command](index.md): scaffold a single `DowelCommand` subclass inside an
   existing consumer project or plugin.
 - [plugins:refresh](index.md): regenerate `lib/app/_plugins.g.dart` from
-  `.artisan/plugins.json` after manually editing the registry.
+  `.dowel/plugins.json` after manually editing the registry.
 - [plugin:install](plugin-install): register a third-party plugin (resolves
   `install.yaml` manifests produced by `make:plugin --magic`).

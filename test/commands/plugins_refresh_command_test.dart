@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -19,12 +19,12 @@ String _seedLibApp(InMemoryFs fs, String projectRoot) {
   return sentinel;
 }
 
-/// Builds a default [ArtisanContext] with a [BufferedOutput] suitable for
+/// Builds a default [DowelContext] with a [BufferedOutput] suitable for
 /// inspecting command output in assertions.
 ///
-/// @return A bare [ArtisanContext] with empty input and a buffered output.
-ArtisanContext _ctx() {
-  return ArtisanContext.bare(
+/// @return A bare [DowelContext] with empty input and a buffered output.
+DowelContext _ctx() {
+  return DowelContext.bare(
     MapInput(const <String, dynamic>{}),
     BufferedOutput(),
   );
@@ -60,8 +60,8 @@ void main() {
       expect(cmd.description, contains('_plugins.g.dart'));
     });
 
-    test('extends ArtisanCommand', () {
-      expect(cmd, isA<ArtisanCommand>());
+    test('extends DowelCommand', () {
+      expect(cmd, isA<DowelCommand>());
     });
   });
 
@@ -76,15 +76,14 @@ void main() {
       expect(code, 0);
       expect(
         generated,
-        contains('List<ArtisanServiceProvider> autoDiscoveredProviders()'),
+        contains('List<DowelServiceProvider> autoDiscoveredProviders()'),
       );
-      expect(generated, contains('return <ArtisanServiceProvider>[];'));
+      expect(generated, contains('return <DowelServiceProvider>[];'));
       // Header pinned to the regenerate hint so users know what to run.
       expect(generated, contains('GENERATED'));
       expect(generated, contains('plugins:refresh'));
       // Empty registry => no plugin import lines beyond the framework barrel.
-      expect(generated,
-          contains("import 'package:fluttersdk_artisan/artisan.dart';"));
+      expect(generated, contains("import 'package:dowel/dowel.dart';"));
       // No tmp leftover after atomic rename.
       expect(fs.exists('/proj/lib/app/_plugins.g.dart.tmp'), isFalse);
     });
@@ -93,14 +92,14 @@ void main() {
       final fs = InMemoryFs();
       _seedLibApp(fs, '/proj');
       fs.writeAsString(
-        '/proj/.artisan/plugins.json',
+        '/proj/.dowel/plugins.json',
         jsonEncode(<String, dynamic>{
           'version': 1,
           'plugins': [
             <String, dynamic>{
               'name': 'magic_logger',
               'providerImport': 'package:magic_logger/cli.dart',
-              'providerClass': 'MagicLoggerArtisanProvider',
+              'providerClass': 'MagicLoggerDowelProvider',
               'registeredAt': '2026-05-18T09:00:00.000Z',
             },
           ],
@@ -114,13 +113,13 @@ void main() {
       expect(
         generated,
         contains(
-          "import 'package:magic_logger/cli.dart' show MagicLoggerArtisanProvider;",
+          "import 'package:magic_logger/cli.dart' show MagicLoggerDowelProvider;",
         ),
       );
-      expect(generated, contains('MagicLoggerArtisanProvider(),'));
+      expect(generated, contains('MagicLoggerDowelProvider(),'));
       expect(
         generated,
-        contains('return <ArtisanServiceProvider>['),
+        contains('return <DowelServiceProvider>['),
       );
     });
 
@@ -129,20 +128,20 @@ void main() {
       final fs = InMemoryFs();
       _seedLibApp(fs, '/proj');
       fs.writeAsString(
-        '/proj/.artisan/plugins.json',
+        '/proj/.dowel/plugins.json',
         jsonEncode(<String, dynamic>{
           'version': 1,
           'plugins': [
             <String, dynamic>{
               'name': 'z_logger',
               'providerImport': 'package:z_logger/cli.dart',
-              'providerClass': 'ZLoggerArtisanProvider',
+              'providerClass': 'ZLoggerDowelProvider',
               'registeredAt': '2026-05-18T09:00:00.000Z',
             },
             <String, dynamic>{
               'name': 'a_logger',
               'providerImport': 'package:a_logger/cli.dart',
-              'providerClass': 'ALoggerArtisanProvider',
+              'providerClass': 'ALoggerDowelProvider',
               'registeredAt': '2026-05-18T09:01:00.000Z',
             },
           ],
@@ -153,8 +152,8 @@ void main() {
       final generated = fs.readAsString('/proj/lib/app/_plugins.g.dart');
 
       expect(code, 0);
-      final aIdx = generated.indexOf('ALoggerArtisanProvider');
-      final zIdx = generated.indexOf('ZLoggerArtisanProvider');
+      final aIdx = generated.indexOf('ALoggerDowelProvider');
+      final zIdx = generated.indexOf('ZLoggerDowelProvider');
       expect(aIdx, greaterThan(0));
       expect(zIdx, greaterThan(aIdx),
           reason: 'A* must precede Z* in deterministic output');
@@ -165,7 +164,7 @@ void main() {
       final fs = InMemoryFs();
       _seedLibApp(fs, '/proj');
       fs.writeAsString(
-        '/proj/.artisan/plugins.json',
+        '/proj/.dowel/plugins.json',
         jsonEncode(<String, dynamic>{
           'version': 1,
           'plugins': [
@@ -206,7 +205,7 @@ void main() {
       final fs = InMemoryFs();
       // NOTE: no _seedLibApp call so lib/app/ does not exist.
       fs.writeAsString(
-        '/proj/.artisan/plugins.json',
+        '/proj/.dowel/plugins.json',
         jsonEncode(<String, dynamic>{
           'version': 1,
           'plugins': <dynamic>[],
@@ -221,7 +220,7 @@ void main() {
             'message',
             allOf(
               contains('lib/app/'),
-              contains('magic:artisan install'),
+              contains('magic:dowel install'),
             ),
           ),
         ),
@@ -233,20 +232,20 @@ void main() {
       final fs = InMemoryFs();
       _seedLibApp(fs, '/proj');
       fs.writeAsString(
-        '/proj/.artisan/plugins.json',
+        '/proj/.dowel/plugins.json',
         jsonEncode(<String, dynamic>{
           'version': 1,
           'plugins': [
             <String, dynamic>{
               'name': 'b_logger',
               'providerImport': 'package:b_logger/cli.dart',
-              'providerClass': 'BLoggerArtisanProvider',
+              'providerClass': 'BLoggerDowelProvider',
               'registeredAt': '2026-05-18T09:00:00.000Z',
             },
             <String, dynamic>{
               'name': 'a_logger',
               'providerImport': 'package:a_logger/cli.dart',
-              'providerClass': 'ALoggerArtisanProvider',
+              'providerClass': 'ALoggerDowelProvider',
               'registeredAt': '2026-05-18T09:01:00.000Z',
             },
           ],
@@ -267,7 +266,7 @@ void main() {
       final fs = InMemoryFs();
       _seedLibApp(fs, '/proj');
       fs.writeAsString(
-        '/proj/.artisan/plugins.json',
+        '/proj/.dowel/plugins.json',
         jsonEncode(<String, dynamic>{
           'version': 1,
           'plugins': [
@@ -301,14 +300,14 @@ void main() {
       final fs = InMemoryFs();
       _seedLibApp(fs, '/proj');
       fs.writeAsString(
-        '/proj/.artisan/plugins.json',
+        '/proj/.dowel/plugins.json',
         jsonEncode(<String, dynamic>{
           'version': 1,
           'plugins': [
             <String, dynamic>{
               'name': 'magic_logger',
               'providerImport': 'package:magic_logger/cli.dart',
-              'providerClass': 'MagicLoggerArtisanProvider',
+              'providerClass': 'MagicLoggerDowelProvider',
               'registeredAt': '2026-05-18T09:00:00.000Z',
             },
           ],
@@ -316,7 +315,7 @@ void main() {
       );
 
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(const <String, dynamic>{}),
         output,
       );
@@ -329,10 +328,10 @@ void main() {
     });
 
     test(
-        'refresh purges .artisan/cli-bundle and .artisan/build.stamp after '
+        'refresh purges .dowel/cli-bundle and .dowel/build.stamp after '
         'regenerating _plugins.g.dart (real-FS path)', () async {
       // Issue #9 GAP A: the cache-purge runs against real-FS (dart:io), not
-      // the InMemoryFs seam, because ./bin/fsa probes real disk for the stamp.
+      // the InMemoryFs seam, because ./bin/dowel probes real disk for the stamp.
       // This test bypasses _cmd(InMemoryFs, ...) and constructs the command
       // against a real-FS tempDir so the assertions are non-vacuous.
       final tempDir = Directory.systemTemp.createTempSync('refresh_purge_');
@@ -348,9 +347,9 @@ void main() {
 
       // 2. Seed an empty plugins.json so the refresh generates an empty
       //    _plugins.g.dart and reaches the post-write cache-purge hook.
-      final artisanDir = Directory(p.join(tempDir.path, '.artisan'))
+      final dowelDir = Directory(p.join(tempDir.path, '.dowel'))
         ..createSync(recursive: true);
-      File(p.join(artisanDir.path, 'plugins.json')).writeAsStringSync(
+      File(p.join(dowelDir.path, 'plugins.json')).writeAsStringSync(
         jsonEncode(<String, dynamic>{
           'version': 1,
           'plugins': <dynamic>[],
@@ -358,10 +357,10 @@ void main() {
       );
 
       // 3. Pre-create the cache artefacts the post-refresh hook must purge.
-      final cacheDir = Directory(p.join(artisanDir.path, 'cli-bundle'))
+      final cacheDir = Directory(p.join(dowelDir.path, 'cli-bundle'))
         ..createSync(recursive: true);
       File(p.join(cacheDir.path, 'sentinel')).writeAsStringSync('');
-      File(p.join(artisanDir.path, 'build.stamp'))
+      File(p.join(dowelDir.path, 'build.stamp'))
           .writeAsStringSync('deadbeef:3.4.0');
 
       // 4. Construct against real FS (no fs:, defaults to RealFs; the
@@ -379,18 +378,18 @@ void main() {
         reason: 'refresh must still produce lib/app/_plugins.g.dart',
       );
 
-      // 6. Both cache artefacts must be gone so the next ./bin/fsa rebuilds.
+      // 6. Both cache artefacts must be gone so the next ./bin/dowel rebuilds.
       expect(
-        Directory(p.join(tempDir.path, '.artisan', 'cli-bundle')).existsSync(),
+        Directory(p.join(tempDir.path, '.dowel', 'cli-bundle')).existsSync(),
         isFalse,
         reason:
-            'refresh must purge .artisan/cli-bundle/ so the next ./bin/fsa rebuilds',
+            'refresh must purge .dowel/cli-bundle/ so the next ./bin/dowel rebuilds',
       );
       expect(
-        File(p.join(tempDir.path, '.artisan', 'build.stamp')).existsSync(),
+        File(p.join(tempDir.path, '.dowel', 'build.stamp')).existsSync(),
         isFalse,
         reason:
-            'refresh must purge .artisan/build.stamp so needs_build() trips on next call',
+            'refresh must purge .dowel/build.stamp so needs_build() trips on next call',
       );
     });
   });

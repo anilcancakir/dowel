@@ -2,16 +2,16 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-/// Invalidates the AOT cli-bundle so the next `./bin/fsa` invocation rebuilds
+/// Invalidates the AOT cli-bundle so the next `./bin/dowel` invocation rebuilds
 /// against the freshly-regenerated `lib/app/_plugins.g.dart`.
 ///
 /// Motivating bug: GitHub issue #9 GAP A. After `plugin:install` (or
 /// `plugin:uninstall`, or `plugins:refresh`) writes a new
 /// `lib/app/_plugins.g.dart`, the on-disk AOT bundle compiled before the
-/// update still points at the OLD codegen barrel. The next `./bin/fsa` call
+/// update still points at the OLD codegen barrel. The next `./bin/dowel` call
 /// runs the stale bundle, silently missing the newly registered plugin tools.
-/// Deleting `.artisan/cli-bundle/` and `.artisan/build.stamp` forces the
-/// staleness check in `bin/fsa` to treat the bundle as outdated, triggering a
+/// Deleting `.dowel/cli-bundle/` and `.dowel/build.stamp` forces the
+/// staleness check in `bin/dowel` to treat the bundle as outdated, triggering a
 /// fresh compile on the very next invocation.
 ///
 /// All operations are best-effort: missing files and directories are NOT an
@@ -26,8 +26,8 @@ final class CliBundleCache {
   /// Purges the AOT cli-bundle cache for the project rooted at [projectRoot].
   ///
   /// Deletes:
-  ///   - `<projectRoot>/.artisan/cli-bundle/` (the AOT-compiled bundle dir).
-  ///   - `<projectRoot>/.artisan/build.stamp` (the staleness sentinel file).
+  ///   - `<projectRoot>/.dowel/cli-bundle/` (the AOT-compiled bundle dir).
+  ///   - `<projectRoot>/.dowel/build.stamp` (the staleness sentinel file).
   ///
   /// Both deletions are wrapped individually so a failure on the directory
   /// does not prevent the stamp from being removed, and vice-versa.
@@ -35,8 +35,8 @@ final class CliBundleCache {
   /// @param projectRoot  Absolute path to the consumer project root (the
   ///                     directory that contains `pubspec.yaml`).
   static void purge(String projectRoot) {
-    final cacheDir = Directory(p.join(projectRoot, '.artisan', 'cli-bundle'));
-    final stamp = File(p.join(projectRoot, '.artisan', 'build.stamp'));
+    final cacheDir = Directory(p.join(projectRoot, '.dowel', 'cli-bundle'));
+    final stamp = File(p.join(projectRoot, '.dowel', 'build.stamp'));
 
     // 1. Remove the compiled AOT bundle directory (recursive).
     try {
@@ -47,7 +47,7 @@ final class CliBundleCache {
       // Swallow: a stale bundle directory is not worth aborting for.
     }
 
-    // 2. Remove the build stamp so needs_build() trips on next ./bin/fsa call.
+    // 2. Remove the build stamp so needs_build() trips on next ./bin/dowel call.
     try {
       if (stamp.existsSync()) {
         stamp.deleteSync();

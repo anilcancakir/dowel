@@ -1,17 +1,17 @@
 import 'package:test/test.dart';
 
-import 'package:fluttersdk_artisan/src/mcp/mcp_tool_collision_exception.dart';
+import 'package:dowel/src/mcp/mcp_tool_collision_exception.dart';
 
 void main() {
-  group('ArtisanMcpToolCollisionException', () {
-    const toolName = 'dusk_tap';
-    const existingProvider = 'FluttersdkDuskProvider';
+  group('DowelMcpToolCollisionException', () {
+    const toolName = 'tapir_tap';
+    const existingProvider = 'TapirProvider';
     const newProvider = 'MyPlugin';
 
-    late ArtisanMcpToolCollisionException exception;
+    late DowelMcpToolCollisionException exception;
 
     setUp(() {
-      exception = ArtisanMcpToolCollisionException(
+      exception = DowelMcpToolCollisionException(
         toolName: toolName,
         existingProvider: existingProvider,
         newProvider: newProvider,

@@ -1,16 +1,16 @@
 import 'package:args/args.dart';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
-import '../console/artisan_registry.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
+import '../console/dowel_registry.dart';
 import '../console/command_boot.dart';
 import '../helpers/console_style.dart';
 
-/// `artisan list` — prints every registered command grouped by `:` namespace.
-class ListCommand extends ArtisanCommand {
+/// `dowel list` — prints every registered command grouped by `:` namespace.
+class ListCommand extends DowelCommand {
   ListCommand(this._registry);
 
-  final ArtisanRegistry _registry;
+  final DowelRegistry _registry;
 
   @override
   String get name => 'list';
@@ -26,7 +26,7 @@ class ListCommand extends ArtisanCommand {
   void configure(ArgParser parser) {}
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final grouped = _registry.groupedByNamespace();
     ctx.output.writeln('');
     ctx.output.info('Available commands (${_registry.length}):');

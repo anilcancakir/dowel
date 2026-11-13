@@ -4,7 +4,7 @@
 /// via `package:{{ name }}/{{ name }}.dart` to gain access to the runtime
 /// classes (controllers, services, models, the Magic ServiceProvider). The
 /// CLI surface lives in `package:{{ name }}/cli.dart` and is invoked through
-/// `artisan` only.
+/// `dowel` only.
 library;
 
 export 'src/{{ name }}_service_provider.dart';

@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Verifies that a caller can reach `flutter run` through `start`.
@@ -88,7 +88,7 @@ void main() {
 
       expect(args, contains('--dart-define=SCALE=5000'));
       expect(args, contains('--flavor=staging'));
-      // After the built-in set, so a caller can override a default artisan
+      // After the built-in set, so a caller can override a default dowel
       // chose: `flutter run` takes the last occurrence of a repeated flag.
       expect(
         args.indexOf('--dart-define=SCALE=5000'),
@@ -132,7 +132,7 @@ void main() {
 
     test('keeps --profile as a label on a browser target', () {
       // Web profile builds have no VM Service, so the flag would boot an app
-      // dusk and telescope cannot reach.
+      // tapir and crumbs cannot reach.
       final List<String> args = StartCommand.flutterArgsFor(
         device: 'chrome',
         webPort: 3100,

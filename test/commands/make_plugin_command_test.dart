@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:fluttersdk_artisan/src/commands/helpers/flutter_create_runner.dart';
+import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/helpers/flutter_create_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -9,41 +9,41 @@ import 'package:test/test.dart';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-/// Builds an [ArtisanContext] backed by [MapInput] + [BufferedOutput]. Mirrors
+/// Builds an [DowelContext] backed by [MapInput] + [BufferedOutput]. Mirrors
 /// the test pattern from `plugin_install_command_test.dart` so option lookups
 /// resolve through the same signature-parsing path as production.
-ArtisanContext _ctxWith(
+DowelContext _ctxWith(
   Map<String, dynamic> options, {
   List<String> positional = const [],
   CommandSignature? signature,
-  ArtisanRegistry? registry,
+  DowelRegistry? registry,
 }) {
-  return ArtisanContext.bare(
+  return DowelContext.bare(
     MapInput(options, positional: positional, signature: signature),
     BufferedOutput(),
     registry: registry,
   );
 }
 
-/// Pins the artisan-root + magic-root to a test-controlled directory and the
+/// Pins the dowel-root + magic-root to a test-controlled directory and the
 /// flutter create + workspace enroller seams to injected fakes. Mirrors the
 /// [PluginInstallCommand] test pattern of subclass-with-override.
 class _TestableMakePluginCommand extends MakePluginCommand {
   _TestableMakePluginCommand({
-    required this.fakeArtisanRoot,
+    required this.fakeDowelRoot,
     this.fakeMagicRoot,
     super.flutterCreateRunner,
     super.workspaceEnroller,
   });
 
-  /// Pinned artisan package root. The stub dir is computed from it.
-  final String fakeArtisanRoot;
+  /// Pinned dowel package root. The stub dir is computed from it.
+  final String fakeDowelRoot;
 
   /// Pinned magic package root (only consulted in magic mode).
   final String? fakeMagicRoot;
 
   @override
-  Future<String> resolveArtisanRoot() async => fakeArtisanRoot;
+  Future<String> resolveDowelRoot() async => fakeDowelRoot;
 
   @override
   Future<String> resolveMagicRoot() async {
@@ -58,16 +58,16 @@ class _TestableMakePluginCommand extends MakePluginCommand {
   }
 }
 
-/// Returns the canonical `fluttersdk_artisan` package root by walking up from
+/// Returns the canonical `dowel` package root by walking up from
 /// the test file location until it finds a `pubspec.yaml` whose `name:` line
-/// reads `fluttersdk_artisan`. Used to point [_TestableMakePluginCommand] at
+/// reads `dowel`. Used to point [_TestableMakePluginCommand] at
 /// the real stub bundle without depending on `Isolate.resolvePackageUri`.
-String _resolveCheckedInArtisanRoot() {
+String _resolveCheckedInDowelRoot() {
   var current = Directory(p.dirname(Platform.script.toFilePath()));
   for (var i = 0; i < 10; i++) {
     final pubspec = File(p.join(current.path, 'pubspec.yaml'));
     if (pubspec.existsSync() &&
-        pubspec.readAsStringSync().contains('name: fluttersdk_artisan')) {
+        pubspec.readAsStringSync().contains('name: dowel')) {
       return current.path;
     }
     final parent = current.parent;
@@ -162,18 +162,18 @@ class _FakeWorkspaceEnroller implements WorkspaceEnroller {
   }
 }
 
-/// A minimal [ArtisanRegistry] stub that registers a single no-op command by
+/// A minimal [DowelRegistry] stub that registers a single no-op command by
 /// name, used to simulate a magic:install registration without wiring the full
 /// provider stack.
-class _FakeRegistry extends ArtisanRegistry {
+class _FakeRegistry extends DowelRegistry {
   _FakeRegistry(String commandName) {
     register(_NoOpCommand(commandName));
   }
 }
 
-/// A no-op [ArtisanCommand] that satisfies the registry contract without doing
+/// A no-op [DowelCommand] that satisfies the registry contract without doing
 /// anything at runtime. Used exclusively as a registry slot placeholder in tests.
-class _NoOpCommand extends ArtisanCommand {
+class _NoOpCommand extends DowelCommand {
   _NoOpCommand(this._name);
 
   final String _name;
@@ -191,7 +191,7 @@ class _NoOpCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async => 0;
+  Future<int> handle(DowelContext ctx) async => 0;
 }
 
 /// Builds the canonical option map: `--target` set to [target], every other
@@ -216,13 +216,13 @@ Map<String, dynamic> _defaultOptions({
 /// default — individual tests override [enroller] when they need
 /// nested-app behaviour).
 _TestableMakePluginCommand _buildCommand({
-  required String artisanRoot,
+  required String dowelRoot,
   String? magicRoot,
   FlutterCreateRunner? runner,
   _FakeWorkspaceEnroller? enroller,
 }) {
   return _TestableMakePluginCommand(
-    fakeArtisanRoot: artisanRoot,
+    fakeDowelRoot: dowelRoot,
     fakeMagicRoot: magicRoot,
     flutterCreateRunner: runner ?? _FakeFlutterCreateRunner(),
     workspaceEnroller: enroller ?? _FakeWorkspaceEnroller(),
@@ -230,10 +230,10 @@ _TestableMakePluginCommand _buildCommand({
 }
 
 void main() {
-  late String artisanRoot;
+  late String dowelRoot;
 
   setUpAll(() {
-    artisanRoot = _resolveCheckedInArtisanRoot();
+    dowelRoot = _resolveCheckedInDowelRoot();
   });
 
   group('MakePluginCommand — signature DSL', () {
@@ -259,7 +259,7 @@ void main() {
 
   group('MakePluginCommand — name validation', () {
     test('rejects uppercase package names', () async {
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: Directory.systemTemp.createTempSync().path),
         positional: const ['BadName'],
@@ -275,7 +275,7 @@ void main() {
     });
 
     test('rejects names starting with a digit', () async {
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: Directory.systemTemp.createTempSync().path),
         positional: const ['1plugin'],
@@ -288,7 +288,7 @@ void main() {
     });
 
     test('rejects names containing hyphens', () async {
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: Directory.systemTemp.createTempSync().path),
         positional: const ['my-plugin'],
@@ -301,7 +301,7 @@ void main() {
     });
 
     test('rejects an empty name argument', () async {
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: Directory.systemTemp.createTempSync().path),
         positional: const <String>[],
@@ -319,7 +319,7 @@ void main() {
       final target = Directory.systemTemp.createTempSync('mkplugin_files_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -334,8 +334,8 @@ void main() {
         'pubspec.yaml',
         'lib/cli.dart',
         'lib/my_plugin.dart',
-        'lib/src/my_plugin_artisan_provider.dart',
-        'test/my_plugin_artisan_provider_test.dart',
+        'lib/src/my_plugin_dowel_provider.dart',
+        'test/my_plugin_dowel_provider_test.dart',
         'README.md',
       ];
       for (final rel in expected) {
@@ -368,7 +368,7 @@ void main() {
       final target = Directory.systemTemp.createTempSync('mkplugin_overwrite_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -383,7 +383,7 @@ void main() {
       final pubspec =
           File(p.join(target.path, 'pubspec.yaml')).readAsStringSync();
       expect(pubspec, isNot(contains('flutter-create-default')));
-      expect(pubspec, contains('fluttersdk_artisan'));
+      expect(pubspec, contains('dowel'));
       expect(pubspec, contains('executables'));
       expect(pubspec, contains('my_plugin:'));
 
@@ -401,12 +401,12 @@ void main() {
       expect(File(p.join(target.path, 'LICENSE')).existsSync(), isTrue);
     });
 
-    test('renders artisanPath as a relative path in the generic pubspec',
+    test('renders dowelPath as a relative path in the generic pubspec',
         () async {
       final target = Directory.systemTemp.createTempSync('mkplugin_path_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -419,9 +419,9 @@ void main() {
       final pubspec =
           File(p.join(target.path, 'pubspec.yaml')).readAsStringSync();
       // No unresolved placeholder remains.
-      expect(pubspec, isNot(contains('{{ artisanPath }}')));
+      expect(pubspec, isNot(contains('{{ dowelPath }}')));
       // The placeholder collapsed to a real relative path (starts with `.`
-      // because the target is outside the artisan root in tmp).
+      // because the target is outside the dowel root in tmp).
       expect(
         RegExp(r'path:\s+\S*\.\.?').hasMatch(pubspec),
         isTrue,
@@ -434,7 +434,7 @@ void main() {
           Directory.systemTemp.createTempSync('mkplugin_replacements_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['magic_logger'],
@@ -446,16 +446,16 @@ void main() {
 
       // pascalName lands in the provider class declaration.
       final provider = File(
-        p.join(target.path, 'lib', 'src', 'magic_logger_artisan_provider.dart'),
+        p.join(target.path, 'lib', 'src', 'magic_logger_dowel_provider.dart'),
       ).readAsStringSync();
-      expect(provider, contains('class MagicLoggerArtisanProvider'));
+      expect(provider, contains('class MagicLoggerDowelProvider'));
     });
 
     test('--target overrides the default packages/<name> path', () async {
       final target = Directory.systemTemp.createTempSync('mkplugin_target_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -480,7 +480,7 @@ void main() {
           Directory.systemTemp.createTempSync('mkplugin_target_loses_');
       addTearDown(() => targetIgnored.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: targetIgnored.path, path: pathTarget.path),
         positional: const ['my_plugin'],
@@ -501,19 +501,15 @@ void main() {
       );
     });
 
-    test('strips fluttersdk_ prefix when deriving commandPrefix', () async {
-      final target =
-          Directory.systemTemp.createTempSync('mkplugin_fluttersdk_');
+    test('names the provider after the package when there is no prefix',
+        () async {
+      final target = Directory.systemTemp.createTempSync('mkplugin_noprefix_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      // commandPrefix shows up in the cli.dart export of install/uninstall.
-      // Generic mode does not render install.yaml so we assert on the
-      // provider stub which uses `pascalName` (fluttersdk_dusk →
-      // FluttersdkDusk) and on the absence of the magic command files.
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
-        positional: const ['fluttersdk_dusk'],
+        positional: const ['tapir'],
         signature: cmd.parsedSignature,
       );
 
@@ -525,17 +521,17 @@ void main() {
           target.path,
           'lib',
           'src',
-          'fluttersdk_dusk_artisan_provider.dart',
+          'tapir_dowel_provider.dart',
         ),
       ).readAsStringSync();
-      expect(provider, contains('FluttersdkDuskArtisanProvider'));
+      expect(provider, contains('TapirDowelProvider'));
     });
 
     test('prints the next-steps hint on success', () async {
       final target = Directory.systemTemp.createTempSync('mkplugin_hint_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -563,8 +559,8 @@ void main() {
       addTearDown(() => target.deleteSync(recursive: true));
 
       final cmd = _buildCommand(
-        artisanRoot: artisanRoot,
-        magicRoot: artisanRoot, // arbitrary path, just needs to resolve.
+        dowelRoot: dowelRoot,
+        magicRoot: dowelRoot, // arbitrary path, just needs to resolve.
       );
       final ctx = _ctxWith(
         _defaultOptions(target: target.path, magic: true),
@@ -580,8 +576,8 @@ void main() {
         'pubspec.yaml',
         'lib/cli.dart',
         'lib/magic_logger.dart',
-        'lib/src/magic_logger_artisan_provider.dart',
-        'test/magic_logger_artisan_provider_test.dart',
+        'lib/src/magic_logger_dowel_provider.dart',
+        'test/magic_logger_dowel_provider_test.dart',
         'README.md',
         // magic add-ons
         'install.yaml',
@@ -602,9 +598,9 @@ void main() {
       final pubspec =
           File(p.join(target.path, 'pubspec.yaml')).readAsStringSync();
       expect(pubspec, contains('magic:'));
-      expect(pubspec, contains('fluttersdk_artisan:'));
+      expect(pubspec, contains('dowel:'));
       // Both path placeholders resolved.
-      expect(pubspec, isNot(contains('{{ artisanPath }}')));
+      expect(pubspec, isNot(contains('{{ dowelPath }}')));
       expect(pubspec, isNot(contains('{{ magicPath }}')));
 
       // install.yaml carries the bootstrap_command default
@@ -625,8 +621,8 @@ void main() {
       addTearDown(() => target.deleteSync(recursive: true));
 
       final cmd = _buildCommand(
-        artisanRoot: artisanRoot,
-        magicRoot: artisanRoot,
+        dowelRoot: dowelRoot,
+        magicRoot: dowelRoot,
       );
       final ctx = _ctxWith(
         _defaultOptions(
@@ -653,7 +649,7 @@ void main() {
       addTearDown(() => target.deleteSync(recursive: true));
 
       // No magicRoot supplied → resolveMagicRoot throws StateError.
-      final cmd = _buildCommand(artisanRoot: artisanRoot);
+      final cmd = _buildCommand(dowelRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path, magic: true),
         positional: const ['my_plugin'],
@@ -675,7 +671,7 @@ void main() {
       addTearDown(() => target.deleteSync(recursive: true));
 
       final runner = _FakeFlutterCreateRunner();
-      final cmd = _buildCommand(artisanRoot: artisanRoot, runner: runner);
+      final cmd = _buildCommand(dowelRoot: dowelRoot, runner: runner);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -700,7 +696,7 @@ void main() {
         exitCode: 66,
         writeDefaultFiles: false,
       );
-      final cmd = _buildCommand(artisanRoot: artisanRoot, runner: runner);
+      final cmd = _buildCommand(dowelRoot: dowelRoot, runner: runner);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -722,7 +718,7 @@ void main() {
       addTearDown(() => target.deleteSync(recursive: true));
 
       final runner = _ThrowingRunner();
-      final cmd = _buildCommand(artisanRoot: artisanRoot, runner: runner);
+      final cmd = _buildCommand(dowelRoot: dowelRoot, runner: runner);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -744,7 +740,7 @@ void main() {
 
       final fakeParent = p.join(target.parent.path, 'parent_pubspec.yaml');
       final enroller = _FakeWorkspaceEnroller(parentPubspec: fakeParent);
-      final cmd = _buildCommand(artisanRoot: artisanRoot, enroller: enroller);
+      final cmd = _buildCommand(dowelRoot: dowelRoot, enroller: enroller);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -775,7 +771,7 @@ void main() {
 
       // Default fake enroller returns null → sibling mode.
       final enroller = _FakeWorkspaceEnroller();
-      final cmd = _buildCommand(artisanRoot: artisanRoot, enroller: enroller);
+      final cmd = _buildCommand(dowelRoot: dowelRoot, enroller: enroller);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
@@ -808,7 +804,7 @@ void main() {
         'returns false when --magic is absent and registry has no magic:install',
         () {
       final cmd = MakePluginCommand();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(_defaultOptions(), signature: cmd.parsedSignature),
         BufferedOutput(),
       );
@@ -820,7 +816,7 @@ void main() {
         () {
       final cmd = MakePluginCommand();
       final registry = _FakeRegistry('magic:install');
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(_defaultOptions(), signature: cmd.parsedSignature),
         BufferedOutput(),
         registry: registry,
@@ -836,8 +832,8 @@ void main() {
       addTearDown(() => target.deleteSync(recursive: true));
 
       final cmd = _buildCommand(
-        artisanRoot: artisanRoot,
-        magicRoot: artisanRoot,
+        dowelRoot: dowelRoot,
+        magicRoot: dowelRoot,
       );
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
@@ -897,8 +893,8 @@ void main() {
     /// Runs the magic scaffold with a fake runner and returns the exit code.
     Future<int> runMagicScaffold(String name) async {
       final cmd = _buildCommand(
-        artisanRoot: artisanRoot,
-        magicRoot: artisanRoot,
+        dowelRoot: dowelRoot,
+        magicRoot: dowelRoot,
       );
       final ctx = _ctxWith(
         _defaultOptions(target: target.path, magic: true),
@@ -909,7 +905,7 @@ void main() {
     }
 
     test(
-        'generated install_command.dart extends ArtisanInstallCommand '
+        'generated install_command.dart extends DowelInstallCommand '
         '(mirrors magic_logger reference class hierarchy)', () async {
       final exit = await runMagicScaffold('magic_logger');
       expect(exit, 0);
@@ -919,11 +915,11 @@ void main() {
       ).readAsStringSync();
 
       // The reference shape (magic_logger/lib/src/commands/install_command.dart)
-      // extends ArtisanInstallCommand; the scaffold stub mirrors this hierarchy.
+      // extends DowelInstallCommand; the scaffold stub mirrors this hierarchy.
       expect(
         installCmd,
-        contains('extends ArtisanInstallCommand'),
-        reason: 'install_command must extend ArtisanInstallCommand '
+        contains('extends DowelInstallCommand'),
+        reason: 'install_command must extend DowelInstallCommand '
             '(matches magic_logger reference)',
       );
     });
@@ -1013,7 +1009,7 @@ void main() {
     });
 
     test(
-        'pubspec.yaml has both fluttersdk_artisan + magic deps with rendered '
+        'pubspec.yaml has both dowel + magic deps with rendered '
         'paths (no unresolved placeholders remain)', () async {
       final exit = await runMagicScaffold('magic_logger');
       expect(exit, 0);
@@ -1024,8 +1020,8 @@ void main() {
       // Both deps are declared.
       expect(
         pubspec,
-        contains('fluttersdk_artisan:'),
-        reason: 'magic pubspec must declare fluttersdk_artisan dependency',
+        contains('dowel:'),
+        reason: 'magic pubspec must declare dowel dependency',
       );
       expect(
         pubspec,
@@ -1036,8 +1032,8 @@ void main() {
       // Both placeholders were rendered; no raw template tokens remain.
       expect(
         pubspec,
-        isNot(contains('{{ artisanPath }}')),
-        reason: 'artisanPath placeholder must be rendered to a real path',
+        isNot(contains('{{ dowelPath }}')),
+        reason: 'dowelPath placeholder must be rendered to a real path',
       );
       expect(
         pubspec,
@@ -1070,7 +1066,7 @@ void main() {
       final binFile = File(p.join(target.path, 'bin', 'magic_logger.dart'));
       expect(binFile.existsSync(), isTrue);
       final content = binFile.readAsStringSync();
-      expect(content, contains('runArtisan'));
+      expect(content, contains('runDowel'));
       expect(content, contains('delegateToConsumer: false'));
     });
 
@@ -1098,10 +1094,10 @@ void main() {
         File(p.join(
           target.path,
           'test',
-          'my_test_plugin_artisan_provider_test.dart',
+          'my_test_plugin_dowel_provider_test.dart',
         )).existsSync(),
         isTrue,
-        reason: 'the scaffold-rendered artisan_provider_test.dart must survive '
+        reason: 'the scaffold-rendered dowel_provider_test.dart must survive '
             'cleanup (only the flutter create default is removed)',
       );
     });
@@ -1173,7 +1169,7 @@ void main() {
     setUp(() {
       // Resolve symlinks immediately: on macOS, Directory.systemTemp returns
       // /var/folders/... which is a symlink to /private/var/folders/...
-      // ArtisanPathResolver computes the relative path from the target dir, and
+      // DowelPathResolver computes the relative path from the target dir, and
       // if the target is the unresolved /var/... path but `dart pub get` resolves
       // its CWD to /private/var/..., the computed relative path is off by one
       // directory level. Resolving symlinks upfront makes both sides agree.
@@ -1191,16 +1187,16 @@ void main() {
         () async {
       // 1. The plugin lands at <tmpRoot>/consumer_app/packages/foo/ — a typical
       //    nested layout that requires the path resolver to climb multiple
-      //    directory levels back to the artisan root.
+      //    directory levels back to the dowel root.
       final pluginTarget =
           Directory(p.join(tmpRoot.path, 'consumer_app', 'packages', 'foo'))
             ..createSync(recursive: true);
 
       // 2. Run scaffold with the REAL FlutterCreateRunner (no mock). Generic
-      //    mode is used so the only path dep is fluttersdk_artisan — this is
+      //    mode is used so the only path dep is dowel — this is
       //    the simplest surface to validate without needing a real magic package.
       final cmd = _TestableMakePluginCommand(
-        fakeArtisanRoot: artisanRoot,
+        fakeDowelRoot: dowelRoot,
         // No flutterCreateRunner override → real ProcessFlutterCreateRunner.
         workspaceEnroller: _FakeWorkspaceEnroller(),
       );
@@ -1229,17 +1225,16 @@ void main() {
 
     test(
         'dart pub get inside the scaffolded plugin exits with code 0 '
-        '(the bug-validation test: hardcoded artisan paths fail here)',
-        () async {
+        '(the bug-validation test: hardcoded dowel paths fail here)', () async {
       // This test uses GENERIC mode (no --magic) so the plugin pubspec only
-      // declares the `fluttersdk_artisan:` path dep. This is intentional:
+      // declares the `dowel:` path dep. This is intentional:
       //
-      //   - The artisan path resolver is the same code path in both modes.
+      //   - The dowel path resolver is the same code path in both modes.
       //   - Generic mode avoids needing a real `magic` package on disk,
-      //     which is not a dependency of fluttersdk_artisan's own test suite.
+      //     which is not a dependency of dowel's own test suite.
       //   - The original bug (hardcoded `../../` instead of a computed relative
       //     path) manifests identically in generic mode — pub get would produce
-      //     "could not find package fluttersdk_artisan at ../../" and exit 66.
+      //     "could not find package dowel at ../../" and exit 66.
       //
       // 1. Scaffold into a nested path to exercise the relative-path computation.
       //    A two-level nesting (<tmpRoot>/consumer_app/packages/foo) is enough
@@ -1250,7 +1245,7 @@ void main() {
 
       // 2. Scaffold via REAL flutter create, generic mode.
       final cmd = _TestableMakePluginCommand(
-        fakeArtisanRoot: artisanRoot,
+        fakeDowelRoot: dowelRoot,
         // No flutterCreateRunner override → real ProcessFlutterCreateRunner.
         workspaceEnroller: _FakeWorkspaceEnroller(),
       );
@@ -1264,9 +1259,9 @@ void main() {
       expect(scaffoldExit, 0, reason: 'scaffold must succeed before pub get');
 
       // 3. Run `dart pub get` from the plugin directory. The pubspec must
-      //    have a valid relative path to fluttersdk_artisan. A hardcoded
+      //    have a valid relative path to dowel. A hardcoded
       //    `../../` from <tmpRoot>/consumer_app/packages/foo/ would point to
-      //    <tmpRoot>/consumer_app/ — not the artisan root — and pub get would
+      //    <tmpRoot>/consumer_app/ — not the dowel root — and pub get would
       //    fail with exit code 66.
       final pubGet = await Process.run(
         'dart',
@@ -1286,11 +1281,11 @@ void main() {
     }, timeout: const Timeout(Duration(minutes: 3)));
 
     test(
-        'scaffolded pubspec has a computed relative path for fluttersdk_artisan '
+        'scaffolded pubspec has a computed relative path for dowel '
         '(not a literal hardcoded path)', () async {
       // 1. Scaffold into a deeply-nested target to prove the path is computed
       //    dynamically from the actual target location, not hardcoded.
-      //    Generic mode: only fluttersdk_artisan dep is in the pubspec.
+      //    Generic mode: only dowel dep is in the pubspec.
       final deepTarget = Directory(
         p.join(
           tmpRoot.path,
@@ -1302,7 +1297,7 @@ void main() {
       )..createSync(recursive: true);
 
       final cmd = _TestableMakePluginCommand(
-        fakeArtisanRoot: artisanRoot,
+        fakeDowelRoot: dowelRoot,
         // No flutterCreateRunner override → real ProcessFlutterCreateRunner.
         workspaceEnroller: _FakeWorkspaceEnroller(),
       );
@@ -1318,38 +1313,38 @@ void main() {
       final pubspec =
           File(p.join(deepTarget.path, 'pubspec.yaml')).readAsStringSync();
 
-      // The artisan path in the pubspec must be a relative path that resolves
-      // correctly from the actual deepTarget location to the artisan root.
+      // The dowel path in the pubspec must be a relative path that resolves
+      // correctly from the actual deepTarget location to the dowel root.
       // We verify by reconstructing the absolute path and checking it exists.
-      final pathMatch = RegExp(r'fluttersdk_artisan:\s*\n\s*path:\s+(\S+)')
-          .firstMatch(pubspec);
+      final pathMatch =
+          RegExp(r'dowel:\s*\n\s*path:\s+(\S+)').firstMatch(pubspec);
       expect(
         pathMatch,
         isNotNull,
-        reason: 'pubspec must declare fluttersdk_artisan with a path: dep',
+        reason: 'pubspec must declare dowel with a path: dep',
       );
 
       final renderedPath = pathMatch!.group(1)!;
       final resolvedAbsolute =
           p.normalize(p.join(deepTarget.path, renderedPath));
 
-      // The resolved path must point to an existing directory (the artisan root)
-      // and must contain a pubspec.yaml with name: fluttersdk_artisan.
+      // The resolved path must point to an existing directory (the dowel root)
+      // and must contain a pubspec.yaml with name: dowel.
       expect(
         Directory(resolvedAbsolute).existsSync(),
         isTrue,
-        reason: 'the rendered artisan path "$renderedPath" resolves to '
+        reason: 'the rendered dowel path "$renderedPath" resolves to '
             '"$resolvedAbsolute" which does not exist — '
-            'ArtisanPathResolver produced a wrong relative path',
+            'DowelPathResolver produced a wrong relative path',
       );
 
-      // Confirm the directory IS the artisan package (not some random dir).
+      // Confirm the directory IS the dowel package (not some random dir).
       final resolvedPubspec =
           File(p.join(resolvedAbsolute, 'pubspec.yaml')).readAsStringSync();
       expect(
         resolvedPubspec,
-        contains('name: fluttersdk_artisan'),
-        reason: 'resolved artisan path must point to the fluttersdk_artisan '
+        contains('name: dowel'),
+        reason: 'resolved dowel path must point to the dowel '
             'package root',
       );
     }, timeout: const Timeout(Duration(minutes: 3)));

@@ -7,9 +7,9 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
-  fluttersdk_artisan:
+  dowel:
     path: ../../..
-    version: 0.0.20
+    version: 0.0.21
 
 dev_dependencies:
   lints: ^6.0.0

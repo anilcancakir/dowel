@@ -1,5 +1,5 @@
 /// A value type describing a single MCP tool contributed by an
-/// [ArtisanServiceProvider] via its [mcpTools] override.
+/// [DowelServiceProvider] via its [mcpTools] override.
 ///
 /// The four fields are mandatory; there are no defaults. Plugin authors
 /// construct descriptors in code and return them from [mcpTools]; the
@@ -19,7 +19,7 @@
 /// dart_mcp's [ObjectSchema] extension type into plugin author code.
 ///
 /// Collision diagnostics: [toString] includes [name] and [extensionMethod]
-/// so that [ArtisanMcpToolCollisionException] messages identify the duplicate
+/// so that [DowelMcpToolCollisionException] messages identify the duplicate
 /// at a glance.
 final class McpToolDescriptor {
   /// Constructs an immutable MCP tool descriptor.
@@ -36,9 +36,9 @@ final class McpToolDescriptor {
   /// Tool name exposed to the MCP client.
   ///
   /// Follow the snake_case service-prefix pattern documented by Anthropic
-  /// (e.g. `dusk_tap`, `telescope_tail`, `artisan_tinker`). The name must
-  /// be unique across all providers loaded in a single artisan session; the
-  /// registry throws [ArtisanMcpToolCollisionException] on collision.
+  /// (e.g. `tapir_tap`, `crumbs_tail`, `dowel_tinker`). The name must
+  /// be unique across all providers loaded in a single dowel session; the
+  /// registry throws [DowelMcpToolCollisionException] on collision.
   final String name;
 
   /// Human-readable, LLM-targeted description of what the tool does.
@@ -60,7 +60,7 @@ final class McpToolDescriptor {
   ///
   /// Must match an extension registered via `registerExtension` /
   /// `registerExtensionIdempotent` in the running Flutter isolate (e.g.
-  /// `ext.dusk.tap`, `ext.telescope.tail`, `ext.tinker.evaluate`). Not
+  /// `ext.tapir.tap`, `ext.crumbs.tail`, `ext.tinker.evaluate`). Not
   /// included in [toJson]; it is an internal routing key, not an MCP wire
   /// field.
   final String extensionMethod;

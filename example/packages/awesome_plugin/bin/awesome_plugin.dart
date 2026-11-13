@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:awesome_plugin/cli.dart' show AwesomePluginArtisanProvider;
+import 'package:dowel/dowel.dart';
+import 'package:awesome_plugin/cli.dart' show AwesomePluginDowelProvider;
 
 Future<void> main(List<String> args) async {
-  exit(await runArtisan(
+  exit(await runDowel(
     args,
-    baseProviders: [AwesomePluginArtisanProvider()],
+    baseProviders: [AwesomePluginDowelProvider()],
     delegateToConsumer: false,
   ));
 }

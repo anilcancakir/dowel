@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dart_mcp/client.dart';
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart'
@@ -70,7 +70,7 @@ class _StubVmServiceClient extends VmServiceClient {
   }
 
   /// Every `evaluate` invocation captured in arrival order. The Step 4 RED
-  /// tests assert on this tuple to confirm the new `dusk_evaluate` dispatch
+  /// tests assert on this tuple to confirm the new `tapir_evaluate` dispatch
   /// path routes the request's `expression` argument through to
   /// `VmServiceClient.evaluate` with the resolved isolate id.
   final List<({String isolateId, String expression})> evaluateCalls = [];
@@ -94,7 +94,7 @@ class _StubVmServiceClient extends VmServiceClient {
 }
 
 /// Provider double that returns a fixed list of MCP tool descriptors.
-class _FakeMcpProvider extends ArtisanServiceProvider {
+class _FakeMcpProvider extends DowelServiceProvider {
   _FakeMcpProvider({required this.providerName, required this.tools});
 
   @override
@@ -102,7 +102,7 @@ class _FakeMcpProvider extends ArtisanServiceProvider {
   final List<McpToolDescriptor> tools;
 
   @override
-  List<ArtisanCommand> commands() => const [];
+  List<DowelCommand> commands() => const [];
 
   @override
   List<McpToolDescriptor> mcpTools() => tools;
@@ -141,7 +141,7 @@ class _TestHarness {
   final _StubVmServiceClient stub;
 
   static Future<_TestHarness> build({
-    required ArtisanRegistry registry,
+    required DowelRegistry registry,
     required McpFilterConfig filter,
     Map<String, Object?>? stubResponses,
     bool stubFailOnConnect = false,
@@ -209,7 +209,7 @@ class _TestHarness {
 void main() {
   group('McpServer.initialize', () {
     test('empty registry produces a tools/list of zero tools', () async {
-      final registry = ArtisanRegistry();
+      final registry = DowelRegistry();
       final harness = await _TestHarness.build(
         registry: registry,
         filter: McpFilterConfig.empty(),
@@ -222,13 +222,13 @@ void main() {
     });
 
     test('registers every surviving tool from the registry', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
+            providerName: 'tapir',
             tools: [
-              _tool('dusk_snap', extensionMethod: 'ext.dusk.snap'),
-              _tool('dusk_tap', extensionMethod: 'ext.dusk.tap'),
+              _tool('tapir_snap', extensionMethod: 'ext.tapir.snap'),
+              _tool('tapir_tap', extensionMethod: 'ext.tapir.tap'),
             ],
           ),
         );
@@ -241,12 +241,12 @@ void main() {
 
       final result = await harness.connection.listTools();
 
-      expect(result.tools.map((t) => t.name), ['dusk_snap', 'dusk_tap']);
+      expect(result.tools.map((t) => t.name), ['tapir_snap', 'tapir_tap']);
     });
 
     test('keeps capabilities.tools.listChanged at the library default true',
         () async {
-      final registry = ArtisanRegistry();
+      final registry = DowelRegistry();
       final harness = await _TestHarness.build(
         registry: registry,
         filter: McpFilterConfig.empty(),
@@ -260,11 +260,11 @@ void main() {
     });
 
     test('connects the VM Service client during initialize', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
-            tools: [_tool('dusk_snap')],
+            providerName: 'tapir',
+            tools: [_tool('tapir_snap')],
           ),
         );
 
@@ -282,16 +282,16 @@ void main() {
         () async {
       // Race scenario: init runs with state.json absent (_vmClient stays
       // null + server stays online). state.json appears (user runs
-      // `artisan start`). Two MCP tool calls arrive concurrently. Both see
+      // `dowel start`). Two MCP tool calls arrive concurrently. Both see
       // _vmClient == null and trigger the lazy-reconnect branch in _dispatch.
       // The race guard MUST ensure the VmServiceClient factory runs exactly
       // once across the two concurrent dispatches (no leak).
       var stateRevealed = false;
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
-            tools: [_tool('dusk_snap', extensionMethod: 'ext.dusk.snap')],
+            providerName: 'tapir',
+            tools: [_tool('tapir_snap', extensionMethod: 'ext.tapir.snap')],
           ),
         );
 
@@ -299,7 +299,7 @@ void main() {
         registry: registry,
         filter: McpFilterConfig.empty(),
         stubResponses: <String, Object?>{
-          'ext.dusk.snap': <String, dynamic>{'ok': true},
+          'ext.tapir.snap': <String, dynamic>{'ok': true},
         },
         stateReader: () async {
           // Return absent state during initialize; valid state on every
@@ -323,10 +323,10 @@ void main() {
       // branch with a null _vmClient.
       final results = await Future.wait([
         harness.connection.callTool(
-          CallToolRequest(name: 'dusk_snap', arguments: const {}),
+          CallToolRequest(name: 'tapir_snap', arguments: const {}),
         ),
         harness.connection.callTool(
-          CallToolRequest(name: 'dusk_snap', arguments: const {}),
+          CallToolRequest(name: 'tapir_snap', arguments: const {}),
         ),
       ]);
 
@@ -339,19 +339,19 @@ void main() {
       expect(harness.stub.calls, hasLength(2));
     });
 
-    test('substrate commands surface as artisan_* MCP tools', () async {
+    test('substrate commands surface as dowel_* MCP tools', () async {
       // The 9 allowlisted substrate commands MUST appear as MCP tools even
       // when no plugin providers are registered. This is the bootstrap path:
-      // an MCP client (Claude Code) can call artisan_start BEFORE any
+      // an MCP client (Claude Code) can call dowel_start BEFORE any
       // Flutter app is running.
-      final registry = ArtisanRegistry();
+      final registry = DowelRegistry();
       registry.registerAll(
-        <ArtisanCommand>[
+        <DowelCommand>[
           _FakeSubstrateCommand(
               'start', 'Boot flutter run -d <device> detached.'),
           _FakeSubstrateCommand('doctor', 'Run environment preflight checks.'),
         ],
-        providerName: 'fluttersdk_artisan',
+        providerName: 'dowel',
       );
 
       final harness = await _TestHarness.build(
@@ -362,15 +362,15 @@ void main() {
 
       final tools = await harness.connection.listTools();
       final names = tools.tools.map((t) => t.name).toList();
-      expect(names, contains('artisan_start'));
-      expect(names, contains('artisan_doctor'));
+      expect(names, contains('dowel_start'));
+      expect(names, contains('dowel_doctor'));
     });
 
-    test('artisan_* tool dispatch runs command in-process + returns output',
+    test('dowel_* tool dispatch runs command in-process + returns output',
         () async {
-      final registry = ArtisanRegistry();
+      final registry = DowelRegistry();
       registry.registerAll(
-        <ArtisanCommand>[
+        <DowelCommand>[
           _FakeSubstrateCommand(
             'status',
             'Print JSON status.',
@@ -380,7 +380,7 @@ void main() {
             },
           ),
         ],
-        providerName: 'fluttersdk_artisan',
+        providerName: 'dowel',
       );
 
       final harness = await _TestHarness.build(
@@ -390,11 +390,11 @@ void main() {
       addTearDown(harness.dispose);
 
       final result = await harness.connection.callTool(
-        CallToolRequest(name: 'artisan_status', arguments: const {}),
+        CallToolRequest(name: 'dowel_status', arguments: const {}),
       );
       expect(result.isError, isFalse);
       final text = (result.content.first as TextContent).text;
-      expect(text, contains('# `artisan status` exit 0'));
+      expect(text, contains('# `dowel status` exit 0'));
       expect(text, contains('{"running":false}'));
     });
 
@@ -405,11 +405,11 @@ void main() {
       // error at dispatch time so MCP clients (Claude Code, Cursor) can
       // survive the natural dev cycle of starting/stopping the app without
       // having to reconnect the server every time.
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
-            tools: [_tool('dusk_snap')],
+            providerName: 'tapir',
+            tools: [_tool('tapir_snap')],
           ),
         );
 
@@ -423,32 +423,32 @@ void main() {
       // Server initialized cleanly; tools registered.
       expect(harness.stub.didConnect, isFalse);
       final tools = await harness.connection.listTools();
-      expect(tools.tools.map((t) => t.name), contains('dusk_snap'));
+      expect(tools.tools.map((t) => t.name), contains('tapir_snap'));
 
       // Tool call surfaces the actionable error at dispatch time.
       final result = await harness.connection.callTool(
-        CallToolRequest(name: 'dusk_snap', arguments: const {}),
+        CallToolRequest(name: 'tapir_snap', arguments: const {}),
       );
       expect(result.isError, isTrue);
       final text = (result.content.first as TextContent).text;
-      expect(text, contains('artisan start'));
+      expect(text, contains('dowel start'));
       expect(text, contains('No Flutter app detected'));
     });
   });
 
   group('McpServer filter application', () {
     test('package deny removes every tool from that provider', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
-            tools: [_tool('dusk_snap'), _tool('dusk_tap')],
+            providerName: 'tapir',
+            tools: [_tool('tapir_snap'), _tool('tapir_tap')],
           ),
         )
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_telescope',
-            tools: [_tool('telescope_tail'), _tool('telescope_http')],
+            providerName: 'crumbs',
+            tools: [_tool('crumbs_tail'), _tool('crumbs_http')],
           ),
         );
 
@@ -456,7 +456,7 @@ void main() {
         registry: registry,
         filter: const McpFilterConfig(
           packagesAllow: null,
-          packagesDeny: {'fluttersdk_telescope'},
+          packagesDeny: {'crumbs'},
           toolsAllow: null,
           toolsDeny: {},
         ),
@@ -467,18 +467,18 @@ void main() {
 
       expect(
         result.tools.map((t) => t.name),
-        ['dusk_snap', 'dusk_tap'],
+        ['tapir_snap', 'tapir_tap'],
       );
     });
 
     test('tool deny removes the matching tool BEFORE registerTool', () async {
       // Behaviour proof: a denied tool returns a "no tool registered" error
       // from dart_mcp's CallTool dispatcher, not our dispatch try/catch.
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
-            tools: [_tool('dusk_snap'), _tool('dusk_tap')],
+            providerName: 'tapir',
+            tools: [_tool('tapir_snap'), _tool('tapir_tap')],
           ),
         );
 
@@ -488,23 +488,23 @@ void main() {
           packagesAllow: null,
           packagesDeny: {},
           toolsAllow: null,
-          toolsDeny: {'dusk_snap'},
+          toolsDeny: {'tapir_snap'},
         ),
       );
       addTearDown(harness.dispose);
 
       final result = await harness.connection.listTools();
-      expect(result.tools.map((t) => t.name), ['dusk_tap']);
+      expect(result.tools.map((t) => t.name), ['tapir_tap']);
 
-      final callResult =
-          await harness.connection.callTool(CallToolRequest(name: 'dusk_snap'));
+      final callResult = await harness.connection
+          .callTool(CallToolRequest(name: 'tapir_snap'));
       expect(callResult.isError, isTrue);
       expect(
         (callResult.content.single as TextContent).text,
         contains('No tool registered'),
       );
       // The stub was never asked to dispatch the denied tool.
-      expect(harness.stub.calls.where((c) => c.method == 'ext.dusk.snap'),
+      expect(harness.stub.calls.where((c) => c.method == 'ext.tapir.snap'),
           isEmpty);
     });
   });
@@ -512,11 +512,11 @@ void main() {
   group('McpServer tools/call dispatch', () {
     test('forwards to the correct extensionMethod with the request arguments',
         () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
-            tools: [_tool('dusk_snap', extensionMethod: 'ext.dusk.snap')],
+            providerName: 'tapir',
+            tools: [_tool('tapir_snap', extensionMethod: 'ext.tapir.snap')],
           ),
         );
 
@@ -524,16 +524,16 @@ void main() {
         registry: registry,
         filter: McpFilterConfig.empty(),
         stubResponses: const {
-          'ext.dusk.snap': {'yaml': '- node'},
+          'ext.tapir.snap': {'yaml': '- node'},
         },
       );
       addTearDown(harness.dispose);
 
       final callResult = await harness.connection.callTool(
-        CallToolRequest(name: 'dusk_snap', arguments: const {}),
+        CallToolRequest(name: 'tapir_snap', arguments: const {}),
       );
 
-      expect(harness.stub.calls.single.method, 'ext.dusk.snap');
+      expect(harness.stub.calls.single.method, 'ext.tapir.snap');
       expect(harness.stub.calls.single.isolateId, 'isolate-stub');
       expect(callResult.isError, anyOf(isNull, isFalse));
       final text = (callResult.content.single as TextContent).text;
@@ -541,11 +541,11 @@ void main() {
     });
 
     test('wraps dispatch exceptions in CallToolResult.isError=true', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
-            tools: [_tool('dusk_snap', extensionMethod: 'ext.dusk.snap')],
+            providerName: 'tapir',
+            tools: [_tool('tapir_snap', extensionMethod: 'ext.tapir.snap')],
           ),
         );
 
@@ -556,8 +556,8 @@ void main() {
       );
       addTearDown(harness.dispose);
 
-      final callResult =
-          await harness.connection.callTool(CallToolRequest(name: 'dusk_snap'));
+      final callResult = await harness.connection
+          .callTool(CallToolRequest(name: 'tapir_snap'));
 
       expect(callResult.isError, isTrue);
       expect(
@@ -568,7 +568,7 @@ void main() {
 
     test('inputSchema validation rejects calls missing a required arg',
         () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
             providerName: 'magic_tinker',
@@ -604,14 +604,14 @@ void main() {
     });
 
     test(
-        'dusk_evaluate routes through vm.evaluate and returns the '
+        'tapir_evaluate routes through vm.evaluate and returns the '
         'InstanceRef value as JSON', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
+            providerName: 'tapir',
             tools: [
-              _tool('dusk_evaluate', extensionMethod: 'ext.dusk.evaluate'),
+              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
             ],
           ),
         );
@@ -629,7 +629,7 @@ void main() {
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
-          name: 'dusk_evaluate',
+          name: 'tapir_evaluate',
           arguments: const {'expression': '1 + 2'},
         ),
       );
@@ -642,14 +642,14 @@ void main() {
     });
 
     test(
-        'dusk_evaluate surfaces ErrorRef result as isError with a '
+        'tapir_evaluate surfaces ErrorRef result as isError with a '
         'Runtime exception message', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
+            providerName: 'tapir',
             tools: [
-              _tool('dusk_evaluate', extensionMethod: 'ext.dusk.evaluate'),
+              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
             ],
           ),
         );
@@ -667,7 +667,7 @@ void main() {
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
-          name: 'dusk_evaluate',
+          name: 'tapir_evaluate',
           arguments: const {'expression': '1 + 2'},
         ),
       );
@@ -682,14 +682,14 @@ void main() {
     });
 
     test(
-        'dusk_evaluate maps SentinelException to isError with an '
+        'tapir_evaluate maps SentinelException to isError with an '
         'Isolate sentinel hint', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
+            providerName: 'tapir',
             tools: [
-              _tool('dusk_evaluate', extensionMethod: 'ext.dusk.evaluate'),
+              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
             ],
           ),
         );
@@ -706,7 +706,7 @@ void main() {
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
-          name: 'dusk_evaluate',
+          name: 'tapir_evaluate',
           arguments: const {'expression': '1 + 2'},
         ),
       );
@@ -719,18 +719,18 @@ void main() {
       expect(text, contains('Isolate sentinel'));
       // Actionable hint pointing the user at the recovery command. The exact
       // wording locks in Step 7; assert only on the stable substring.
-      expect(text, contains('artisan'));
+      expect(text, contains('dowel'));
     });
 
     test(
-        'dusk_evaluate translates RPCError code 113 into a compile-error '
+        'tapir_evaluate translates RPCError code 113 into a compile-error '
         'message', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
+            providerName: 'tapir',
             tools: [
-              _tool('dusk_evaluate', extensionMethod: 'ext.dusk.evaluate'),
+              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
             ],
           ),
         );
@@ -749,7 +749,7 @@ void main() {
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
-          name: 'dusk_evaluate',
+          name: 'tapir_evaluate',
           arguments: const {'expression': '1 + 2'},
         ),
       );
@@ -764,17 +764,17 @@ void main() {
     });
 
     test(
-        'dusk_evaluate translates non-113 RPCError into an isError result '
+        'tapir_evaluate translates non-113 RPCError into an isError result '
         'instead of bubbling as a protocol-level failure', () async {
       // The dispatch contract states errors surface as `isError: true`
       // rather than RPC failures. A non-113 RPCError (e.g. method-not-found,
       // permission-denied) must follow that contract, not bubble up.
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
+            providerName: 'tapir',
             tools: [
-              _tool('dusk_evaluate', extensionMethod: 'ext.dusk.evaluate'),
+              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
             ],
           ),
         );
@@ -792,7 +792,7 @@ void main() {
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
-          name: 'dusk_evaluate',
+          name: 'tapir_evaluate',
           arguments: const {'expression': '1 + 2'},
         ),
       );
@@ -808,14 +808,14 @@ void main() {
     });
 
     test(
-        'dusk_evaluate translates an unexpected exception into an isError '
+        'tapir_evaluate translates an unexpected exception into an isError '
         'result instead of bubbling as a protocol-level failure', () async {
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..registerMcpToolsFor(
           _FakeMcpProvider(
-            providerName: 'fluttersdk_dusk',
+            providerName: 'tapir',
             tools: [
-              _tool('dusk_evaluate', extensionMethod: 'ext.dusk.evaluate'),
+              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
             ],
           ),
         );
@@ -830,7 +830,7 @@ void main() {
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
-          name: 'dusk_evaluate',
+          name: 'tapir_evaluate',
           arguments: const {'expression': '1 + 2'},
         ),
       );
@@ -838,22 +838,22 @@ void main() {
       expect(callResult.isError, isTrue);
       final text = (callResult.content.single as TextContent).text;
       expect(text, contains('### Error'));
-      expect(text, contains('Unexpected error during dusk_evaluate'));
+      expect(text, contains('Unexpected error during tapir_evaluate'));
       expect(text, contains('isolate root library unavailable'));
     });
   });
 }
 
-/// File-private substrate command fake for the artisan_* tool tests.
+/// File-private substrate command fake for the dowel_* tool tests.
 /// Skips the signature DSL boilerplate and lets the test pin an `onHandle`
 /// closure that observes the dispatch path without spinning up a real
 /// command implementation.
-class _FakeSubstrateCommand extends ArtisanCommand {
+class _FakeSubstrateCommand extends DowelCommand {
   _FakeSubstrateCommand(this._name, this._description, {this.onHandle});
 
   final String _name;
   final String _description;
-  final Future<int> Function(ArtisanContext)? onHandle;
+  final Future<int> Function(DowelContext)? onHandle;
 
   @override
   String get name => _name;
@@ -865,7 +865,7 @@ class _FakeSubstrateCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     return onHandle?.call(ctx) ?? 0;
   }
 }

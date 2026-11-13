@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/src/commands/helpers/process_group_reaper.dart';
+import 'package:dowel/src/commands/helpers/process_group_reaper.dart';
 import 'package:test/test.dart';
 
 void main() {

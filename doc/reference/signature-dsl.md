@@ -160,7 +160,7 @@ the command help, and exits with a non-zero code. This applies to both long
 (`--unknown`) and short (`-x`) forms.
 
 ```
-$ artisan make:command Foo --bogus
+$ dowel make:command Foo --bogus
 ✗ Unknown option: --bogus
 ℹ Description:
   ...

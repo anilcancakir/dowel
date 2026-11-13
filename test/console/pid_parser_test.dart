@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -24,7 +24,7 @@ void main() {
     test('skips lines that do not match the pattern at all', () {
       final got = parsePidLines(<String>[
         'Building package executable...',
-        'Built fluttersdk_artisan:fluttersdk_artisan.',
+        'Built dowel:dowel.',
         'HOLDER=99',
       ]);
       expect(got, {'HOLDER': 99});

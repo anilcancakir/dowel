@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 import 'virtual_fs.dart';
 
 /// Immutable value object representing a single registered plugin entry inside
-/// `.artisan/plugins.json`.
+/// `.dowel/plugins.json`.
 ///
 /// All fields are required. The [registeredAt] field carries an ISO-8601
 /// UTC timestamp string rather than a [DateTime] so callers control formatting
@@ -65,7 +65,7 @@ final class PluginEntry {
 }
 
 /// Immutable value object representing the full contents of
-/// `.artisan/plugins.json`.
+/// `.dowel/plugins.json`.
 ///
 /// [version] is the schema version (currently `1`). Future schema changes
 /// increment this; [PluginsRegistryFile.read] rejects any version above `1`
@@ -121,7 +121,7 @@ final class PluginsRegistry {
   }
 }
 
-/// Reads and writes the `.artisan/plugins.json` registry file through a
+/// Reads and writes the `.dowel/plugins.json` registry file through a
 /// [VirtualFs] abstraction so the class is fully testable without touching
 /// the host filesystem.
 ///
@@ -131,7 +131,7 @@ final class PluginsRegistry {
 ///
 /// [write] follows the same `.tmp` + rename pattern used by
 /// [InstallTransaction]: content is written to
-/// `<projectRoot>/.artisan/plugins.json.tmp` first and then renamed over the
+/// `<projectRoot>/.dowel/plugins.json.tmp` first and then renamed over the
 /// target. On POSIX systems this rename is atomic, so readers never observe a
 /// partial write.
 ///
@@ -166,14 +166,14 @@ class PluginsRegistryFile {
   ///                      tests: [InMemoryFs]).
   /// @param _projectRoot  Absolute path to the Flutter project root. The
   ///                      registry lives at
-  ///                      `<_projectRoot>/.artisan/plugins.json`.
+  ///                      `<_projectRoot>/.dowel/plugins.json`.
   PluginsRegistryFile(this._fs, this._projectRoot);
 
   final VirtualFs _fs;
   final String _projectRoot;
 
   /// Absolute path of the registry file.
-  String get _registryPath => p.join(_projectRoot, '.artisan', 'plugins.json');
+  String get _registryPath => p.join(_projectRoot, '.dowel', 'plugins.json');
 
   /// Absolute path of the temporary write target used during atomic writes.
   String get _tmpPath => '$_registryPath.tmp';
@@ -202,8 +202,8 @@ class PluginsRegistryFile {
     if (version > 1) {
       throw FormatException(
         'plugins.json schema version $version is not supported by this '
-        'version of fluttersdk_artisan (max supported: 1). '
-        'Upgrade the artisan tooling to read this registry.',
+        'version of dowel (max supported: 1). '
+        'Upgrade the dowel tooling to read this registry.',
       );
     }
 

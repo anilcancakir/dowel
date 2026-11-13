@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -11,9 +11,9 @@ import 'package:test/test.dart';
 
 /// Builds a fake consumer project tree under [root] with the four files
 /// `plugin:uninstall` needs: pubspec.yaml, package_config.json, the legacy
-/// bin/artisan.dart wrapper (already carrying the plugin's import + register
+/// bin/dowel.dart wrapper (already carrying the plugin's import + register
 /// line — uninstall MUST be able to strip both), and the install record at
-/// `.artisan/installed/<plugin>.json`.
+/// `.dowel/installed/<plugin>.json`.
 ///
 /// @param root         Temp project root.
 /// @param pluginName   Plugin pubspec package name.
@@ -42,19 +42,19 @@ void _seedInstalledProject(
     '{"packages":[{"name": "$pluginName"}]}\n',
   );
 
-  // 3. bin/artisan.dart with the plugin already registered (mirror of the
+  // 3. bin/dowel.dart with the plugin already registered (mirror of the
   //    state plugin:install leaves behind).
   final binDir = Directory(p.join(root.path, 'bin'))
     ..createSync(recursive: true);
-  File(p.join(binDir.path, 'artisan.dart')).writeAsStringSync(
-    "import 'package:fluttersdk_artisan/artisan.dart';\n"
+  File(p.join(binDir.path, 'dowel.dart')).writeAsStringSync(
+    "import 'package:dowel/dowel.dart';\n"
     "import 'package:$pluginName/cli.dart';\n\n"
     "Future<void> main(List<String> args) async {\n"
-    "  final registry = ArtisanRegistry();\n"
+    "  final registry = DowelRegistry();\n"
     "  final auto = await loadAutoIndex();\n"
     "  registry.registerAll(auto.commands, providerName: 'app');\n"
     "    registry.registerProvider($providerName());\n"
-    "  final app = ArtisanApplication(registry);\n"
+    "  final app = DowelApplication(registry);\n"
     "  await app.run(args);\n"
     "}\n",
   );
@@ -65,7 +65,7 @@ void _seedInstalledProject(
   File(configPath).writeAsStringSync('const x = 1;\n');
 
   // 5. Install record.
-  final recordDir = Directory(p.join(root.path, '.artisan', 'installed'))
+  final recordDir = Directory(p.join(root.path, '.dowel', 'installed'))
     ..createSync(recursive: true);
   File(p.join(recordDir.path, '$pluginName.json')).writeAsStringSync(
     jsonEncode(<String, dynamic>{
@@ -89,13 +89,13 @@ void _writeInstallYaml(String path, String pluginName) {
   File(path).writeAsStringSync('plugin_name: $pluginName\n');
 }
 
-/// Builds an [ArtisanContext] backed by a [MapInput] + [BufferedOutput].
-ArtisanContext _ctxWith(
+/// Builds an [DowelContext] backed by a [MapInput] + [BufferedOutput].
+DowelContext _ctxWith(
   Map<String, dynamic> options, {
   List<String> positional = const [],
   CommandSignature? signature,
 }) {
-  return ArtisanContext.bare(
+  return DowelContext.bare(
     MapInput(options, positional: positional, signature: signature),
     BufferedOutput(),
   );
@@ -128,8 +128,7 @@ class _TestablePluginUninstallCommand extends PluginUninstallCommand {
       fakeInstallYamlPath;
 
   @override
-  bool promptConfirmation(ArtisanContext ctx, String pluginName) =>
-      confirmAnswer;
+  bool promptConfirmation(DowelContext ctx, String pluginName) => confirmAnswer;
 }
 
 /// Builds the standard option map for an uninstall invocation. Tests pass
@@ -147,7 +146,7 @@ Map<String, dynamic> _baseOpts({Map<String, dynamic>? overrides}) {
 
 void main() {
   group('PluginUninstallCommand — signature DSL', () {
-    test('inherits the 4 base flags via ArtisanInstallCommand.baseFlags', () {
+    test('inherits the 4 base flags via DowelInstallCommand.baseFlags', () {
       final cmd = PluginUninstallCommand();
       final parsed = cmd.parsedSignature!;
       final optionNames = parsed.options.map((o) => o.name).toSet();
@@ -173,9 +172,9 @@ void main() {
           reason: 'No plugin-specific flags beyond the base 4.');
     });
 
-    test('extends ArtisanInstallCommand (CommandBoot.none)', () {
+    test('extends DowelInstallCommand (CommandBoot.none)', () {
       final cmd = PluginUninstallCommand();
-      expect(cmd, isA<ArtisanInstallCommand>());
+      expect(cmd, isA<DowelInstallCommand>());
       expect(cmd.boot, CommandBoot.none);
     });
 
@@ -198,7 +197,7 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginArtisanProvider',
+        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -222,42 +221,42 @@ void main() {
 
       // Install record deleted on Success.
       expect(
-          File(p.join(root.path, '.artisan', 'installed', 'demo_plugin.json'))
+          File(p.join(root.path, '.dowel', 'installed', 'demo_plugin.json'))
               .existsSync(),
           isFalse);
 
-      // bin/artisan.dart no longer carries the plugin's import / register.
+      // bin/dowel.dart no longer carries the plugin's import / register.
       final wrapper =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
+          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
       expect(
           wrapper, isNot(contains("import 'package:demo_plugin/cli.dart';")));
       expect(
           wrapper,
           isNot(contains(
-              'registry.registerProvider(DemoPluginArtisanProvider())')));
+              'registry.registerProvider(DemoPluginDowelProvider())')));
     });
 
     test(
-        'uninstall purges .artisan/cli-bundle and .artisan/build.stamp '
+        'uninstall purges .dowel/cli-bundle and .dowel/build.stamp '
         'after successful removal', () async {
       // Issue #9 GAP A: after `plugin:uninstall` strips the plugin's wrapper
       // import + register lines, the AOT cache must be invalidated so the next
-      // `./bin/fsa` rebuilds without the removed plugin's command surface.
+      // `./bin/dowel` rebuilds without the removed plugin's command surface.
       final root = Directory.systemTemp.createTempSync('plun_cachepurge_');
       addTearDown(() => root.deleteSync(recursive: true));
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginArtisanProvider',
+        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
 
       // 1. Pre-create the cache artefacts that the post-uninstall hook must purge.
-      final cacheDir = Directory(p.join(root.path, '.artisan', 'cli-bundle'))
+      final cacheDir = Directory(p.join(root.path, '.dowel', 'cli-bundle'))
         ..createSync(recursive: true);
       File(p.join(cacheDir.path, 'sentinel')).writeAsStringSync('');
-      File(p.join(root.path, '.artisan', 'build.stamp'))
+      File(p.join(root.path, '.dowel', 'build.stamp'))
           .writeAsStringSync('deadbeef:3.4.0');
 
       final cmd = _TestablePluginUninstallCommand(
@@ -275,16 +274,16 @@ void main() {
 
       // 2. Both cache artefacts must be gone after a successful uninstall.
       expect(
-        Directory(p.join(root.path, '.artisan', 'cli-bundle')).existsSync(),
+        Directory(p.join(root.path, '.dowel', 'cli-bundle')).existsSync(),
         isFalse,
         reason:
-            'uninstall must purge .artisan/cli-bundle/ so the next ./bin/fsa rebuilds',
+            'uninstall must purge .dowel/cli-bundle/ so the next ./bin/dowel rebuilds',
       );
       expect(
-        File(p.join(root.path, '.artisan', 'build.stamp')).existsSync(),
+        File(p.join(root.path, '.dowel', 'build.stamp')).existsSync(),
         isFalse,
         reason:
-            'uninstall must purge .artisan/build.stamp so needs_build() trips on next call',
+            'uninstall must purge .dowel/build.stamp so needs_build() trips on next call',
       );
     });
 
@@ -294,7 +293,7 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginArtisanProvider',
+        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -315,7 +314,7 @@ void main() {
       final exit = await cmd.handle(ctx);
       expect(exit, 0);
       expect(
-          File(p.join(root.path, '.artisan', 'installed', 'demo_plugin.json'))
+          File(p.join(root.path, '.dowel', 'installed', 'demo_plugin.json'))
               .existsSync(),
           isFalse);
     });
@@ -326,7 +325,7 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginArtisanProvider',
+        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -352,7 +351,7 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginArtisanProvider',
+        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -375,13 +374,13 @@ void main() {
 
       // State preserved.
       expect(
-          File(p.join(root.path, '.artisan', 'installed', 'demo_plugin.json'))
+          File(p.join(root.path, '.dowel', 'installed', 'demo_plugin.json'))
               .existsSync(),
           isTrue);
       expect(File(p.join(root.path, 'lib', 'config', 'demo.dart')).existsSync(),
           isTrue);
       final wrapper =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
+          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
       expect(wrapper, contains("import 'package:demo_plugin/cli.dart';"));
     });
   });
@@ -394,7 +393,7 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginArtisanProvider',
+        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -414,7 +413,7 @@ void main() {
 
       // Nothing actually mutated.
       expect(
-          File(p.join(root.path, '.artisan', 'installed', 'demo_plugin.json'))
+          File(p.join(root.path, '.dowel', 'installed', 'demo_plugin.json'))
               .existsSync(),
           isTrue,
           reason: 'Dry-run must NOT delete the record.');
@@ -422,7 +421,7 @@ void main() {
           isTrue,
           reason: 'Dry-run must NOT delete published files.');
       final wrapper =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
+          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
       expect(wrapper, contains("import 'package:demo_plugin/cli.dart';"),
           reason: 'Dry-run must NOT mutate the wrapper.');
 
@@ -441,7 +440,7 @@ void main() {
       File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync('name: c\n');
       final binDir = Directory(p.join(root.path, 'bin'))
         ..createSync(recursive: true);
-      File(p.join(binDir.path, 'artisan.dart'))
+      File(p.join(binDir.path, 'dowel.dart'))
           .writeAsStringSync('void main(){}\n');
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -471,7 +470,7 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginArtisanProvider',
+        providerName: 'DemoPluginDowelProvider',
       );
 
       // Subclass returns null for the install.yaml lookup.
@@ -523,5 +522,5 @@ class _TestablePluginUninstallCommandNoYaml extends PluginUninstallCommand {
   Future<String?> resolveInstallYaml(String pluginName) async => null;
 
   @override
-  bool promptConfirmation(ArtisanContext ctx, String pluginName) => true;
+  bool promptConfirmation(DowelContext ctx, String pluginName) => true;
 }

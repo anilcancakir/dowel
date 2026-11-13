@@ -33,7 +33,7 @@ Concurrent readers (open editors, lint daemons) never observe partial state. Tes
 - `ConfigEditor.insertCodeAfterPattern` + `insertCodeBeforePattern`: early-return when `code.trim().isNotEmpty && content.contains(code.trim())`. Re-running an install with the same code is a no-op.
 - `ConfigEditor.addImportToFile`: skip when the import statement already appears in the file.
 - `PluginsRegistryFile.addPlugin`: replace-by-name, never append-duplicate.
-- `PluginInstaller.injectProvider` + `injectConfigFactory`: lookahead-anchored regex `(?=\s*\n\s*\])` matches the LAST existing entry's trailing comma; falls back to `<ArtisanCommand>[` opening pattern when the list is empty (`make_command_command.dart` mirrors this for in-plugin auto-register).
+- `PluginInstaller.injectProvider` + `injectConfigFactory`: lookahead-anchored regex `(?=\s*\n\s*\])` matches the LAST existing entry's trailing comma; falls back to `<DowelCommand>[` opening pattern when the list is empty (`make_command_command.dart` mirrors this for in-plugin auto-register).
 
 ## Sealed hierarchies
 
@@ -45,13 +45,13 @@ Concurrent readers (open editors, lint daemons) never observe partial state. Tes
 
 ## Reversibility (V1)
 
-`InstallTransaction` records every op to `.artisan/installed/<plugin>.json` (op type, target path, content hash). `plugin:uninstall` reverses `WriteFile` (delete + stub-hash tamper check) and logs `[skipped]` for `InjectImport` / `InjectAfterPattern` (V1 limitation; reverse pending anchor-bracketed inject markers in V1.1).
+`InstallTransaction` records every op to `.dowel/installed/<plugin>.json` (op type, target path, content hash). `plugin:uninstall` reverses `WriteFile` (delete + stub-hash tamper check) and logs `[skipped]` for `InjectImport` / `InjectAfterPattern` (V1 limitation; reverse pending anchor-bracketed inject markers in V1.1).
 
 ## Plugin:install three routing modes
 
 `PluginInstallCommand.handle` dispatches in this order:
-1. `install.yaml` resolvable (`resolveInstallYaml(name)` returns non-null) → `_runManifestFlow` → `ManifestInstaller` + Change F `_registerArtisanProvider` (writes `plugins.json` + spawns `PluginsRefreshCommand`).
-2. No manifest + `lib/app/_plugins.g.dart` exists (canonical scaffold from `install` or `magic:install`) → skip manifest, run `_registerArtisanProvider` directly. Magic-free fast path.
-3. Neither → `_runLegacyFlow` (`registry.registerProvider(...)` injection anchored to `auto.commands` line in `bin/artisan.dart`).
+1. `install.yaml` resolvable (`resolveInstallYaml(name)` returns non-null) → `_runManifestFlow` → `ManifestInstaller` + Change F `_registerDowelProvider` (writes `plugins.json` + spawns `PluginsRefreshCommand`).
+2. No manifest + `lib/app/_plugins.g.dart` exists (canonical scaffold from `install` or `magic:install`) → skip manifest, run `_registerDowelProvider` directly. Magic-free fast path.
+3. Neither → `_runLegacyFlow` (`registry.registerProvider(...)` injection anchored to `auto.commands` line in `bin/dowel.dart`).
 
 Never bypass this routing by adding a fourth branch; route via the existing fan-out points.

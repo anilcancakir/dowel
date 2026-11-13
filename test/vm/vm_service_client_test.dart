@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -154,14 +154,14 @@ void main() {
 
       await expectLater(
         client.callServiceExtension<Object?>(
-          'ext.dusk.snapshot',
+          'ext.tapir.snapshot',
           isolateId: 'isolates/1',
         ),
         throwsA(
           isA<ExtensionNotRegisteredException>().having(
             (e) => e.method,
             'method',
-            'ext.dusk.snapshot',
+            'ext.tapir.snapshot',
           ),
         ),
       );
@@ -181,7 +181,7 @@ void main() {
 
       await expectLater(
         client.callServiceExtension<Object?>(
-          'ext.dusk.snapshot',
+          'ext.tapir.snapshot',
           isolateId: 'isolates/1',
         ),
         throwsA(isA<ExtensionNotRegisteredException>()),
@@ -208,7 +208,7 @@ void main() {
 
       await expectLater(
         client.callServiceExtension<Object?>(
-          'ext.dusk.snapshot',
+          'ext.tapir.snapshot',
           isolateId: 'isolates/1',
         ),
         throwsA(isA<ExtensionNotRegisteredException>()),

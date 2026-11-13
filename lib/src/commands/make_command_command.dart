@@ -2,24 +2,24 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../console/artisan_context.dart';
-import '../console/artisan_generator_command.dart';
+import '../console/dowel_context.dart';
+import '../console/dowel_generator_command.dart';
 import '../console/string_helper.dart';
 import '../helpers/config_editor.dart';
 import '../helpers/file_helper.dart';
 import 'commands_index_writer.dart';
 
-/// `artisan make:command MyCommand` — scaffolds a new ArtisanCommand subclass.
+/// `dowel make:command MyCommand` — scaffolds a new DowelCommand subclass.
 ///
 /// Output location is context-aware:
 /// - **Consumer app** (lib/app/ + a consumer wrapper such as
 ///   `bin/dispatcher.dart` present): writes to `lib/app/commands/` and
 ///   refreshes the auto-discovery index so the command shows up on the next
-///   `artisan list`.
-/// - **Plugin context** (`lib/src/[name]_artisan_provider.dart` present at
+///   `dowel list`.
+/// - **Plugin context** (`lib/src/[name]_dowel_provider.dart` present at
 ///   project root): writes to `lib/src/commands/` (alongside the plugin's
 ///   install/uninstall commands) and injects an import + registration line
-///   into the nearest `*_artisan_provider.dart` so the command shows up
+///   into the nearest `*_dowel_provider.dart` so the command shows up
 ///   inside the plugin's own command surface.
 ///
 /// Name normalization (idempotent): input `Hello` becomes `HelloCommand`;
@@ -30,20 +30,20 @@ import 'commands_index_writer.dart';
 /// Default command name derivation (Laravel convention):
 ///   - `SyncMonitors` → `sync-monitors`
 ///   - `Admin/UserSync` → `admin:user-sync`
-class MakeCommandCommand extends ArtisanGeneratorCommand {
+class MakeCommandCommand extends DowelGeneratorCommand {
   @override
   String get name => 'make:command';
 
   @override
   String get description =>
-      'Scaffold a new ArtisanCommand subclass under lib/app/commands/ '
+      'Scaffold a new DowelCommand subclass under lib/app/commands/ '
       '(or lib/src/commands/ when run inside a plugin).';
 
   @override
-  String getStub() => 'artisan_command';
+  String getStub() => 'dowel_command';
 
   /// Returns `lib/src/commands` when invoked inside a plugin (detected via
-  /// presence of `lib/src/<name>_artisan_provider.dart`), `lib/app/commands`
+  /// presence of `lib/src/<name>_dowel_provider.dart`), `lib/app/commands`
   /// otherwise (consumer app convention).
   @override
   String getDefaultNamespace() {
@@ -60,7 +60,7 @@ class MakeCommandCommand extends ArtisanGeneratorCommand {
     //   `admin:sync`).
     // - Plugin prefix from cwd context (inside a plugin, prepend
     //   `<plugin_name>:` so the command lands in the plugin's namespace
-    //   in `artisan list` and matches the convention every other plugin
+    //   in `dowel list` and matches the convention every other plugin
     //   command follows).
     final directoryPrefix = parsed.directory.isEmpty
         ? ''
@@ -87,7 +87,7 @@ class MakeCommandCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final raw = ctx.input.argument(0);
     if (raw == null || raw.isEmpty) {
       ctx.output.error('Not enough arguments (missing: "name").');
@@ -109,7 +109,7 @@ class MakeCommandCommand extends ArtisanGeneratorCommand {
     final root = FileHelper.findProjectRoot();
     if (_isPluginContext()) {
       // Plugin context: inject import + registration into the plugin's
-      // ArtisanServiceProvider so the command appears in the plugin's surface
+      // DowelServiceProvider so the command appears in the plugin's surface
       // without a manual edit.
       _registerInPluginProvider(ctx, root: root, name: normalized);
     } else {
@@ -157,35 +157,35 @@ class MakeCommandCommand extends ArtisanGeneratorCommand {
         .toLowerCase();
   }
 
-  /// Plugin context = `lib/src/*_artisan_provider.dart` exists at project
-  /// root. The provider file name follows the `<package>_artisan_provider.dart`
+  /// Plugin context = `lib/src/*_dowel_provider.dart` exists at project
+  /// root. The provider file name follows the `<package>_dowel_provider.dart`
   /// convention from the `make:plugin` scaffold.
   static bool _isPluginContext() {
     final root = FileHelper.findProjectRoot();
     final libSrc = Directory(p.join(root, 'lib', 'src'));
     if (!libSrc.existsSync()) return false;
     return libSrc.listSync().whereType<File>().any(
-          (f) => f.path.endsWith('_artisan_provider.dart'),
+          (f) => f.path.endsWith('_dowel_provider.dart'),
         );
   }
 
-  /// Locates the nearest `lib/src/*_artisan_provider.dart` and injects an
+  /// Locates the nearest `lib/src/*_dowel_provider.dart` and injects an
   /// import + a `<Class>(),` entry into its `commands()` list. Idempotent
   /// via ConfigEditor's `content.contains(code.trim())` short-circuit.
   static void _registerInPluginProvider(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required String root,
     required String name,
   }) {
     final libSrc = Directory(p.join(root, 'lib', 'src'));
     final providerFile = libSrc.listSync().whereType<File>().firstWhere(
-          (f) => f.path.endsWith('_artisan_provider.dart'),
+          (f) => f.path.endsWith('_dowel_provider.dart'),
           orElse: () => File(''),
         );
     if (providerFile.path.isEmpty) {
       ctx.output.warning(
-        'No <name>_artisan_provider.dart found in lib/src/. '
-        'Add the command manually to your ArtisanServiceProvider.commands() list.',
+        'No <name>_dowel_provider.dart found in lib/src/. '
+        'Add the command manually to your DowelServiceProvider.commands() list.',
       );
       return;
     }
@@ -209,7 +209,7 @@ class MakeCommandCommand extends ArtisanGeneratorCommand {
     // Try to inject at the END of an existing commands list (lookahead
     // anchor on the last entry's trailing comma). When the list is empty
     // the regex has nothing to match, so we fall back to inserting
-    // immediately after the opening `<ArtisanCommand>[` of the commands()
+    // immediately after the opening `<DowelCommand>[` of the commands()
     // method. Both branches produce identical final shape for the first
     // and subsequent entries.
     final endOfListMatched = RegExp(r'\w+\(\),(?=\s*\n\s*\])').hasMatch(before);
@@ -222,7 +222,7 @@ class MakeCommandCommand extends ArtisanGeneratorCommand {
     } else {
       ConfigEditor.insertCodeAfterPattern(
         filePath: providerFile.path,
-        pattern: RegExp(r'<ArtisanCommand>\['),
+        pattern: RegExp(r'<DowelCommand>\['),
         code: '\n$registrationLine',
       );
     }

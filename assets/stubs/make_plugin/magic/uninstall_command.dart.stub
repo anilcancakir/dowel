@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 /// `{{ commandPrefix }}:uninstall`, reverses the {{ name }} install pass.
 ///
@@ -7,7 +7,7 @@ import 'package:fluttersdk_artisan/artisan.dart';
 /// reverse order against the recorded install file. Plugins that override
 /// [InstallCommand.handle] with procedural logic SHOULD still keep the
 /// declarative manifest in sync so this uninstall path stays accurate.
-class UninstallCommand extends ArtisanInstallCommand {
+class UninstallCommand extends DowelInstallCommand {
   @override
   String get signature => '{{ commandPrefix }}:uninstall $baseFlags';
 
@@ -15,10 +15,10 @@ class UninstallCommand extends ArtisanInstallCommand {
   String get description => 'Uninstall {{ name }} from the host project.';
 
   @override
-  String pluginName(ArtisanContext ctx) => '{{ name }}';
+  String pluginName(DowelContext ctx) => '{{ name }}';
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final installCtx = buildContext(ctx);
     final manifestPath = '${installCtx.projectRoot}/install.yaml';
     final manifest = ManifestParser.parseFile(manifestPath);

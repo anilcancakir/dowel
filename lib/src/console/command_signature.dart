@@ -6,7 +6,7 @@ import 'package:args/args.dart';
 /// every option/flag into a single string declared on the command class.
 /// The dispatcher parses it once at registration time, applies the
 /// declarations to the underlying [ArgParser], and exposes the argument
-/// names so [ArtisanInput.argument] can look up by name (not just index).
+/// names so [DowelInput.argument] can look up by name (not just index).
 ///
 /// ## Grammar
 ///

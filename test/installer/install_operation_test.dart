@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 // This file is the red-phase: all tests will fail until install_operation.dart
 // is written.
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 void main() {
   // ---------------------------------------------------------------------------

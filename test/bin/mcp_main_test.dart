@@ -1,7 +1,7 @@
 import 'package:test/test.dart';
 
 // bin/mcp.dart is not a library export — import it directly so mcpMain and
-// RunArtisanFn are visible to the test without pulling them into the barrel.
+// RunDowelFn are visible to the test without pulling them into the barrel.
 import '../../bin/mcp.dart';
 
 void main() {
@@ -21,7 +21,7 @@ void main() {
         return Future.value(0);
       }
 
-      await mcpMain([], runArtisan: recorder);
+      await mcpMain([], runDowel: recorder);
 
       expect(captured, hasLength(1));
       expect(captured.first, equals(['mcp:serve']));
@@ -36,12 +36,12 @@ void main() {
         return Future.value(0);
       }
 
-      await mcpMain(['--include-package', 'x'], runArtisan: recorder);
+      await mcpMain(['--include-package', 'x'], runDowel: recorder);
 
       expect(captured.first, equals(['mcp:serve', '--include-package', 'x']));
     });
 
-    test('passes collectMcpTools: true to runArtisan', () async {
+    test('passes collectMcpTools: true to runDowel', () async {
       final capturedFlags = <bool>[];
 
       Future<int> recorder(List<String> args,
@@ -50,7 +50,7 @@ void main() {
         return Future.value(0);
       }
 
-      await mcpMain([], runArtisan: recorder);
+      await mcpMain([], runDowel: recorder);
 
       expect(capturedFlags, equals([true]));
     });
@@ -66,17 +66,17 @@ void main() {
         return Future.value(0);
       }
 
-      await mcpMain([], runArtisan: recorder);
+      await mcpMain([], runDowel: recorder);
 
       expect(capturedDelegation, equals([false]));
     });
 
-    test('returns exit code from runArtisan', () async {
+    test('returns exit code from runDowel', () async {
       Future<int> recorder(List<String> args,
               {bool collectMcpTools = false, bool delegateToConsumer = true}) =>
           Future.value(42);
 
-      final code = await mcpMain([], runArtisan: recorder);
+      final code = await mcpMain([], runDowel: recorder);
 
       expect(code, equals(42));
     });
@@ -86,7 +86,7 @@ void main() {
               {bool collectMcpTools = false, bool delegateToConsumer = true}) =>
           Future.value(1);
 
-      final code = await mcpMain([], runArtisan: recorder);
+      final code = await mcpMain([], runDowel: recorder);
 
       expect(code, equals(1));
     });

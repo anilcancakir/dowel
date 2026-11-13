@@ -4,12 +4,12 @@ import 'dart:isolate';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
-import '../console/artisan_context.dart';
+import '../console/dowel_context.dart';
 import '../console/string_helper.dart';
 import '../helpers/cli_bundle_cache.dart';
 import '../helpers/config_editor.dart';
 import '../helpers/file_helper.dart';
-import '../installer/artisan_install_command.dart';
+import '../installer/dowel_install_command.dart';
 import '../installer/install_exception.dart';
 import '../installer/install_manifest.dart';
 import '../installer/install_transaction.dart';
@@ -20,7 +20,7 @@ import '../installer/virtual_fs.dart';
 import 'helpers/bootstrap_command_runner.dart';
 import 'plugins_refresh_command.dart';
 
-/// `plugin:install <name>`, register a third-party artisan plugin into the
+/// `plugin:install <name>`, register a third-party dowel plugin into the
 /// consumer project.
 ///
 /// Two flows live in this command:
@@ -36,7 +36,7 @@ import 'plugins_refresh_command.dart';
 ///      back to the original behaviour, append
 ///      `import 'package:<name>/cli.dart';` and
 ///      `registry.registerProvider(<Provider>())` to the consumer's
-///      `bin/artisan.dart`. Kept for backward compatibility with plugins
+///      `bin/dowel.dart`. Kept for backward compatibility with plugins
 ///      authored before the manifest schema landed.
 ///
 /// Pass `--use-yaml-only` to make the manifest flow strict: when no
@@ -44,7 +44,7 @@ import 'plugins_refresh_command.dart';
 ///
 /// Plugin authoring conventions assumed by the legacy flow:
 ///   - Plugin exports a CLI barrel at `package:<name>/cli.dart`.
-///   - Plugin declares a provider class named `<PascalCaseName>ArtisanProvider`
+///   - Plugin declares a provider class named `<PascalCaseName>DowelProvider`
 ///     in that barrel. Override with `--provider=ClassName` when the plugin
 ///     uses a different naming convention.
 ///
@@ -52,14 +52,14 @@ import 'plugins_refresh_command.dart';
 ///   - The package must be listed in the consumer's `pubspec.yaml`.
 ///   - The package must be resolvable via
 ///     `.dart_tool/package_config.json` (so `flutter pub get` ran).
-///   - `bin/artisan.dart` must exist (legacy flow injects into it; manifest
+///   - `bin/dowel.dart` must exist (legacy flow injects into it; manifest
 ///     flow keeps it as the conventional wrapper).
 ///
 /// Dart has no auto-discovery for service providers (no `dart:mirrors` under
 /// AOT, no Laravel-style `composer.json` extras). This command IS the
 /// substitute: the consumer adds the dep + runs `plugin:install <name>` once
-/// and never touches `bin/artisan.dart` by hand.
-class PluginInstallCommand extends ArtisanInstallCommand {
+/// and never touches `bin/dowel.dart` by hand.
+class PluginInstallCommand extends DowelInstallCommand {
   /// Public default constructor. Test fixtures subclass + override
   /// [getProjectRoot] / [resolveInstallYaml] to inject deterministic paths
   /// without depending on the host's filesystem layout.
@@ -75,11 +75,11 @@ class PluginInstallCommand extends ArtisanInstallCommand {
 
   @override
   String get description =>
-      'Register a third-party artisan plugin (install.yaml manifest preferred; '
-      'legacy bin/artisan.dart injection as fallback).';
+      'Register a third-party dowel plugin (install.yaml manifest preferred; '
+      'legacy bin/dowel.dart injection as fallback).';
 
   @override
-  String pluginName(ArtisanContext ctx) =>
+  String pluginName(DowelContext ctx) =>
       (ctx.input.argument('name') ?? '').toString();
 
   /// Resolves the consumer project root. Hook for test subclasses; production
@@ -129,7 +129,7 @@ class PluginInstallCommand extends ArtisanInstallCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Validate the positional name argument first so the rest of the
     //    handler can rely on a non-empty plugin name.
     final name = pluginName(ctx);
@@ -139,12 +139,12 @@ class PluginInstallCommand extends ArtisanInstallCommand {
     }
 
     // 2. Run the shared pre-flight (pubspec dep + package_config). The
-    //    legacy bin/artisan.dart presence check used to live here too, but
+    //    legacy bin/dowel.dart presence check used to live here too, but
     //    that blocked plugin:install in canonical-scaffold projects (which
     //    ship bin/dispatcher.dart and never touch the legacy filename); it
     //    now runs inside the legacy-flow branch only.
     final root = getProjectRoot();
-    final wrapperPath = p.join(root, 'bin', 'artisan.dart');
+    final wrapperPath = p.join(root, 'bin', 'dowel.dart');
     final preflight = _preflight(ctx, root: root, name: name);
     if (preflight != 0) return preflight;
 
@@ -169,12 +169,12 @@ class PluginInstallCommand extends ArtisanInstallCommand {
 
     // 3b. Generic plugin (no install.yaml) AND canonical consumer scaffold
     //     present (lib/app/_plugins.g.dart exists). Skip the legacy
-    //     bin/artisan.dart injection: write directly to .artisan/plugins.json
+    //     bin/dowel.dart injection: write directly to .dowel/plugins.json
     //     and refresh _plugins.g.dart. This is the Magic-less parallel of
-    //     the manifest-flow `_registerArtisanProvider` step, working purely
+    //     the manifest-flow `_registerDowelProvider` step, working purely
     //     against the canonical scaffold from `install`.
     if (File(p.join(root, 'lib', 'app', '_plugins.g.dart')).existsSync()) {
-      await _registerArtisanProvider(ctx, name: name);
+      await _registerDowelProvider(ctx, name: name);
       ctx.output.success(
         'Registered "$name" via canonical scaffold (no install.yaml needed).',
       );
@@ -186,9 +186,9 @@ class PluginInstallCommand extends ArtisanInstallCommand {
 
   /// Returns `true` when the operator passed `--use-yaml-only`.
   ///
-  /// @param ctx  The active [ArtisanContext] handed to [handle].
+  /// @param ctx  The active [DowelContext] handed to [handle].
   /// @return The boolean value of the `--use-yaml-only` flag.
-  bool isUseYamlOnly(ArtisanContext ctx) =>
+  bool isUseYamlOnly(DowelContext ctx) =>
       ctx.input.option('use-yaml-only') as bool? ?? false;
 
   // ---------------------------------------------------------------------------
@@ -199,7 +199,7 @@ class PluginInstallCommand extends ArtisanInstallCommand {
   /// every check passes; non-zero exit code on the first failure (after
   /// writing the matching error to `ctx.output`).
   int _preflight(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required String root,
     required String name,
   }) {
@@ -238,11 +238,11 @@ class PluginInstallCommand extends ArtisanInstallCommand {
 
   /// Parses the install.yaml at [manifestPath] and commits via
   /// [ManifestInstaller]. On a non-dry-run [Success], also registers the
-  /// plugin's [ArtisanServiceProvider] in `.artisan/plugins.json` and
+  /// plugin's [DowelServiceProvider] in `.dowel/plugins.json` and
   /// regenerates `lib/app/_plugins.g.dart` so commands appear in
-  /// `dart run magic:artisan list` without a separate `plugins:refresh` step.
+  /// `dart run magic:dowel list` without a separate `plugins:refresh` step.
   Future<int> _runManifestFlow(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required String manifestPath,
   }) async {
     final InstallManifest manifest;
@@ -266,7 +266,7 @@ class PluginInstallCommand extends ArtisanInstallCommand {
 
     final exit = _renderResultAndExit(ctx, result);
     if (result is Success && !isDryRun(ctx)) {
-      await _registerArtisanProvider(ctx, name: manifest.pluginName);
+      await _registerDowelProvider(ctx, name: manifest.pluginName);
       await _runBootstrapCommand(ctx, manifest: manifest);
     }
     return exit;
@@ -279,15 +279,15 @@ class PluginInstallCommand extends ArtisanInstallCommand {
   /// The bootstrap command is a PLUGIN command that was only just written to
   /// `lib/app/_plugins.g.dart` during this same install run, so it is NOT
   /// loaded in the current process. [BootstrapCommandRunner] reaches it by
-  /// spawning a fresh `./bin/fsa` (or `dart run <consumer>:artisan`)
+  /// spawning a fresh `./bin/dowel` (or `dart run <consumer>:dowel`)
   /// invocation, always forwarding `--non-interactive` so an interactive
   /// chained install cannot hang.
   ///
   /// Falls back to the one-line bootstrap hint when the operator passed
   /// `--no-bootstrap`, when no command is declared, or when no dispatcher is
-  /// resolvable (e.g. neither `bin/fsa` nor a consumer pubspec name exists).
+  /// resolvable (e.g. neither `bin/dowel` nor a consumer pubspec name exists).
   Future<void> _runBootstrapCommand(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required InstallManifest manifest,
   }) async {
     // 1. The --bootstrap-command override wins over the manifest declaration.
@@ -303,7 +303,7 @@ class PluginInstallCommand extends ArtisanInstallCommand {
 
     // 3. Spawn the chained command. This is a best-effort convenience step that
     //    runs AFTER the install + registration already succeeded, so a failure
-    //    here (missing `dart` on PATH, non-executable `bin/fsa`, working-dir
+    //    here (missing `dart` on PATH, non-executable `bin/dowel`, working-dir
     //    issues) must not crash `plugin:install`: catch it, warn, and fall back
     //    to the manual hint so the operator can still bootstrap by hand.
     try {
@@ -343,18 +343,18 @@ class PluginInstallCommand extends ArtisanInstallCommand {
   @visibleForTesting
   BootstrapCommandRunner buildBootstrapRunner() => BootstrapCommandRunner();
 
-  /// Convention-based registration of the plugin's [ArtisanServiceProvider] in
-  /// `.artisan/plugins.json`, then a synchronous regeneration of
+  /// Convention-based registration of the plugin's [DowelServiceProvider] in
+  /// `.dowel/plugins.json`, then a synchronous regeneration of
   /// `lib/app/_plugins.g.dart` via [PluginsRefreshCommand] so the host's
   /// `bin/dispatcher.dart` wrapper picks up the plugin's commands on the
   /// next invocation.
   ///
   /// Naming convention: `package:<name>/cli.dart` is the import URI and
-  /// `<PascalCaseName>ArtisanProvider` is the class name. Plugins that follow
+  /// `<PascalCaseName>DowelProvider` is the class name. Plugins that follow
   /// a different convention are out of scope here; they can run
-  /// `plugins:refresh` manually after editing `.artisan/plugins.json` by hand.
-  Future<void> _registerArtisanProvider(
-    ArtisanContext ctx, {
+  /// `plugins:refresh` manually after editing `.dowel/plugins.json` by hand.
+  Future<void> _registerDowelProvider(
+    DowelContext ctx, {
     required String name,
   }) async {
     final root = getProjectRoot();
@@ -362,7 +362,7 @@ class PluginInstallCommand extends ArtisanInstallCommand {
     final entry = PluginEntry(
       name: name,
       providerImport: 'package:$name/cli.dart',
-      providerClass: '${pascalName}ArtisanProvider',
+      providerClass: '${pascalName}DowelProvider',
       registeredAt: DateTime.now().toUtc().toIso8601String(),
     );
 
@@ -371,15 +371,15 @@ class PluginInstallCommand extends ArtisanInstallCommand {
       await PluginsRefreshCommand(projectRoot: root).handle(ctx);
     } catch (e) {
       ctx.output.warning(
-        'Plugin "$name" was installed but artisan command auto-registration '
-        'failed: $e. Run `dart run magic:artisan plugins:refresh` manually.',
+        'Plugin "$name" was installed but dowel command auto-registration '
+        'failed: $e. Run `dart run magic:dowel plugins:refresh` manually.',
       );
     }
   }
 
   /// Maps a [TransactionResult] to the appropriate user-facing output +
   /// process exit code.
-  int _renderResultAndExit(ArtisanContext ctx, TransactionResult result) {
+  int _renderResultAndExit(DowelContext ctx, TransactionResult result) {
     switch (result) {
       case Success():
         ctx.output.success(result.describe());
@@ -405,7 +405,7 @@ class PluginInstallCommand extends ArtisanInstallCommand {
   /// @param bootstrap  The resolved bootstrap command name.
   /// @param skipped    `true` when emitted because `--no-bootstrap` was set.
   void _emitBootstrapHint(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required String bootstrap,
     required bool skipped,
   }) {
@@ -413,8 +413,8 @@ class PluginInstallCommand extends ArtisanInstallCommand {
       ctx.output.info('Skipping plugin bootstrap command (--no-bootstrap).');
     }
     ctx.output.info(
-      'Re-run `artisan list` to see new commands. '
-      'Bootstrap with: artisan $bootstrap',
+      'Re-run `dowel list` to see new commands. '
+      'Bootstrap with: dowel $bootstrap',
     );
   }
 
@@ -423,22 +423,22 @@ class PluginInstallCommand extends ArtisanInstallCommand {
   // ---------------------------------------------------------------------------
 
   /// Original imperative injection: appends an import line + a
-  /// `registerProvider(...)` line into the consumer's `bin/artisan.dart`.
+  /// `registerProvider(...)` line into the consumer's `bin/dowel.dart`.
   /// Kept for backward compatibility with plugins that have not authored a
   /// manifest yet.
   Future<int> _runLegacyFlow(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required String name,
     required String wrapperPath,
   }) async {
-    // 0. Legacy injection writes directly to the literal bin/artisan.dart
+    // 0. Legacy injection writes directly to the literal bin/dowel.dart
     //    file; it cannot run without that wrapper on disk. The canonical
     //    scaffold path branches off before reaching here so this check
     //    only blocks the legacy fallback (never the dispatcher-based flows).
     if (!File(wrapperPath).existsSync()) {
       ctx.output.error(
         'No consumer wrapper found at $wrapperPath. '
-        'Run `dart run fluttersdk_artisan install` to scaffold the '
+        'Run `dart run dowel install` to scaffold the '
         'canonical wrapper (bin/dispatcher.dart) plus '
         '`lib/app/_plugins.g.dart`; plugin:install will then route through '
         'the canonical-scaffold path instead of the legacy injection.',
@@ -450,9 +450,9 @@ class PluginInstallCommand extends ArtisanInstallCommand {
     final bootstrapOverride = ctx.input.option('bootstrap-command') as String?;
 
     // 1. Derive provider class name. Convention: snake_case → PascalCase
-    //    + 'ArtisanProvider' suffix. Override via --provider=ClassName.
+    //    + 'DowelProvider' suffix. Override via --provider=ClassName.
     final providerClass =
-        providerOverride ?? '${_pascalCase(name)}ArtisanProvider';
+        providerOverride ?? '${_pascalCase(name)}DowelProvider';
 
     // 2. Idempotency check.
     final wrapperSource = File(wrapperPath).readAsStringSync();
@@ -464,7 +464,7 @@ class PluginInstallCommand extends ArtisanInstallCommand {
     final force = isForce(ctx);
     if (alreadyImported && alreadyRegistered && !force) {
       ctx.output.info(
-        '$name is already registered in bin/artisan.dart. Use --force to re-write.',
+        '$name is already registered in bin/dowel.dart. Use --force to re-write.',
       );
       // Still chain to bootstrap if requested, install commands are
       // idempotent by convention.
@@ -493,8 +493,8 @@ class PluginInstallCommand extends ArtisanInstallCommand {
       );
     }
 
-    // 3. Purge the AOT cli-bundle so the next ./bin/fsa invocation rebuilds
-    //    against the updated bin/artisan.dart wrapper (issue #9 GAP A).
+    // 3. Purge the AOT cli-bundle so the next ./bin/dowel invocation rebuilds
+    //    against the updated bin/dowel.dart wrapper (issue #9 GAP A).
     CliBundleCache.purge(getProjectRoot());
 
     // 4. Optional: chain to the plugin's own install command.
@@ -504,8 +504,8 @@ class PluginInstallCommand extends ArtisanInstallCommand {
     }
     final bootstrapName = bootstrapOverride ?? _deriveBootstrapName(name);
     ctx.output.info(
-      'Re-run `artisan list` to see the new commands. '
-      'Bootstrap with: artisan $bootstrapName',
+      'Re-run `dowel list` to see the new commands. '
+      'Bootstrap with: dowel $bootstrapName',
     );
     return 0;
   }
@@ -520,26 +520,22 @@ class PluginInstallCommand extends ArtisanInstallCommand {
   }
 
   /// Derive the plugin's domain install command name from the package
-  /// name. Convention: strip leading `magic_` / `fluttersdk_` prefix,
-  /// keep what remains, append `:install`.
+  /// name. Convention: strip a leading `magic_` prefix, keep what remains,
+  /// append `:install`.
   ///
   /// `magic_logger` → `logger:install`
-  /// `fluttersdk_dusk` → `dusk:install` (if the plugin exposes one)
+  /// `tapir` → `tapir:install` (if the plugin exposes one)
   /// `magic_starter` → `starter:install`
   static String _deriveBootstrapName(String pkg) {
-    var stripped = pkg;
-    for (final prefix in const ['magic_', 'fluttersdk_']) {
-      if (stripped.startsWith(prefix)) {
-        stripped = stripped.substring(prefix.length);
-        break;
-      }
-    }
+    const prefix = 'magic_';
+    final stripped =
+        pkg.startsWith(prefix) ? pkg.substring(prefix.length) : pkg;
     return '$stripped:install';
   }
 
   /// Inserts [registerLine] right after the `registerAll(auto.commands,
   /// ...)` invocation in the consumer wrapper. Falls back to appending
-  /// before the `ArtisanApplication` construction line when the anchor is
+  /// before the `DowelApplication` construction line when the anchor is
   /// not present (handles hand-edited wrappers).
   static void _insertRegisterAfterAutoLine(
     String wrapperPath,
@@ -556,10 +552,10 @@ class PluginInstallCommand extends ArtisanInstallCommand {
       File(wrapperPath).writeAsStringSync('$head\n$registerLine$tail');
       return;
     }
-    // Fallback: insert before the ArtisanApplication construction line.
+    // Fallback: insert before the DowelApplication construction line.
     ConfigEditor.insertCodeBeforePattern(
       filePath: wrapperPath,
-      pattern: RegExp(r'\s*final app = ArtisanApplication'),
+      pattern: RegExp(r'\s*final app = DowelApplication'),
       code: '\n$registerLine\n',
     );
   }

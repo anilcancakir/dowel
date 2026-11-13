@@ -1,15 +1,15 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('HelpCommand integration with signature-bearing commands', () {
     test('renders signature-bearing command with Arguments section', () async {
-      final registry = ArtisanRegistry();
+      final registry = DowelRegistry();
       registry.register(_SignatureCmd(), providerName: 'test');
       final cmd = HelpCommand(registry);
 
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(const <String, dynamic>{}, positional: <String>['sync:demo']),
         output,
       );
@@ -25,13 +25,13 @@ void main() {
     });
 
     test('renders Usage with required vs optional positional shape', () async {
-      final registry = ArtisanRegistry();
+      final registry = DowelRegistry();
       registry.register(_SignatureCmd(), providerName: 'test');
       final cmd = HelpCommand(registry);
 
       final output = BufferedOutput();
       await cmd.handle(
-        ArtisanContext.bare(
+        DowelContext.bare(
           MapInput(const <String, dynamic>{},
               positional: <String>['sync:demo']),
           output,
@@ -44,13 +44,13 @@ void main() {
     });
 
     test('renders signature-less command without Arguments section', () async {
-      final registry = ArtisanRegistry();
+      final registry = DowelRegistry();
       registry.register(_BareCmd(), providerName: 'test');
       final cmd = HelpCommand(registry);
 
       final output = BufferedOutput();
       await cmd.handle(
-        ArtisanContext.bare(
+        DowelContext.bare(
           MapInput(const <String, dynamic>{}, positional: <String>['bare']),
           output,
         ),
@@ -63,7 +63,7 @@ void main() {
   });
 }
 
-class _SignatureCmd extends ArtisanCommand {
+class _SignatureCmd extends DowelCommand {
   @override
   String get signature =>
       'sync:demo {team : Team slug} {scope=all : Subset filter} '
@@ -76,10 +76,10 @@ class _SignatureCmd extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async => 0;
+  Future<int> handle(DowelContext ctx) async => 0;
 }
 
-class _BareCmd extends ArtisanCommand {
+class _BareCmd extends DowelCommand {
   @override
   String get name => 'bare';
 
@@ -90,5 +90,5 @@ class _BareCmd extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async => 0;
+  Future<int> handle(DowelContext ctx) async => 0;
 }

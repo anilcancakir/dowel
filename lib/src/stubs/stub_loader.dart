@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
-/// Package name for fluttersdk_artisan.
-const String _pkgName = 'fluttersdk_artisan';
+/// Package name for dowel.
+const String _pkgName = 'dowel';
 
 /// Loads `.stub` template files from `assets/stubs/` and replaces placeholders.
 ///
@@ -72,17 +72,17 @@ class StubLoader {
 
   /// Resolves the default `assets/stubs/` search paths.
   ///
-  /// Uses multiple strategies to locate the `fluttersdk_artisan` package root:
+  /// Uses multiple strategies to locate the `dowel` package root:
   ///
-  /// 1. Parse `.dart_tool/package_config.json` for the `fluttersdk_artisan` rootUri
-  ///    (works for `dart run fluttersdk_artisan:magic` from any consumer project).
+  /// 1. Parse `.dart_tool/package_config.json` for the `dowel` rootUri
+  ///    (works for `dart run dowel:magic` from any consumer project).
   /// 2. Walk up from `Platform.script` to find `pubspec.yaml` with
-  ///    `name: fluttersdk_artisan` (works for direct script execution).
+  ///    `name: dowel` (works for direct script execution).
   /// 3. Check common development paths as fallback.
   static List<String> _defaultSearchPaths() {
     // 1. Environment variable override — highest priority.
-    //    Used in tests: set ARTISAN_STUBS_DIR to point at a custom stubs dir.
-    final envDir = Platform.environment['ARTISAN_STUBS_DIR'];
+    //    Used in tests: set DOWEL_STUBS_DIR to point at a custom stubs dir.
+    final envDir = Platform.environment['DOWEL_STUBS_DIR'];
     if (envDir != null && Directory(envDir).existsSync()) {
       return [envDir];
     }
@@ -99,7 +99,7 @@ class StubLoader {
       }
     }
 
-    // 3. Walk up from Platform.script to find the fluttersdk_artisan pubspec.
+    // 3. Walk up from Platform.script to find the dowel pubspec.
     //    Works when running the CLI directly from its own directory.
     final scriptPath = Platform.script.toFilePath();
     var current = Directory(path.dirname(scriptPath));
@@ -134,10 +134,10 @@ class StubLoader {
     return [path.join(Directory.current.path, 'assets', 'stubs')];
   }
 
-  /// Resolves the `fluttersdk_artisan` package root from `.dart_tool/package_config.json`.
+  /// Resolves the `dowel` package root from `.dart_tool/package_config.json`.
   ///
   /// Walks up from `Directory.current` to find the nearest `package_config.json`,
-  /// parses it, and extracts the `rootUri` for the `fluttersdk_artisan` package entry.
+  /// parses it, and extracts the `rootUri` for the `dowel` package entry.
   ///
   /// Returns the absolute path to the package root, or `null` if not found.
   static String? _resolveFromPackageConfig() {

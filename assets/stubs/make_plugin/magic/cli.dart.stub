@@ -7,6 +7,6 @@
 /// `package:{{ name }}/{{ name }}.dart`.
 library;
 
-export 'src/{{ name }}_artisan_provider.dart';
+export 'src/{{ name }}_dowel_provider.dart';
 export 'src/commands/install_command.dart';
 export 'src/commands/uninstall_command.dart';

@@ -5,10 +5,10 @@ import 'dart:isolate';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
-import '../console/artisan_context.dart';
+import '../console/dowel_context.dart';
 import '../helpers/cli_bundle_cache.dart';
 import '../helpers/file_helper.dart';
-import '../installer/artisan_install_command.dart';
+import '../installer/dowel_install_command.dart';
 import '../installer/dry_run_renderer.dart';
 import '../installer/install_context.dart';
 import '../installer/install_exception.dart';
@@ -24,7 +24,7 @@ import 'plugin_install_command.dart';
 /// Mirror image of [PluginInstallCommand]:
 ///
 ///   1. Verifies an install record exists at
-///      `<projectRoot>/.artisan/installed/<name>.json`. The record is what
+///      `<projectRoot>/.dowel/installed/<name>.json`. The record is what
 ///      [ManifestInstaller] writes on a successful install; without it
 ///      there is no plan to reverse.
 ///   2. Resolves and parses the plugin's `install.yaml` (still on disk
@@ -38,14 +38,14 @@ import 'plugin_install_command.dart';
 ///      the reverse [InstallOperation]s from the record, commits a fresh
 ///      reverse transaction, and deletes the record on Success.
 ///   6. Finally, removes the plugin's `import` line + `registerProvider`
-///      line from `bin/artisan.dart`, the inverse of the legacy injection
+///      line from `bin/dowel.dart`, the inverse of the legacy injection
 ///      [PluginInstallCommand] performs when no manifest is found.
 ///
 /// V1 limitation: only `WriteFile` / `DeleteFile` / `CopyFile` carry full
 /// payload in the install record. Every other op type is recorded as a
 /// type-only marker. [ManifestInstaller.uninstall] surfaces a warning for
 /// those and skips. The Plugin Authoring Guide documents the trade-off.
-class PluginUninstallCommand extends ArtisanInstallCommand {
+class PluginUninstallCommand extends DowelInstallCommand {
   /// Public default constructor. Test fixtures subclass + override
   /// [getProjectRoot] / [resolveInstallYaml] / [promptConfirmation] to inject
   /// deterministic paths and answers.
@@ -58,11 +58,11 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
 
   @override
   String get description =>
-      'Uninstall a third-party artisan plugin (reverses the manifest + '
-      'removes the bin/artisan.dart registration).';
+      'Uninstall a third-party dowel plugin (reverses the manifest + '
+      'removes the bin/dowel.dart registration).';
 
   @override
-  String pluginName(ArtisanContext ctx) =>
+  String pluginName(DowelContext ctx) =>
       (ctx.input.argument('name') ?? '').toString();
 
   /// Resolves the consumer project root. Hook for test subclasses; production
@@ -107,22 +107,22 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
   /// [InstallContext.prompt] (which wraps the static [Prompt.confirm]
   /// helper).
   ///
-  /// @param ctx         The active [ArtisanContext].
+  /// @param ctx         The active [DowelContext].
   /// @param pluginName  The plugin scheduled for removal (rendered into the
   ///                    confirmation question).
   /// @return `true` when the operator confirms; `false` to abort.
   @visibleForTesting
-  bool promptConfirmation(ArtisanContext ctx, String pluginName) {
+  bool promptConfirmation(DowelContext ctx, String pluginName) {
     final installContext = buildContext(ctx);
     return installContext.prompt.confirm(
       'Uninstall plugin "$pluginName"? This will reverse every recorded '
-      'install operation and remove the bin/artisan.dart registration.',
+      'install operation and remove the bin/dowel.dart registration.',
       defaultValue: false,
     );
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Validate the positional name argument.
     final name = pluginName(ctx);
     if (name.isEmpty) {
@@ -134,7 +134,7 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
     //    never installed via the manifest path OR the record was deleted
     //    manually; either way the command cannot derive a reverse plan.
     final root = getProjectRoot();
-    final recordPath = p.join(root, '.artisan', 'installed', '$name.json');
+    final recordPath = p.join(root, '.dowel', 'installed', '$name.json');
     if (!File(recordPath).existsSync()) {
       ctx.output.error(
         'Plugin "$name" is not installed via the manifest path '
@@ -197,15 +197,15 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
     switch (result) {
       case Success():
         ctx.output.success(result.describe());
-        // 8. Mirror the install-time bin/artisan.dart injection: strip the
+        // 8. Mirror the install-time bin/dowel.dart injection: strip the
         //    plugin's import + registerProvider lines so the next
-        //    `dart run artisan list` no longer attempts to wire the plugin.
+        //    `dart run dowel list` no longer attempts to wire the plugin.
         _stripWrapperLines(
           installContext: installContext,
           pluginName: name,
           providerClassName: manifest.magic.provider,
         );
-        // 9. Purge the AOT cli-bundle so the next ./bin/fsa invocation rebuilds
+        // 9. Purge the AOT cli-bundle so the next ./bin/dowel invocation rebuilds
         //    against the updated lib/app/_plugins.g.dart (issue #9 GAP A).
         CliBundleCache.purge(root);
         return 0;
@@ -231,7 +231,7 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
   /// here keeps the test / production paths symmetrical (tests pin to a
   /// temp dir; production pins to [getProjectRoot]).
   InstallContext _buildScopedContext(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required String projectRoot,
   }) {
     return InstallContext.real(ctx, projectRoot: projectRoot);
@@ -242,7 +242,7 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
   /// prints them through [DryRunRenderer]. Skipped ops (those without a
   /// clean reverse in V1) are summarised in a trailing warning line.
   void _renderDryRun(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required String recordPath,
     required String name,
   }) {
@@ -376,7 +376,7 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
 
   /// Strips the plugin's `import 'package:<name>/cli.dart';` and
   /// `registry.registerProvider(<Provider>());` lines from
-  /// `<projectRoot>/bin/artisan.dart`. Inverse of the legacy injection
+  /// `<projectRoot>/bin/dowel.dart`. Inverse of the legacy injection
   /// [PluginInstallCommand] performs when no manifest is found.
   ///
   /// Goes through [InstallContext.fs] (rather than direct `dart:io`) so the
@@ -398,7 +398,7 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
     final wrapperPath = p.join(
       installContext.projectRoot,
       'bin',
-      'artisan.dart',
+      'dowel.dart',
     );
     if (!installContext.fs.exists(wrapperPath)) return;
 
@@ -433,18 +433,18 @@ class PluginUninstallCommand extends ArtisanInstallCommand {
     installContext.fs.writeAsString(wrapperPath, content);
   }
 
-  /// snake_case to `'<PascalCase>ArtisanProvider'`. Matches the convention
+  /// snake_case to `'<PascalCase>DowelProvider'`. Matches the convention
   /// applied by [PluginInstallCommand] when the operator does not pass
   /// `--provider=`.
   ///
   /// @param pluginName  Pubspec package name in snake_case.
-  /// @return Derived provider class name (`magic_logger` → `MagicLoggerArtisanProvider`).
+  /// @return Derived provider class name (`magic_logger` → `MagicLoggerDowelProvider`).
   static String _legacyProviderClassName(String pluginName) {
     final parts = pluginName
         .split('_')
         .where((part) => part.isNotEmpty)
         .map((part) => part[0].toUpperCase() + part.substring(1))
         .join();
-    return '${parts}ArtisanProvider';
+    return '${parts}DowelProvider';
   }
 }

@@ -1,18 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-/// Builds a bare [ArtisanContext] with the given option map and a
+/// Builds a bare [DowelContext] with the given option map and a
 /// [BufferedOutput] for assertion.
-ArtisanContext _ctx(Map<String, dynamic> options) {
-  return ArtisanContext.bare(MapInput(options), BufferedOutput());
+DowelContext _ctx(Map<String, dynamic> options) {
+  return DowelContext.bare(MapInput(options), BufferedOutput());
 }
 
 /// Reads the output captured on [ctx]'s [BufferedOutput].
-String _output(ArtisanContext ctx) => (ctx.output as BufferedOutput).content;
+String _output(DowelContext ctx) => (ctx.output as BufferedOutput).content;
 
 void main() {
   late Directory tempDir;
@@ -41,11 +41,11 @@ void main() {
 
   group('McpInstallCommand handle', () {
     test(
-        'empty .mcp.json writes fluttersdk entry with fsa shape when hasFsa=true, isWindows=false',
+        'empty .mcp.json writes dowel entry with dowel shape when hasDowel=true, isWindows=false',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(
-        hasFsa: () => true,
+        hasDowel: () => true,
         isWindows: () => false,
       );
       final ctx = _ctx({'path': mcpPath});
@@ -56,25 +56,25 @@ void main() {
       final content = File(mcpPath).readAsStringSync();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      expect(servers, contains('fluttersdk'));
-      final entry = servers['fluttersdk'] as Map<String, dynamic>;
-      expect(entry['command'], './bin/fsa');
+      expect(servers, contains('dowel'));
+      final entry = servers['dowel'] as Map<String, dynamic>;
+      expect(entry['command'], './bin/dowel');
       expect(entry['args'], equals(['mcp:serve']));
       expect(entry['cwd'], '.');
-      // Raw JSON content must reference the fsa invocation, not legacy shapes.
-      expect(content, contains('./bin/fsa'));
+      // Raw JSON content must reference the dowel invocation, not legacy shapes.
+      expect(content, contains('./bin/dowel'));
       // Must NOT reference any legacy or rejected entry shapes.
       expect(content, isNot(contains('fluttersdk_artisan:mcp')));
       expect(content, isNot(contains('fluttersdk_mcp:server')));
-      expect(content, isNot(contains(':artisan')));
+      expect(content, isNot(contains(':dowel')));
     });
 
     test(
-        'empty .mcp.json writes fluttersdk entry with dart fallback shape when hasFsa=false',
+        'empty .mcp.json writes dowel entry with dart fallback shape when hasDowel=false',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(
-        hasFsa: () => false,
+        hasDowel: () => false,
         isWindows: () => false,
       );
       final ctx = _ctx({'path': mcpPath});
@@ -85,8 +85,8 @@ void main() {
       final content = File(mcpPath).readAsStringSync();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      expect(servers, contains('fluttersdk'));
-      final entry = servers['fluttersdk'] as Map<String, dynamic>;
+      expect(servers, contains('dowel'));
+      final entry = servers['dowel'] as Map<String, dynamic>;
       expect(entry['command'], 'dart');
       expect(entry['args'], equals(['run', ':dispatcher', 'mcp:serve']));
       expect(entry['cwd'], '.');
@@ -95,7 +95,7 @@ void main() {
       // Must NOT reference any legacy or rejected entry shapes.
       expect(content, isNot(contains('fluttersdk_artisan:mcp')));
       expect(content, isNot(contains('fluttersdk_mcp:server')));
-      expect(content, isNot(contains(':artisan')));
+      expect(content, isNot(contains(':dowel')));
     });
 
     test(
@@ -113,7 +113,7 @@ void main() {
       }));
 
       final command = McpInstallCommand(
-        hasFsa: () => true,
+        hasDowel: () => true,
         isWindows: () => false,
       );
       final ctx = _ctx({'path': mcpPath});
@@ -125,20 +125,20 @@ void main() {
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
       // Both entries must survive.
       expect(servers, containsPair('laravel-boost', isA<Map>()));
-      expect(servers, contains('fluttersdk'));
-      final entry = servers['fluttersdk'] as Map<String, dynamic>;
-      expect(entry['command'], './bin/fsa');
+      expect(servers, contains('dowel'));
+      final entry = servers['dowel'] as Map<String, dynamic>;
+      expect(entry['command'], './bin/dowel');
       expect(entry['args'], equals(['mcp:serve']));
     });
 
     test(
-        'pre-existing fluttersdk_mcp:server entry is replaced by new fsa shape with no duplicate',
+        'pre-existing fluttersdk_mcp:server entry is replaced by new dowel shape with no duplicate',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       // 1. Seed the OLD entry shape.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
-          'fluttersdk': {
+          'dowel': {
             'command': 'dart',
             'args': ['run', 'fluttersdk_mcp:server'],
             'cwd': '.',
@@ -147,7 +147,7 @@ void main() {
       }));
 
       final command = McpInstallCommand(
-        hasFsa: () => true,
+        hasDowel: () => true,
         isWindows: () => false,
       );
       final ctx = _ctx({'path': mcpPath});
@@ -157,19 +157,19 @@ void main() {
       final decoded =
           jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      // Exactly one fluttersdk entry.
-      expect(servers.keys.where((k) => k == 'fluttersdk'), hasLength(1));
-      final entry = servers['fluttersdk'] as Map<String, dynamic>;
-      // Must use the NEW fsa args, not the legacy ones.
-      expect(entry['command'], './bin/fsa');
+      // Exactly one dowel entry.
+      expect(servers.keys.where((k) => k == 'dowel'), hasLength(1));
+      final entry = servers['dowel'] as Map<String, dynamic>;
+      // Must use the NEW dowel args, not the legacy ones.
+      expect(entry['command'], './bin/dowel');
       expect(entry['args'], equals(['mcp:serve']));
       expect(entry['args'], isNot(contains('fluttersdk_mcp:server')));
     });
 
-    test('success output contains /mcp reconnect fluttersdk hint', () async {
+    test('success output contains /mcp reconnect dowel hint', () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(
-        hasFsa: () => true,
+        hasDowel: () => true,
         isWindows: () => false,
       );
       final ctx = _ctx({'path': mcpPath});
@@ -177,8 +177,8 @@ void main() {
       await command.handle(ctx);
 
       final out = _output(ctx);
-      expect(out, contains('/mcp reconnect fluttersdk'));
-      expect(out, contains('Wrote fluttersdk MCP server entry to $mcpPath'));
+      expect(out, contains('/mcp reconnect dowel'));
+      expect(out, contains('Wrote dowel MCP server entry to $mcpPath'));
     });
 
     test('returns 1 and writes error when .mcp.json contains invalid JSON',
@@ -202,7 +202,7 @@ void main() {
       // Use a tempDir as CWD substitute by passing it explicitly.
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(
-        hasFsa: () => true,
+        hasDowel: () => true,
         isWindows: () => false,
       );
       // Pass path explicitly — same as the default resolves to in production.
@@ -216,14 +216,14 @@ void main() {
 
   group('McpInstallCommand --invocation option', () {
     test(
-        '--invocation=fluttersdk_dusk with hasFsa=false writes dart run fluttersdk_dusk mcp:serve shape',
+        '--invocation=tapir with hasDowel=false writes dart run tapir mcp:serve shape',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(
-        hasFsa: () => false,
+        hasDowel: () => false,
         isWindows: () => false,
       );
-      final ctx = _ctx({'path': mcpPath, 'invocation': 'fluttersdk_dusk'});
+      final ctx = _ctx({'path': mcpPath, 'invocation': 'tapir'});
 
       final code = await command.handle(ctx);
 
@@ -231,24 +231,24 @@ void main() {
       final content = File(mcpPath).readAsStringSync();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      expect(servers, contains('fluttersdk'));
-      final entry = servers['fluttersdk'] as Map<String, dynamic>;
+      expect(servers, contains('dowel'));
+      final entry = servers['dowel'] as Map<String, dynamic>;
       expect(entry['command'], 'dart');
-      expect(entry['args'], equals(['run', 'fluttersdk_dusk', 'mcp:serve']));
+      expect(entry['args'], equals(['run', 'tapir', 'mcp:serve']));
       expect(entry['cwd'], '.');
       // Must NOT fall back to the :dispatcher shape.
       expect(content, isNot(contains(':dispatcher')));
     });
 
     test(
-        '--invocation=fluttersdk_telescope with hasFsa=false isWindows=true writes dart run fluttersdk_telescope mcp:serve shape',
+        '--invocation=crumbs with hasDowel=false isWindows=true writes dart run crumbs mcp:serve shape',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(
-        hasFsa: () => false,
+        hasDowel: () => false,
         isWindows: () => true,
       );
-      final ctx = _ctx({'path': mcpPath, 'invocation': 'fluttersdk_telescope'});
+      final ctx = _ctx({'path': mcpPath, 'invocation': 'crumbs'});
 
       final code = await command.handle(ctx);
 
@@ -256,18 +256,17 @@ void main() {
       final content = File(mcpPath).readAsStringSync();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      expect(servers, contains('fluttersdk'));
-      final entry = servers['fluttersdk'] as Map<String, dynamic>;
+      expect(servers, contains('dowel'));
+      final entry = servers['dowel'] as Map<String, dynamic>;
       expect(entry['command'], 'dart');
-      expect(
-          entry['args'], equals(['run', 'fluttersdk_telescope', 'mcp:serve']));
+      expect(entry['args'], equals(['run', 'crumbs', 'mcp:serve']));
       expect(entry['cwd'], '.');
       // Must NOT fall back to the :dispatcher shape.
       expect(content, isNot(contains(':dispatcher')));
     });
 
     test(
-        '--invocation="  " (whitespace-only) with hasFsa=false falls back to :dispatcher shape',
+        '--invocation="  " (whitespace-only) with hasDowel=false falls back to :dispatcher shape',
         () async {
       // Whitespace-only --invocation must trim to empty and route to the
       // :dispatcher branch rather than producing an invalid `dart run
@@ -275,7 +274,7 @@ void main() {
       // this assertion red.
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(
-        hasFsa: () => false,
+        hasDowel: () => false,
         isWindows: () => false,
       );
       final ctx = _ctx({'path': mcpPath, 'invocation': '   '});
@@ -286,7 +285,7 @@ void main() {
       final content = File(mcpPath).readAsStringSync();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      final entry = servers['fluttersdk'] as Map<String, dynamic>;
+      final entry = servers['dowel'] as Map<String, dynamic>;
       expect(entry['command'], 'dart');
       expect(entry['args'], equals(['run', ':dispatcher', 'mcp:serve']));
       expect(entry['cwd'], '.');
@@ -296,14 +295,14 @@ void main() {
     });
 
     test(
-        '--invocation=fluttersdk_dusk with hasFsa=true writes fsa shape (fastcli wins over invocation)',
+        '--invocation=tapir with hasDowel=true writes dowel shape (fastcli wins over invocation)',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(
-        hasFsa: () => true,
+        hasDowel: () => true,
         isWindows: () => false,
       );
-      final ctx = _ctx({'path': mcpPath, 'invocation': 'fluttersdk_dusk'});
+      final ctx = _ctx({'path': mcpPath, 'invocation': 'tapir'});
 
       final code = await command.handle(ctx);
 
@@ -311,14 +310,14 @@ void main() {
       final content = File(mcpPath).readAsStringSync();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      expect(servers, contains('fluttersdk'));
-      final entry = servers['fluttersdk'] as Map<String, dynamic>;
-      // fastcli shape wins; invocation flag is ignored when bin/fsa present.
-      expect(entry['command'], './bin/fsa');
+      expect(servers, contains('dowel'));
+      final entry = servers['dowel'] as Map<String, dynamic>;
+      // fastcli shape wins; invocation flag is ignored when bin/dowel present.
+      expect(entry['command'], './bin/dowel');
       expect(entry['args'], equals(['mcp:serve']));
       expect(entry['cwd'], '.');
       // Must NOT write the dart-run-invocation shape.
-      expect(content, isNot(contains('fluttersdk_dusk')));
+      expect(content, isNot(contains('tapir')));
     });
   });
 }

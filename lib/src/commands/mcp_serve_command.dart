@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
-import '../console/artisan_registry.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
+import '../console/dowel_registry.dart';
 import '../console/command_boot.dart';
 import '../mcp/mcp_filter_config.dart';
 import '../mcp/mcp_server.dart';
@@ -14,22 +14,22 @@ import '../mcp/mcp_server.dart';
 /// Production code passes [McpServer.serve]; tests inject a no-op closure
 /// that returns immediately without opening a stdio JSON-RPC connection.
 typedef ServeStrategy = Future<void> Function({
-  required ArtisanRegistry registry,
+  required DowelRegistry registry,
   required McpFilterConfig filter,
 });
 
-/// `artisan mcp:serve` — starts the fluttersdk MCP server over stdio JSON-RPC.
+/// `dowel mcp:serve` — starts the dowel MCP server over stdio JSON-RPC.
 ///
 /// The server bridges Claude Code / Cursor / Windsurf to the running Flutter
 /// app via the VM Service extension method surface contributed by installed
-/// plugins ([ArtisanServiceProvider.mcpTools]).
+/// plugins ([DowelServiceProvider.mcpTools]).
 ///
 /// Filter precedence (Cargo-style replace for allow; union for deny):
-///   file `.artisan/mcp.json` < env vars < CLI flags.
+///   file `.dowel/mcp.json` < env vars < CLI flags.
 ///
-/// After editing `.artisan/mcp.json` or env vars, the client must reconnect;
+/// After editing `.dowel/mcp.json` or env vars, the client must reconnect;
 /// the server does NOT auto-reload in V1 (SIGHUP/file-watch is V1.1 BACKLOG).
-class McpServeCommand extends ArtisanCommand {
+class McpServeCommand extends DowelCommand {
   /// Constructs the command.
   ///
   /// [serveOverride] is a test-seam: pass a no-op to skip the live stdio
@@ -45,9 +45,9 @@ class McpServeCommand extends ArtisanCommand {
 
   @override
   String get description =>
-      'Run the fluttersdk MCP server (stdio JSON-RPC) for Claude Code / Cursor / Windsurf.'
-      '\n\nAfter editing .artisan/mcp.json or env vars, run '
-      '/mcp reconnect fluttersdk in Claude Code to apply the changes.';
+      'Run the dowel MCP server (stdio JSON-RPC) for Claude Code / Cursor / Windsurf.'
+      '\n\nAfter editing .dowel/mcp.json or env vars, run '
+      '/mcp reconnect dowel in Claude Code to apply the changes.';
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -84,7 +84,7 @@ class McpServeCommand extends ArtisanCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Parse CLI flags into a filter layer.
     final cliConfig = McpFilterConfig.fromCli(
       includePackage:
@@ -99,7 +99,7 @@ class McpServeCommand extends ArtisanCommand {
     final envConfig = McpFilterConfig.fromEnv(Platform.environment);
 
     // 3. Parse the file layer; absent file is treated as "no opinion".
-    const mcpJsonPath = '.artisan/mcp.json';
+    const mcpJsonPath = '.dowel/mcp.json';
     final fileConfig = File(mcpJsonPath).existsSync()
         ? McpFilterConfig.fromFile(mcpJsonPath)
         : McpFilterConfig.empty();
@@ -113,7 +113,7 @@ class McpServeCommand extends ArtisanCommand {
     //    Using a fresh bare registry here mirrors the bin/mcp.dart entry pattern
     //    (Step 22): providers are collected via the caller's context registry
     //    or a fresh one when invoked standalone.
-    final registry = ctx.registry ?? ArtisanRegistry();
+    final registry = ctx.registry ?? DowelRegistry();
 
     // 6. Spawn the server and block until the peer closes the connection.
     //    Returns 0 on graceful disconnect, 1 on connection failure.

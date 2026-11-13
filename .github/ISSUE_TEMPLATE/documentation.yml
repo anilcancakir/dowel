@@ -5,14 +5,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Help us improve the fluttersdk_artisan documentation.
+        Help us improve the dowel documentation.
 
   - type: input
     id: page
     attributes:
       label: Documentation Page
       description: Which doc page has the issue? Use the deployed URL or the repo path.
-      placeholder: "https://fluttersdk.com/artisan/commands/plugin-install OR doc/plugins/install-yaml.md"
+      placeholder: "https://anilcancakir.com/dowel/docs/commands/plugin-install OR doc/plugins/install-yaml.md"
     validations:
       required: true
 

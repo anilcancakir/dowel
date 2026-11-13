@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Constant warning message emitted when a stale `.mcp.json` entry is found.
 const _staleMcpWarning =
     'WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the '
-    'removed fluttersdk_mcp package. Run: ./bin/fsa mcp:install (or: '
-    'dart run fluttersdk_artisan mcp:install) to refresh the entry.';
+    'removed fluttersdk_mcp package. Run: ./bin/dowel mcp:install (or: '
+    'dart run dowel mcp:install) to refresh the entry.';
 
 /// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
 /// `fluttersdk_artisan:mcp` args shape. Mirrors the production constant in
@@ -16,7 +16,7 @@ const _staleMcpWarning =
 const _preFixMcpWarning =
     'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
     'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Run: ./bin/fsa mcp:install (or: dart run fluttersdk_artisan mcp:install) '
+    'Run: ./bin/dowel mcp:install (or: dart run dowel mcp:install) '
     'to upgrade to the correct entry shape.';
 
 void main() {
@@ -32,7 +32,7 @@ void main() {
     test('handle runs preflight checks and returns 0 or 1', () async {
       final command = DoctorCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -46,7 +46,7 @@ void main() {
     test('output lines start with checkmark or cross', () async {
       final command = DoctorCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
@@ -64,7 +64,7 @@ void main() {
 
     test('runs end-to-end without throwing', () async {
       final command = DoctorCommand();
-      final ctx = ArtisanContext.bare(MapInput(const {}), BufferedOutput());
+      final ctx = DowelContext.bare(MapInput(const {}), BufferedOutput());
 
       await expectLater(command.handle(ctx), completes);
     });
@@ -92,7 +92,7 @@ void main() {
         await mcpJson.writeAsString('''
 {
   "mcpServers": {
-    "artisan": {
+    "dowel": {
       "command": "dart",
       "args": ["run", "fluttersdk_mcp:server"]
     }
@@ -102,7 +102,7 @@ void main() {
 
         final command = DoctorCommand(workingDir: tempDir.path);
         final output = BufferedOutput();
-        final ctx = ArtisanContext.bare(MapInput(const {}), output);
+        final ctx = DowelContext.bare(MapInput(const {}), output);
 
         await command.handle(ctx);
 
@@ -119,7 +119,7 @@ void main() {
         await mcpJson.writeAsString('''
 {
   "mcpServers": {
-    "artisan": {
+    "dowel": {
       "command": "dart",
       "args": ["run", "fluttersdk_artisan:mcp"]
     }
@@ -129,7 +129,7 @@ void main() {
 
         final command = DoctorCommand(workingDir: tempDir.path);
         final output = BufferedOutput();
-        final ctx = ArtisanContext.bare(MapInput(const {}), output);
+        final ctx = DowelContext.bare(MapInput(const {}), output);
 
         await command.handle(ctx);
 
@@ -141,7 +141,7 @@ void main() {
         // tempDir has no .mcp.json file.
         final command = DoctorCommand(workingDir: tempDir.path);
         final output = BufferedOutput();
-        final ctx = ArtisanContext.bare(MapInput(const {}), output);
+        final ctx = DowelContext.bare(MapInput(const {}), output);
 
         await command.handle(ctx);
 
@@ -157,7 +157,7 @@ void main() {
         await mcpJson.writeAsString('''
 {
   "mcpServers": {
-    "artisan": {
+    "dowel": {
       "command": "dart",
       "args": ["run", "fluttersdk_mcp:server"]
     }
@@ -170,11 +170,11 @@ void main() {
 
         // Remove the file between runs to test clean vs stale.
         final codeWithStale = await withStale.handle(
-          ArtisanContext.bare(MapInput(const {}), BufferedOutput()),
+          DowelContext.bare(MapInput(const {}), BufferedOutput()),
         );
         await mcpJson.delete();
         final codeWithoutStale = await withoutStale.handle(
-          ArtisanContext.bare(MapInput(const {}), BufferedOutput()),
+          DowelContext.bare(MapInput(const {}), BufferedOutput()),
         );
 
         expect(codeWithStale, equals(codeWithoutStale));
@@ -191,7 +191,7 @@ void main() {
         await mcpJson.writeAsString('''
 {
   "mcpServers": {
-    "artisan": {
+    "dowel": {
       "command": "dart",
       "args": ["run", "fluttersdk_artisan:mcp"]
     }
@@ -204,11 +204,11 @@ void main() {
 
         // Remove the file between runs to compare advisory-present vs absent.
         final codeWithPreFix = await withPreFix.handle(
-          ArtisanContext.bare(MapInput(const {}), BufferedOutput()),
+          DowelContext.bare(MapInput(const {}), BufferedOutput()),
         );
         await mcpJson.delete();
         final codeWithoutPreFix = await withoutPreFix.handle(
-          ArtisanContext.bare(MapInput(const {}), BufferedOutput()),
+          DowelContext.bare(MapInput(const {}), BufferedOutput()),
         );
 
         expect(codeWithPreFix, equals(codeWithoutPreFix));
@@ -302,7 +302,7 @@ void main() {
             (_, __) async => fakeVersionResult('3.10.0');
 
         final output = BufferedOutput();
-        final ctx = ArtisanContext.bare(MapInput(const {}), output);
+        final ctx = DowelContext.bare(MapInput(const {}), output);
         final command = DoctorCommand(workingDir: Directory.systemTemp.path);
 
         final code = await command.handle(ctx);
@@ -317,7 +317,7 @@ void main() {
             (_, __) async => fakeVersionResult('3.30.0');
 
         final output = BufferedOutput();
-        final ctx = ArtisanContext.bare(MapInput(const {}), output);
+        final ctx = DowelContext.bare(MapInput(const {}), output);
         final command = DoctorCommand(workingDir: Directory.systemTemp.path);
 
         await command.handle(ctx);

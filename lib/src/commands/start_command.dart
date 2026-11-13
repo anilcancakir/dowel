@@ -5,8 +5,8 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:meta/meta.dart';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../console/pid_parser.dart';
 import '../console/process_alive.dart';
@@ -90,7 +90,7 @@ Future<Process> _defaultProcessStart(
 }
 
 /// Spawns `flutter run -d <device>` detached, scrapes the VM Service URI
-/// from stdout, writes `~/.artisan/state.json` for downstream consumers.
+/// from stdout, writes `~/.dowel/state.json` for downstream consumers.
 ///
 /// Supports `--device` flag (default `chrome`). For non-chrome targets the
 /// `--web-port` flag is omitted (flutter rejects it on desktop/mobile).
@@ -126,13 +126,13 @@ Future<Process> _defaultProcessStart(
 ///
 /// D6 Chrome reaper (POSIX, chrome target only) defers to V1.x; V1 ships
 /// the basic spawn + URI scrape + state.json write.
-class StartCommand extends ArtisanCommand {
+class StartCommand extends DowelCommand {
   @override
   String get name => 'start';
 
   @override
   String get description =>
-      'Boot `flutter run -d <device>` detached and record the VM Service URI to ~/.artisan/state.json.';
+      'Boot `flutter run -d <device>` detached and record the VM Service URI to ~/.dowel/state.json.';
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -155,7 +155,7 @@ class StartCommand extends ArtisanCommand {
   static CdpChromeBinaryResolver cdpChromeBinaryResolver = defaultChromeBinary;
 
   /// Test seam: Chrome /json/version probe (default duplicates the
-  /// fluttersdk_dusk ChromeFinder algorithm inline to avoid an inverted
+  /// tapir ChromeFinder algorithm inline to avoid an inverted
   /// cross-package dependency).
   @visibleForTesting
   static CdpChromeProber cdpChromeProber = defaultChromeProbe;
@@ -248,7 +248,7 @@ class StartCommand extends ArtisanCommand {
         defaultsTo: null,
         help: 'Chrome DevTools Protocol port. When set, pre-launches Chrome '
             'with --remote-debugging-port=N and runs flutter with -d web-server. '
-            'Required for dusk:resize / dusk:device commands.',
+            'Required for tapir:resize / tapir:device commands.',
       )
       ..addOption(
         'timeout',
@@ -395,7 +395,7 @@ class StartCommand extends ArtisanCommand {
 
   @override
   Future<int> handle(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     int? cdpPort,
     int? webPort,
     int? vmServicePort,
@@ -558,13 +558,13 @@ class StartCommand extends ArtisanCommand {
   /// default 90s, and the app keeps building after this command returns: the
   /// booting session stays on disk, and the next connected command reads the
   /// URI back from the log. So a live `flutter run` is "not ready yet"
-  /// ([ArtisanCommand.exitTryAgain]), not a failure. A `flutter run` that is
+  /// ([DowelCommand.exitTryAgain]), not a failure. A `flutter run` that is
   /// gone exited before announcing a URI, almost always a build error, and the
   /// log is where it says why. Its session is taken down with it (the FIFO
   /// holder, the FIFO, the record) so `status` does not report a dead app as
   /// booting; the log stays.
   Future<int> _reportScrapeTimeout(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required int childPid,
     required int holderPid,
     required String fifoPath,
@@ -585,18 +585,18 @@ class StartCommand extends ArtisanCommand {
     ctx.output.warning(
       'flutter run (pid $childPid) is still building after ${timeoutSeconds}s '
       'and has not announced a VM Service URI yet. The session is recorded: '
-      'run `artisan status`, or retry a connected command once the build '
+      'run `dowel status`, or retry a connected command once the build '
       'finishes. Pass --timeout=<seconds> to wait longer. Log: '
       '${logFile.path}',
     );
-    return ArtisanCommand.exitTryAgain;
+    return DowelCommand.exitTryAgain;
   }
 
   /// Handles the `--cdp-port=N` branch: validate, pre-launch Chrome,
   /// run flutter on web-server, scrape VM Service URI, navigate Chrome,
   /// write state.
   Future<int> _handleCdpBranch({
-    required ArtisanContext ctx,
+    required DowelContext ctx,
     required String device,
     required int webPort,
     required int vmServicePort,
@@ -629,9 +629,9 @@ class StartCommand extends ArtisanCommand {
     }
 
     // 3. Resolve Chrome binary inline (no cross-package import on
-    //    fluttersdk_dusk; chrome_reaper has no binary-resolution helper).
+    //    tapir; chrome_reaper has no binary-resolution helper).
     final chromeBinary = cdpChromeBinaryResolver(
-      Platform.environment['DUSK_CHROME_BIN'],
+      Platform.environment['TAPIR_CHROME_BIN'],
     );
     if (chromeBinary == null) {
       ctx.output.error(
@@ -647,7 +647,7 @@ class StartCommand extends ArtisanCommand {
     final webPortFree = await cdpPortProbe(webPort);
     if (!webPortFree) {
       ctx.output.error(
-        'Port $webPort is already in use. Run `fsa stop` to free it or '
+        'Port $webPort is already in use. Run `dowel stop` to free it or '
         'pass a different --port value.',
       );
       return 1;
@@ -667,11 +667,11 @@ class StartCommand extends ArtisanCommand {
 
     // 5. Launch Chrome detached with debug port + dedicated user-data-dir.
     final tmpRoot = cdpTmpProfileDirRoot ?? '/tmp';
-    final tmpProfileDir = '$tmpRoot/dusk-chrome-$cdpPort';
+    final tmpProfileDir = '$tmpRoot/tapir-chrome-$cdpPort';
     final chromeProcess = await cdpProcessStarter(
         chromeBinary,
         <String>[
-          // CDP wiring (load-bearing for dusk + this start command).
+          // CDP wiring (load-bearing for tapir + this start command).
           '--remote-debugging-port=$cdpPort',
           '--remote-allow-origins=*',
           '--user-data-dir=$tmpProfileDir',
@@ -684,7 +684,7 @@ class StartCommand extends ArtisanCommand {
           '--no-first-run',
           '--no-default-browser-check',
           // Save-password + autofill prompts (Flutter web forms trigger these
-          // and the popups can intercept dusk:tap on the underlying widget).
+          // and the popups can intercept tapir:tap on the underlying widget).
           '--disable-save-password-bubble',
           '--password-store=basic',
           '--use-mock-keychain',
@@ -710,7 +710,7 @@ class StartCommand extends ArtisanCommand {
           '--no-pings',
           '--no-service-autorun',
           // Performance: keep timers + renderer active when window not focused
-          // so dusk actions land on a live frame.
+          // so tapir actions land on a live frame.
           '--disable-background-timer-throttling',
           '--disable-renderer-backgrounding',
           '--disable-backgrounding-occluded-windows',
@@ -852,7 +852,7 @@ class StartCommand extends ArtisanCommand {
   /// individually guarded so a missing FIFO or a locked profile dir never
   /// replaces the original error surfaced upstream.
   Future<void> _reapAfterCdpFailure({
-    required ArtisanContext ctx,
+    required DowelContext ctx,
     required Process? flutterProcess,
     required int? holderPid,
     required int? childPid,
@@ -910,7 +910,7 @@ class StartCommand extends ArtisanCommand {
   }
 
   /// Warns about whatever a failure-path reap of [label] left behind.
-  void _warnUnreaped(ArtisanContext ctx, String label, ReapResult result) {
+  void _warnUnreaped(DowelContext ctx, String label, ReapResult result) {
     if (result.outcome == ReapOutcome.survived) {
       ctx.output.warning('$label is still alive after SIGKILL.');
     }
@@ -1067,7 +1067,7 @@ class StartCommand extends ArtisanCommand {
 
   /// Resolves the Chrome binary path: macOS canonical bundle, then Linux
   /// PATH lookup. Returns null on Windows or when neither candidate exists.
-  /// [envOverride] is reserved for V1.x `DUSK_CHROME_BIN`; currently ignored.
+  /// [envOverride] is reserved for V1.x `TAPIR_CHROME_BIN`; currently ignored.
   @visibleForTesting
   static String? Function(String? envOverride) get defaultChromeBinary =>
       (envOverride) => resolveChromeBinary(
@@ -1113,7 +1113,7 @@ class StartCommand extends ArtisanCommand {
 
   /// Production Chrome probe: polls /json/version with retry on
   /// SocketException, throws on HTTP 404 or timeout. Inline duplicate of
-  /// fluttersdk_dusk's ChromeFinder.probe algorithm (avoids inverted
+  /// tapir's ChromeFinder.probe algorithm (avoids inverted
   /// cross-package dependency).
   @visibleForTesting
   static Future<void> Function(int, Duration) get defaultChromeProbe =>
@@ -1154,7 +1154,7 @@ class StartCommand extends ArtisanCommand {
       };
 
   /// Production Chrome Page.navigate: HTTP /json/version + WebSocket connect
-  /// + JSON-RPC send + close. Inline duplicate of dusk's CdpClient at smaller
+  /// + JSON-RPC send + close. Inline duplicate of tapir's CdpClient at smaller
   /// scope (V1 cross-package inversion avoidance).
   @visibleForTesting
   static Future<void> Function(int, String) get defaultChromeNavigate =>
@@ -1293,8 +1293,8 @@ class StartCommand extends ArtisanCommand {
     );
   }
 
-  /// Derives the artisan log directory from [StateFile.path] so the log,
-  /// FIFO, and state.json all live under the same `~/.artisan/` (or test
+  /// Derives the dowel log directory from [StateFile.path] so the log,
+  /// FIFO, and state.json all live under the same `~/.dowel/` (or test
   /// override) directory in a single hop.
   static String _logDir() {
     final statePath = StateFile.path;

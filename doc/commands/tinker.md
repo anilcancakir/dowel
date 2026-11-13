@@ -20,7 +20,7 @@ before invoking (see [start](start)).
 ## Basic Usage
 
 ```bash
-dart run fluttersdk_artisan tinker
+dart run dowel tinker
 ```
 
 Drops you into an interactive read-eval-print loop connected to the running Flutter
@@ -28,7 +28,7 @@ app. Type any Dart expression at the `>>>` prompt and press Enter. Press Ctrl+D
 or type `exit` / `quit` to end the session.
 
 ```bash
-dart run artisan tinker        # via consumer wrapper (same effect)
+dart run dowel tinker        # via consumer wrapper (same effect)
 ```
 
 ---
@@ -52,7 +52,7 @@ dispatcher reads this project's session (written by `start`) and dials the VM
 Service WebSocket URI recorded there. If no state file is present, or the app
 is not running, the command exits with an error.
 
-Prerequisite: the Flutter app must be running via `dart run fluttersdk_artisan start`
+Prerequisite: the Flutter app must be running via `dart run dowel start`
 (or the consumer wrapper equivalent) before any `tinker` invocation. The `status`
 command reports whether a state file is present and what VM Service URI it holds.
 
@@ -81,7 +81,7 @@ pipe-friendly: scripts and pipelines can capture the output without filtering ou
 interactive chatter.
 
 ```bash
-dart run artisan tinker --eval "1+1"   # prints: 2
+dart run dowel tinker --eval "1+1"   # prints: 2
 echo $?                                 # 0
 ```
 
@@ -91,14 +91,14 @@ echo $?                                 # 0
 
 ```bash
 # Interactive REPL session
-dart run artisan tinker
+dart run dowel tinker
 # >>> Magic.find<MonitorController>().rxState.value
 # MonitorState{...}
 # >>> Ctrl+D
 # Tinker session ended.
 
 # One-shot eval (pipe-friendly)
-dart run artisan tinker --eval "DateTime.now().toIso8601String()"
+dart run dowel tinker --eval "DateTime.now().toIso8601String()"
 # 2026-05-19T10:30:00.000Z
 ```
 
@@ -120,10 +120,10 @@ await-awareness. The `InstanceRef` response is unwrapped and passed through the
 
 ## MCP Surface
 
-artisan ships `artisan_tinker` as a substrate MCP tool. When `mcp:serve` runs, any MCP
-client (Claude Code, Cursor, Windsurf, etc.) can call `artisan_tinker` with an `eval`
+dowel ships `dowel_tinker` as a substrate MCP tool. When `mcp:serve` runs, any MCP
+client (Claude Code, Cursor, Windsurf, etc.) can call `dowel_tinker` with an `eval`
 argument to evaluate Dart in the running app. This is the same evaluation path as
-`dart run fluttersdk_artisan tinker --eval "..."` but accessible to AI agents over
+`dart run dowel tinker --eval "..."` but accessible to AI agents over
 stdio JSON-RPC; the dispatcher uses the same lazy-reconnect to the VM Service that
 the CLI form uses, and the result returns as MCP text content.
 

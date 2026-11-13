@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
@@ -14,7 +14,7 @@ String _resolveCheckedInStubsDir() {
   for (var i = 0; i < 10; i++) {
     final pubspec = File(p.join(current.path, 'pubspec.yaml'));
     if (pubspec.existsSync() &&
-        pubspec.readAsStringSync().contains('name: fluttersdk_artisan')) {
+        pubspec.readAsStringSync().contains('name: dowel')) {
       return p.join(current.path, 'assets', 'stubs', 'make_plugin');
     }
     final parent = current.parent;
@@ -26,25 +26,25 @@ String _resolveCheckedInStubsDir() {
 
 /// Canonical replacement map used when rendering each stub. Mirrors the full
 /// map `MakePluginCommand._buildReplacements` constructs at runtime, including
-/// the `artisanPath` and `magicPath` keys added in the generic/magic split.
+/// the `dowelPath` and `magicPath` keys added in the generic/magic split.
 Map<String, String> _sampleReplacements() {
   return const <String, String>{
     'name': 'magic_logger',
     'pascalName': 'MagicLogger',
     'commandPrefix': 'logger',
     'bootstrapCommand': 'logger:install',
-    'artisanPath': '../fluttersdk_artisan',
+    'dowelPath': '../dowel',
     'magicPath': '../magic',
   };
 }
 
 /// The 7 stub file names that live under `generic/`. Pinned here so this test
 /// stays the source of truth for "every generic stub must load and render".
-/// `bin_artisan.dart` added in make-plugin-modes Wave 4 to make
-/// `dart run <plugin>:artisan` invocations work out-of-box.
+/// `bin_dowel.dart` added in make-plugin-modes Wave 4 to make
+/// `dart run <plugin>:dowel` invocations work out-of-box.
 const List<String> _genericStubNames = <String>[
   'pubspec.yaml',
-  'bin_artisan.dart',
+  'bin_dowel.dart',
   'cli.dart',
   'runtime.dart',
   'provider.dart',
@@ -55,7 +55,7 @@ const List<String> _genericStubNames = <String>[
 /// The 10 stub file names that live under `magic/`. The `cli.dart`,
 /// `pubspec.yaml`, `runtime.dart`, and `provider.dart` entries are
 /// magic-specific overrides (magic: dep, magic command exports,
-/// ServiceProvider re-export, magic-flavoured ArtisanServiceProvider); they
+/// ServiceProvider re-export, magic-flavoured DowelServiceProvider); they
 /// are distinct files from their generic counterparts.
 const List<String> _magicStubNames = <String>[
   'pubspec.yaml',
@@ -79,7 +79,7 @@ const Set<String> _knownScaffoldPlaceholders = <String>{
   'pascalName',
   'commandPrefix',
   'bootstrapCommand',
-  'artisanPath',
+  'dowelPath',
   'magicPath',
 };
 
@@ -382,16 +382,16 @@ void main() {
     });
 
     test(
-        'magic pubspec.yaml contains both artisanPath and magicPath after render',
+        'magic pubspec.yaml contains both dowelPath and magicPath after render',
         () {
       final raw =
           StubLoader.load('pubspec.yaml', searchPaths: <String>[magicDir]);
       final rendered = StubLoader.replace(raw, _sampleReplacements());
 
       // Both path: entries must be resolved.
-      expect(rendered, isNot(contains('{{ artisanPath }}')));
+      expect(rendered, isNot(contains('{{ dowelPath }}')));
       expect(rendered, isNot(contains('{{ magicPath }}')));
-      expect(rendered, contains('../fluttersdk_artisan'));
+      expect(rendered, contains('../dowel'));
       expect(rendered, contains('../magic'));
     });
 
@@ -423,7 +423,7 @@ void main() {
       // authors see the extension point without needing to look up the base
       // class API. The override must use the correct return type and an empty
       // const list so generated plugins compile without additional imports
-      // (McpToolDescriptor is already in the artisan barrel).
+      // (McpToolDescriptor is already in the dowel barrel).
       final raw =
           StubLoader.load('provider.dart', searchPaths: <String>[magicDir]);
       final rendered = StubLoader.replace(raw, _sampleReplacements());
@@ -456,7 +456,7 @@ void main() {
       // Step 24: generic mode gets a discoverable hint comment so authors know
       // the extension point exists. It is intentionally lighter than the magic
       // stub (no pre-implemented override) because generic plugins may not
-      // depend on the artisan barrel's McpToolDescriptor type at scaffold time.
+      // depend on the dowel barrel's McpToolDescriptor type at scaffold time.
       final raw =
           StubLoader.load('provider.dart', searchPaths: <String>[genericDir]);
       final rendered = StubLoader.replace(raw, _sampleReplacements());

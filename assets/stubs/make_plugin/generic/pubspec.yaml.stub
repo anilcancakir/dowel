@@ -7,8 +7,8 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
-  fluttersdk_artisan:
-    path: {{ artisanPath }}
+  dowel:
+    path: {{ dowelPath }}
 
 dev_dependencies:
   lints: ^6.0.0

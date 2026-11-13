@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -43,7 +43,7 @@ void main() {
   group('StubLoader.load', () {
     late Directory tempDir;
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_stub_test_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_stub_test_');
       File('${tempDir.path}/widget.stub')
           .writeAsStringSync('Widget body for {{ className }}.');
     });
@@ -65,7 +65,7 @@ void main() {
     });
 
     test('walks searchPaths in order, returning the first hit', () {
-      final secondDir = Directory.systemTemp.createTempSync('artisan_second_');
+      final secondDir = Directory.systemTemp.createTempSync('dowel_second_');
       addTearDown(() => secondDir.deleteSync(recursive: true));
       File('${secondDir.path}/widget.stub')
           .writeAsStringSync('SECOND wins (should not be returned)');
@@ -83,7 +83,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_make_test_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_make_test_');
       File('${tempDir.path}/greet.stub')
           .writeAsStringSync('Hello, {{ subject }}!');
     });
@@ -105,7 +105,7 @@ void main() {
     test('load via default paths resolves the dispatcher stub', () {
       // No searchPaths arg → exercises _defaultSearchPaths +
       // _resolveFromPackageConfig. The package_config.json sitting at the
-      // package root names fluttersdk_artisan, so the resolver returns a
+      // package root names dowel, so the resolver returns a
       // valid stub dir.
       final content = StubLoader.load('dispatcher.dart');
 
@@ -124,7 +124,7 @@ void main() {
     test(
       'load resolves after package name const extraction (regression test)',
       () {
-        // Verify that extracting 'fluttersdk_artisan' hardcoded strings to
+        // Verify that extracting 'dowel' hardcoded strings to
         // a const does not break stub resolution. This test exercises both
         // package_config.json parsing (line 157) and pubspec walking (line 107)
         // which reference the package name.
@@ -138,11 +138,11 @@ void main() {
     );
 
     test(
-      'dispatcher stub forwards collectMcpTools to runArtisan',
+      'dispatcher stub forwards collectMcpTools to runDowel',
       () {
         // The stub must pass collectMcpTools so plugin providers collect their
         // MCP tool descriptors when the consumer invokes mcp:serve. Without
-        // this arg, runArtisan's split-API never calls registerMcpToolsFor and
+        // this arg, runDowel's split-API never calls registerMcpToolsFor and
         // tools/list returns an empty array (GitHub issue #7, Bug A).
         final content = StubLoader.load('dispatcher.dart');
 

@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 /// Edit the [signature] to add arguments, flags, and options. Examples:
 ///
@@ -13,7 +13,7 @@ import 'package:fluttersdk_artisan/artisan.dart';
 ///
 /// Read with: `ctx.input.argument('target')`, `ctx.input.option('force') as bool`,
 ///            `ctx.input.option('limit') as String`.
-class GreetCommand extends ArtisanCommand {
+class GreetCommand extends DowelCommand {
   @override
   String get signature => 'awesome_plugin:greet';
 
@@ -24,7 +24,7 @@ class GreetCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     ctx.output.success('Hello from awesome_plugin:greet');
     return 0;
   }

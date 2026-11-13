@@ -1,12 +1,12 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('HelpCommand', () {
-    late ArtisanRegistry registry;
+    late DowelRegistry registry;
 
     setUp(() {
-      registry = ArtisanRegistry();
+      registry = DowelRegistry();
       registry.register(_FakeCommand('greet', 'Say hello'));
     });
 
@@ -21,7 +21,7 @@ void main() {
     test('returns 1 when no target name given', () async {
       final command = HelpCommand(registry);
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -32,7 +32,7 @@ void main() {
     test('returns 1 when target command not found', () async {
       final command = HelpCommand(registry);
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(const {}, positional: <String>['nope']),
         output,
       );
@@ -47,7 +47,7 @@ void main() {
         () async {
       final command = HelpCommand(registry);
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(const {}, positional: <String>['greet']),
         output,
       );
@@ -56,13 +56,13 @@ void main() {
 
       expect(code, 0);
       expect(output.content, contains('Say hello'));
-      expect(output.content, contains('artisan greet'));
+      expect(output.content, contains('dowel greet'));
       expect(output.content, contains('none'));
     });
   });
 }
 
-class _FakeCommand extends ArtisanCommand {
+class _FakeCommand extends DowelCommand {
   _FakeCommand(this._name, this._description);
   final String _name;
   final String _description;
@@ -77,5 +77,5 @@ class _FakeCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async => 0;
+  Future<int> handle(DowelContext ctx) async => 0;
 }
