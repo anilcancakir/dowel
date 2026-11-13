@@ -166,6 +166,37 @@ void main() {
       expect(entry['args'], isNot(contains('fluttersdk_mcp:server')));
     });
 
+    test('an old fluttersdk entry is kept and the output says to delete it',
+        () async {
+      final mcpPath = p.join(tempDir.path, '.mcp.json');
+      File(mcpPath).writeAsStringSync(jsonEncode({
+        'mcpServers': {
+          'fluttersdk': {
+            'command': './bin/fsa',
+            'args': ['mcp:serve'],
+            'cwd': '.',
+          },
+        },
+      }));
+
+      final command = McpInstallCommand(
+        hasDowel: () => true,
+        isWindows: () => false,
+      );
+      final ctx = _ctx({'path': mcpPath});
+      final code = await command.handle(ctx);
+
+      expect(code, 0);
+      final decoded =
+          jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
+      final servers = decoded['mcpServers'] as Map<String, dynamic>;
+      // The user's entry is not ours to delete, so it stays...
+      expect(servers, contains('fluttersdk'));
+      expect(servers, contains('dowel'));
+      // ...and the output says what to do about it.
+      expect(_output(ctx), contains('Delete the "fluttersdk" entry'));
+    });
+
     test('success output contains /mcp reconnect dowel hint', () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
       final command = McpInstallCommand(

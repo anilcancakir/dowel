@@ -165,6 +165,17 @@ class McpInstallCommand extends DowelCommand {
       'Note: Claude Code does NOT auto-reconnect on .mcp.json edits. '
       'Run /mcp reconnect dowel inside Claude Code to load the new entry.',
     );
+
+    // 4. fluttersdk_artisan wrote its server under the `fluttersdk` key. It is
+    //    the user's entry to delete, but left in place it runs a second server
+    //    (or a dead one), so say so.
+    if (servers.containsKey('fluttersdk')) {
+      ctx.output.warning(
+        'Delete the "fluttersdk" entry from $path: it was written by '
+        'fluttersdk_artisan, which no longer exists, and runs next to the '
+        'new dowel entry.',
+      );
+    }
     return 0;
   }
 }

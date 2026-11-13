@@ -28,6 +28,17 @@ const _preFixMcpWarning =
     'Delete the "fluttersdk" entry from .mcp.json, then run: '
     './bin/dowel mcp:install (or: dart run dowel mcp:install).';
 
+/// Advisory warning emitted when `.mcp.json` still has the `fluttersdk` server
+/// key that fluttersdk_artisan's `mcp:install` wrote, whatever its args:
+/// `./bin/fsa mcp:serve` and `dart run :dispatcher mcp:serve` name no removed
+/// package, so only the key gives them away. `mcp:install` writes `dowel` next
+/// to it instead of replacing it.
+const _oldKeyMcpWarning =
+    'WARN: Old MCP entry detected. Your .mcp.json still has the "fluttersdk" '
+    'server that fluttersdk_artisan wrote, and that package no longer exists. '
+    'Delete the "fluttersdk" entry from .mcp.json, then run: '
+    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
+
 /// Minimum Flutter SDK version required for the WebSocket hot reload fix that
 /// enables CDP commands (flutter/flutter#170612).
 const _minSdkVersion = '3.30.0';
@@ -116,8 +127,9 @@ class DoctorCommand extends DowelCommand {
   /// `mcpServers` entry. Emits [_staleMcpWarning] when `fluttersdk_mcp:server`
   /// appears in any entry's args (legacy removed-package shape), or emits
   /// [_preFixMcpWarning] when `fluttersdk_artisan:mcp` appears (the pre-Bug-B
-  /// substrate-standalone shape that never loads consumer plugin providers).
-  /// Does nothing when the file is absent or cannot be parsed.
+  /// substrate-standalone shape that never loads consumer plugin providers),
+  /// or [_oldKeyMcpWarning] when only the `fluttersdk` server key gives an
+  /// entry away. Does nothing when the file is absent or cannot be parsed.
   /// This is advisory only and never influences the exit code.
   static void _checkStaleMcpJson(String dir, DowelContext ctx) {
     final file = File('$dir/.mcp.json');
@@ -157,6 +169,13 @@ class DoctorCommand extends DowelCommand {
         ctx.output.writeln(_preFixMcpWarning);
         return;
       }
+    }
+
+    // 3. The fluttersdk key itself: the entries written by fluttersdk_artisan
+    //    0.0.20 used `./bin/fsa mcp:serve` or `dart run :dispatcher
+    //    mcp:serve`, which the two scans above cannot tell from a current one.
+    if (servers.containsKey('fluttersdk')) {
+      ctx.output.writeln(_oldKeyMcpWarning);
     }
   }
 

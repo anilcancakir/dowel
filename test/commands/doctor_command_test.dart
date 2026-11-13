@@ -20,6 +20,15 @@ const _preFixMcpWarning =
     'Delete the "fluttersdk" entry from .mcp.json, then run: '
     './bin/dowel mcp:install (or: dart run dowel mcp:install).';
 
+/// Advisory warning emitted when `.mcp.json` still has the `fluttersdk` server
+/// key that fluttersdk_artisan's `mcp:install` wrote, whatever its args.
+/// Mirrors the production constant in `lib/src/commands/doctor_command.dart`.
+const _oldKeyMcpWarning =
+    'WARN: Old MCP entry detected. Your .mcp.json still has the "fluttersdk" '
+    'server that fluttersdk_artisan wrote, and that package no longer exists. '
+    'Delete the "fluttersdk" entry from .mcp.json, then run: '
+    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
+
 void main() {
   group('DoctorCommand', () {
     test('metadata: name=doctor, boot=none', () {
@@ -136,6 +145,57 @@ void main() {
 
         expect(output.content, isNot(contains(_staleMcpWarning)));
         expect(output.content, contains(_preFixMcpWarning));
+      });
+
+      test('a fluttersdk entry in any shape emits the old-entry warning',
+          () async {
+        // 0.0.20 wrote the fluttersdk key with `./bin/fsa mcp:serve` or
+        // `dart run :dispatcher mcp:serve`; neither shape names a removed
+        // package, so only the key gives it away.
+        final mcpJson = File('${tempDir.path}/.mcp.json');
+        await mcpJson.writeAsString('''
+{
+  "mcpServers": {
+    "fluttersdk": {
+      "command": "./bin/fsa",
+      "args": ["mcp:serve"]
+    }
+  }
+}
+''');
+
+        final command = DoctorCommand(workingDir: tempDir.path);
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(MapInput(const {}), output);
+
+        await command.handle(ctx);
+
+        expect(output.content, contains(_oldKeyMcpWarning));
+        expect(output.content, isNot(contains(_staleMcpWarning)));
+        expect(output.content, isNot(contains(_preFixMcpWarning)));
+      });
+
+      test('a dowel entry alone emits no warning', () async {
+        final mcpJson = File('${tempDir.path}/.mcp.json');
+        await mcpJson.writeAsString('''
+{
+  "mcpServers": {
+    "dowel": {
+      "command": "./bin/dowel",
+      "args": ["mcp:serve"]
+    }
+  }
+}
+''');
+
+        final command = DoctorCommand(workingDir: tempDir.path);
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(MapInput(const {}), output);
+
+        await command.handle(ctx);
+
+        expect(output.content, isNot(contains(_oldKeyMcpWarning)));
+        expect(output.content, isNot(contains('WARN: Old MCP entry')));
       });
 
       test('no .mcp.json at workingDir emits no stale warning', () async {
