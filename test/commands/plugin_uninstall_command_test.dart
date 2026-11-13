@@ -122,6 +122,26 @@ Map<String, dynamic> _baseOpts({Map<String, dynamic>? overrides}) {
   return base;
 }
 
+/// True when a write into a read-only (`chmod 555`) directory still succeeds,
+/// as it does for root or a process with `CAP_DAC_OVERRIDE`. The read-only
+/// registry test needs a runner that honours directory permissions.
+bool _bypassesDirectoryPermissions() {
+  final probe = Directory.systemTemp.createTempSync('plun_perm_probe_');
+  try {
+    Process.runSync('chmod', <String>['555', probe.path]);
+    final file = File(p.join(probe.path, 'probe'));
+    try {
+      file.writeAsStringSync('x');
+      return true;
+    } on FileSystemException {
+      return false;
+    }
+  } finally {
+    Process.runSync('chmod', <String>['755', probe.path]);
+    probe.deleteSync(recursive: true);
+  }
+}
+
 void main() {
   group('PluginUninstallCommand — signature DSL', () {
     test('inherits the 4 base flags via DowelInstallCommand.baseFlags', () {
@@ -306,7 +326,12 @@ void main() {
         (ctx.output as BufferedOutput).content,
         contains('Remove the "demo_plugin" entry from .dowel/plugins.json'),
       );
-    }, skip: Platform.isWindows ? 'chmod semantics' : false);
+    },
+        skip: Platform.isWindows
+            ? 'chmod semantics'
+            : _bypassesDirectoryPermissions()
+                ? 'runner bypasses directory permissions (root)'
+                : false);
 
     test(
         'uninstall purges .dowel/cli-bundle and .dowel/build.stamp '
