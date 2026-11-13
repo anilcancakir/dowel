@@ -56,7 +56,7 @@ EXTRA_LINK_FILES = (
 # resolves against the same doc tree as the unversioned one.
 VERSION_SEGMENT = re.compile(r'^v?\d+(?:\.\d+)*(?:-[A-Za-z0-9.]+)?$')
 
-FENCE = re.compile(r'^\s*(```|~~~)')
+FENCE = re.compile(r'^ {0,3}(`{3,}|~{3,})(.*)$')
 HEADING = re.compile(r'^(#{1,6})\s+(.+?)\s*$', re.MULTILINE)
 ANCHOR = re.compile(r'<a\s+name="([^"]+)"')
 INLINE_LINK = re.compile(r'\]\(\s*([^)\s]+)')
@@ -77,6 +77,37 @@ class Issue(NamedTuple):
         return f'::error file={self.file},line={self.line}::{self.message}'
 
 
+def blank_fences(text: str) -> str:
+    """Blank out fenced code blocks, preserving line offsets.
+
+    A fence closes only on a line that uses the same character, at least as
+    many markers as the opening fence, and nothing but whitespace after them
+    (CommonMark), so a three-backtick line inside a four-backtick block stays
+    part of the block.
+    """
+    lines: list[str] = []
+    opening: tuple[str, int] | None = None
+
+    for line in text.splitlines():
+        match = FENCE.match(line)
+        if opening is None:
+            if match:
+                opening = (match.group(1)[0], len(match.group(1)))
+            lines.append('' if match else line)
+            continue
+
+        lines.append('')
+        if (
+            match
+            and match.group(1)[0] == opening[0]
+            and len(match.group(1)) >= opening[1]
+            and not match.group(2).strip()
+        ):
+            opening = None
+
+    return '\n'.join(lines)
+
+
 def blank_code(text: str) -> str:
     """Blank out fenced and inline code, preserving line and column offsets.
 
@@ -85,20 +116,10 @@ def blank_code(text: str) -> str:
     validated. Blanking instead of deleting keeps reported line numbers
     pointing at the real source line.
     """
-    lines: list[str] = []
-    in_fence = False
-
-    for line in text.splitlines():
-        if FENCE.match(line):
-            in_fence = not in_fence
-            lines.append('')
-            continue
-        if in_fence:
-            lines.append('')
-            continue
-        lines.append(re.sub(r'`[^`\n]*`', lambda match: ' ' * len(match.group(0)), line))
-
-    return '\n'.join(lines)
+    return '\n'.join(
+        re.sub(r'`[^`\n]*`', lambda match: ' ' * len(match.group(0)), line)
+        for line in blank_fences(text).splitlines()
+    )
 
 
 def slugify(heading: str) -> str:
@@ -121,11 +142,13 @@ def collect_fragments(path: Path) -> set[str]:
     The union of explicit `<a name>` anchors and heading slugs. Repeated heading
     text gets the `-1`, `-2` suffixes both renderers append.
     """
-    body = blank_code(path.read_text(encoding='utf-8'))
-    fragments = set(ANCHOR.findall(body))
+    text = path.read_text(encoding='utf-8')
+    fragments = set(ANCHOR.findall(blank_code(text)))
     seen: dict[str, int] = {}
 
-    for _, heading in HEADING.findall(body):
+    # Headings keep their inline code: `## Using `Dowel`` slugs to
+    # `using-dowel`, so only fenced blocks are blanked here.
+    for _, heading in HEADING.findall(blank_fences(text)):
         slug = slugify(heading)
         count = seen.get(slug, 0)
         seen[slug] = count + 1
