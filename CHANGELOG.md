@@ -12,6 +12,13 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 - **Renamed from `fluttersdk_artisan` to `dowel`.** The package, the repository (`anilcancakir/dowel`), the barrel (`package:dowel/dowel.dart`), every `Artisan*` class (now `Dowel*`, `runArtisan` is `runDowel`), the executable and the MCP server (`dowel_mcp`) carry the new name. Also renamed: the MCP tools (`artisan_*` is `dowel_*`), the `.mcp.json` server key (`fluttersdk` is `dowel`), the environment variables (`ARTISAN_*` is `DOWEL_*`, `FSA_LOCK_TIMEOUT` is `DOWEL_LOCK_TIMEOUT`), the state directories (`~/.artisan/` is `~/.dowel/`, `.artisan/` is `.dowel/`, including `plugins.json` and `mcp.json`), the wrapper (`bin/fsa` is `bin/dowel`) and the generated plugin provider (`<name>_artisan_provider.dart` is `<name>_dowel_provider.dart`). The plugin names in the docs follow the renames of their packages: `dusk` is `tapir` and `telescope` is `crumbs`.
 - **Breaking, nothing is migrated automatically.** In a consumer project: (1) `dart pub remove fluttersdk_artisan && dart pub add dowel`; (2) move `.artisan/` to `.dowel/` and `~/.artisan/` to `~/.dowel/`; (3) delete the generated `bin/dispatcher.dart`, `bin/fsa`, `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, which import the old package, and rename the `Artisan*` classes in your own commands to `Dowel*`; (4) run `dart run dowel install`, which scaffolds the wrapper again and builds `bin/dowel`; (5) delete the old `fluttersdk` entry from `.mcp.json`, then run `dart run dowel mcp:install`.
+- **Package metadata, README, `llms.txt` and the agent skill were rewritten** for the new name. The pub.dev description and topics lead with the job, the README follows the standard layout (at a glance, install, capabilities, rules for agents), and the skill is shorter, tracks the package version in its frontmatter and no longer carries the star and issue prompts.
+- **CI follows the standard.** `ci.yml` and `publish.yml` run on `master` only, pin every action by commit SHA and declare read-only permissions; `publish.yml` also checks that the tag, `pubspec.yaml`, `server.json` and the skill name one version, requires pana's full score and no longer calls the skill-registry sync until the registry exists.
+
+### Added
+
+- `SECURITY.md`, a pull request template, `tool/check-docs.py` with the `Internal Links` workflow (and a weekly external link pass), and a `Changelog` workflow that asks for an entry when `lib/`, `bin/` or `assets/` change.
+- Every `doc/` page now opens with a one-sentence lead and a table of contents, and every section has an explicit anchor.
 
 ### Removed
 

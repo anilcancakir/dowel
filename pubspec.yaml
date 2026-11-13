@@ -1,5 +1,5 @@
 name: dowel
-description: "Composable Dart CLI framework and stdio MCP server for Flutter. Scaffolding, code generation, transactional plugin installs, hot reload, REPL, and AI agent tooling."
+description: "One binary for your Flutter dev loop and your AI agent: start, hot reload and inspect a running app, scaffold code, install plugins transactionally. MCP server included."
 version: 0.0.21
 homepage: https://anilcancakir.com/dowel
 repository: https://github.com/anilcancakir/dowel
@@ -9,10 +9,10 @@ issue_tracker: https://github.com/anilcancakir/dowel/issues
 # These drive tag-based discovery on https://pub.dev/packages?q=topic%3A<topic>.
 topics:
   - cli
-  - mcp-server
+  - mcp
+  - ai-agents
   - scaffolding
   - plugin-system
-  - code-generation
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
