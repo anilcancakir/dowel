@@ -46,7 +46,7 @@ One barrel, `package:dowel/dowel.dart`. Two binaries: `bin/dowel.dart` (the CLI,
 | `installer/` | `PluginInstaller` DSL, `ManifestInstaller`, `InstallTransaction`, `PluginsRegistryFile`, sealed `InstallOperation` |
 | `mcp/` | `McpServer`, `McpToolDescriptor`, `McpFilterConfig` (file, env, CLI layers; env is `DOWEL_MCP_TOOLS_ALLOW`/`_DENY` and `DOWEL_MCP_PACKAGES_ALLOW`/`_DENY`). The 10 substrate tools are the allowlist `_safeDowelCommandNames` in `mcp_server.dart` |
 | `helpers/`, `stubs/` | File and config editors; `StubLoader` resolving `assets/stubs/` (override with `DOWEL_STUBS_DIR`) |
-| `state/`, `vm/`, `tinker/` | One session directory per project under `~/.dowel/sessions/<hash>/` (`DOWEL_STATE_FILE` names another), `VmServiceClient`, the REPL |
+| `state/`, `vm/`, `tinker/` | One session directory per project under `~/.dowel/sessions/<hash>/` (`DOWEL_STATE_FILE` names another state file), `VmServiceClient`, the REPL |
 
 ## Key Gotchas
 

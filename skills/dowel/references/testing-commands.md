@@ -2,7 +2,7 @@
 
 Read this when writing or fixing a test for a `DowelCommand` or an installer operation.
 
-Test a command without a process, a VM or a terminal: build a `DowelContext.bare` over a `MapInput` and a `BufferedOutput`, call `handle`, assert on the exit code and the captured output.
+Test a command that does not connect to the app (`CommandBoot.none`) without a process, a VM or a terminal: build a `DowelContext.bare` over a `MapInput` and a `BufferedOutput`, call `handle`, assert on the exit code and the captured output. A bare context has no VM client, so a connected command such as `tinker` reports an error there and its success path cannot run in this recipe.
 
 ```dart
 import 'package:dowel/dowel.dart';
@@ -44,4 +44,4 @@ void main() {
 }
 ```
 
-An installer is tested the same way against `InstallContext.test` with an `InMemoryFs`: stage the operations, assert on `pendingOps`, and commit only when the test is about the written content.
+An installer is tested the same way against `InstallContext.test` with an `InMemoryFs`: stage the operations, assert on `pendingOps`, and commit only when the test is about the written content. Helper-backed operations (`AddDependency` and the other file helpers) write through `dart:io` while staging and bypass `InMemoryFs`, so assert their output against a real temporary project (`.claude/rules/tests.md`).

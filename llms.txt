@@ -38,7 +38,7 @@ final class GreetCommand extends DowelCommand {
 - `runDowel(args, baseProviders:, autoProviders:)`: the shared entry; delegates to the project's `bin/dispatcher.dart` when it has one.
 - `DowelCommand`: `signature` (`'cmd:name {arg} {--flag}'`) or `configure(ArgParser)`; `handle(DowelContext)` returns the exit code.
 - `DowelServiceProvider`: `commands()` and `mcpTools()`; a plugin exports one from `package:<name>/cli.dart`.
-- `DowelInstallCommand` and `PluginInstaller`: staged, atomic, reversible install operations; `install.yaml` is the declarative form.
+- `DowelInstallCommand` and `PluginInstaller`: staged install operations (writes swap in through `.tmp` files; a failure during the swap or in a helper edit is not rolled back) that `plugin:uninstall` can reverse; `install.yaml` is the declarative form.
 
 ## Built-in commands
 

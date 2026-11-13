@@ -155,7 +155,7 @@ Rules for an agent working with this package. Each one is a mistake the maintain
 | Do | Because |
 |---|---|
 | Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml` | The command registers into `lib/app/_plugins.g.dart` and stops without it |
-| Preview with `plugin:install <name> --dry-run` before the real run | The commit is atomic but a conflict with a user-edited file needs a decision |
+| Preview with `plugin:install <name> --dry-run` before the real run | Writes swap in through `.tmp` files only after every staging write succeeded, and a conflict with a user-edited file needs a decision |
 | Leave `*.g.dart` barrels alone; regenerate with `commands:refresh` and `plugins:refresh` | They are generated, a hand edit is overwritten |
 | Start the app with `dowel start`, not `flutter run` | Reload, restart, logs and tinker find the app through the recorded session |
 | Reconnect the MCP client after `mcp:install` or a change to `.dowel/mcp.json` | Clients do not reload a server entry on their own |
