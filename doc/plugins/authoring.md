@@ -79,7 +79,7 @@ Key points:
   stable identifier (e.g. `'tapir'`) so collision messages survive
   class renames.
 - There is no `register()` lifecycle hook on `DowelServiceProvider`.
-  Initialization belongs in command constructors or the host app's boot phase.
+  Initialisation belongs in command constructors or the host app's boot phase.
 
 Minimal scaffold provider (`assets/stubs/make_plugin/generic/provider.dart.stub`):
 
@@ -128,7 +128,7 @@ Override `mcpTools()` and return a `List<McpToolDescriptor>`. Each descriptor
 with four required fields:
 
 | Field | Type | Purpose |
-|---|---|---|
+|:---|:---|:---|
 | `name` | `String` | Snake-case, service-prefixed tool name (e.g. `awesome_start`). Must be globally unique across all loaded providers. |
 | `description` | `String` | Action-oriented, LLM-targeted description. Imperative opening sentence, usage bullets, constraint-forward language. |
 | `inputSchema` | `Map<String, dynamic>` | JSON Schema draft-7 object describing accepted input. Pass `{'type': 'object', 'properties': {}}` when the tool takes no arguments. |
@@ -202,7 +202,7 @@ automatically). Tool names must be unique; a collision throws
 
 Naming convention: prefix every tool name with a short service identifier
 followed by an underscore (for example `my_plugin_greet`). The prefix should
-match the package's `providerName` (or a recognizable abbreviation thereof).
+match the package's `providerName` (or a recognisable abbreviation thereof).
 
 ---
 

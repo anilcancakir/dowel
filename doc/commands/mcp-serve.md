@@ -7,7 +7,7 @@ plugin-contributed tools to AI clients such as Claude Code, Cursor, and Windsurf
 
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
-- [Soft-Fail Behavior](#soft-fail-behavior)
+- [Soft-Fail Behaviour](#soft-fail-behavior)
 - [3-Layer Filter](#3-layer-filter)
 - [Tools Surfaced](#tools-surfaced)
 - [Examples](#examples)
@@ -52,7 +52,7 @@ All four flags are **repeatable**. Each can also be set via environment variable
 `.dowel/mcp.json` (see [3-Layer Filter](#3-layer-filter)).
 
 | Flag | Effect |
-|---|---|
+|:---|:---|
 | `--include-package <name>` | Accept only tools from the named package. CLI value replaces env and file allow lists for the package axis. |
 | `--exclude-package <name>` | Block all tools from the named package. Deny wins over allow across every layer. |
 | `--include-tool <name>` | Accept only the named tool. CLI value replaces env and file allow lists for the tool axis. |
@@ -61,10 +61,10 @@ All four flags are **repeatable**. Each can also be set via environment variable
 ---
 
 <a name="soft-fail-behavior"></a>
-## Soft-Fail Behavior
+## Soft-Fail Behaviour
 
 The server does **not** require a running Flutter app at startup. When
-the session is absent or contains no `vmServiceUri`, initialization
+the session is absent or contains no `vmServiceUri`, initialisation
 completes normally: all tools register and the server stays online
 (source: `mcp_server.dart:137-149`).
 
@@ -93,7 +93,7 @@ Tool visibility is controlled by three layers using **Cargo-style precedence**
 (source: `mcp_filter_config.dart:97-235`):
 
 | Layer | Source | Priority |
-|---|---|---|
+|:---|:---|:---|
 | File | `.dowel/mcp.json` in project root | Lowest |
 | Env | `DOWEL_MCP_*` environment variables | Middle |
 | CLI | `--include-*` / `--exclude-*` flags | Highest |
@@ -119,7 +119,7 @@ An absent file is treated as "no opinion" (all tools pass).
 ### Env layer
 
 | Variable | Axis |
-|---|---|
+|:---|:---|
 | `DOWEL_MCP_PACKAGES_ALLOW` | Package allow list (CSV) |
 | `DOWEL_MCP_PACKAGES_DENY` | Package deny list (CSV) |
 | `DOWEL_MCP_TOOLS_ALLOW` | Tool allow list (CSV) |
@@ -135,14 +135,14 @@ A non-empty `--include-*` replaces the env and file allow list for that axis.
 <a name="tools-surfaced"></a>
 ## Tools Surfaced
 
-At initialize time the server merges two tool sets, then applies the active filter.
+At initialise time the server merges two tool sets, then applies the active filter.
 
 **Substrate tools (10):** run in-process via the dowel command registry. Nine work
 without a running Flutter app; `dowel_tinker` dispatches over the VM Service and
 lazy-reconnects on first call. Their filter package name is `dowel`.
 
 | MCP Tool Name | Dowel Command |
-|---|---|
+|:---|:---|
 | `dowel_start` | `start` |
 | `dowel_stop` | `stop` |
 | `dowel_status` | `status` |
@@ -163,7 +163,7 @@ registered provider. The default returns an empty list. Providers such as
 `TapirDowelProvider` and `CrumbsDowelProvider` override it to expose tools that
 dispatch over the VM Service extension surface and require a running Flutter app. Both
 sets flow through the same filter, so a `--exclude-tool` deny against a plugin tool name
-behaves identically to a deny against a substrate name. The current plugin tool catalogs
+behaves identically to a deny against a substrate name. The current plugin tool catalogues
 live on each plugin's own MCP tool reference site
 ([tapir](https://anilcancakir.com/tapir/docs/mcp/tool-reference),
 [crumbs](https://anilcancakir.com/crumbs/docs/mcp/tool-reference)).

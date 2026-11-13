@@ -5,7 +5,7 @@ The `start` command spawns `flutter run` as a detached background process, scrap
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
 - [Options](#options)
-- [Behavior](#behavior)
+- [Behaviour](#behavior)
 - [State File](#state-file)
 - [Examples](#examples)
 - [Troubleshooting](#troubleshooting)
@@ -39,7 +39,7 @@ dart run dowel start [--device=<target>] [--port=<n>] [--vm-service-port=<n>]
 ## Options
 
 | Option | Type | Default | Description |
-|:-------|:-----|:--------|:------------|
+|:---|:---|:---|:---|
 | `--device` | string | `chrome` | Flutter device target. Accepts `chrome`, `macos`, `linux`, `windows`, an iOS UDID, or an Android serial number. |
 | `--port` | int | `3100` | Web server port passed as `--web-port` to `flutter run`. Ignored for non-Chrome targets. |
 | `--vm-service-port` | int | `8181` | VM Service listener port. Recorded in `state.json`; used by `mcp:serve` and connected-mode tools to open the WebSocket. |
@@ -50,11 +50,11 @@ dart run dowel start [--device=<target>] [--port=<n>] [--vm-service-port=<n>]
 | `--flutter-arg` | string | (none) | Extra argument forwarded verbatim to `flutter run`, repeatable. Use it for anything `start` has no flag of its own for: `--flutter-arg=--dart-define=KEY=VALUE`, `--flutter-arg=--flavor=dev`, `--flutter-arg=--web-renderer=html`. Forwarded AFTER the arguments `start` builds, so a repeated flag overrides the default it chose. A value containing commas is kept whole (`splitCommas` is off), so `--flutter-arg=--dart-define=TAGS=a,b` reaches Flutter as one argument. Recorded in `state.json` as `flutterArgs` and replayed by `restart`; `restart --flutter-arg=<arg>` replaces the whole carried set, which is also how to clear one. |
 
 <a name="behavior"></a>
-## Behavior
+## Behaviour
 
 **FIFO stdin channel.** Before launching Flutter, `start` calls `mkfifo` to create a named pipe at `~/.dowel/sessions/<hash>/flutter-dev.fifo`. A background `tail -f /dev/null` process holds the write end of the FIFO open permanently, preventing `flutter run`'s stdin from receiving EOF when no keystroke sender is active. `flutter run` is then launched with the FIFO as its stdin, so the `reload` and `hot-restart` commands can send `r` or `R` into the pipe and trigger flutter_tools' own handler. This approach works on every device target (web, desktop, mobile) because it routes through `flutter_tools` rather than raw VM Service RPCs, which the Chrome `dwds` bridge rejects.
 
-**Detached spawn and URI scrape.** The shell one-liner run by `start` launches both background processes (`tail` holder and `flutter run`) and echoes their PIDs in `HOLDER=<n>` / `FLUTTER=<n>` format. `start` captures those PIDs from the wrapper's stdout, then polls the log file at `~/.dowel/sessions/<hash>/flutter-dev.log` every 250 ms until it finds a line matching either the web format (`Debug service listening on ws://...`) or the desktop/mobile format (`Dart VM Service on <Platform> is available at: http://...`). `http://` and `https://` URIs are normalized to their `ws://` and `wss://` equivalents and a `/ws` suffix is appended when missing.
+**Detached spawn and URI scrape.** The shell one-liner run by `start` launches both background processes (`tail` holder and `flutter run`) and echoes their PIDs in `HOLDER=<n>` / `FLUTTER=<n>` format. `start` captures those PIDs from the wrapper's stdout, then polls the log file at `~/.dowel/sessions/<hash>/flutter-dev.log` every 250 ms until it finds a line matching either the web format (`Debug service listening on ws://...`) or the desktop/mobile format (`Dart VM Service on <Platform> is available at: http://...`). `http://` and `https://` URIs are normalised to their `ws://` and `wss://` equivalents and a `/ws` suffix is appended when missing.
 
 **State file write.** After the URI is confirmed, `start` writes this project's session state atomically (`.tmp` + rename) with the full process inventory: PIDs, FIFO path, VM Service URI, web port, device target, profile mode, project root, and a UTC `startedAt` timestamp. The MCP server (`mcp:serve`) reads this file at startup to discover the running app; `stop` reads it to find the app to stop; `status` reads it to report the live process.
 
@@ -94,7 +94,7 @@ The command returns as soon as all of it is gone (about 15 seconds at worst per 
 Field reference:
 
 | Field | Type | Notes |
-|:------|:-----|:------|
+|:---|:---|:---|
 | `pid` | int | PID of the `flutter run` process. `stop` reads its process group from it and stops the whole group. |
 | `stdinPipe` | string | Absolute path to the FIFO. `reload` and `hot-restart` write `r\n` / `R\n` here. |
 | `stdinHolderPid` | int | PID of the `tail -f /dev/null` holder that keeps the FIFO write-end open. It shares the tool's process group, so it stops with it; `stop` also signals it directly. |

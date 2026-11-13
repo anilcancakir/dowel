@@ -29,7 +29,7 @@ LLM agents working against a running Flutter app are blind without dowel MCP:
 The dowel MCP server bridges the agent to the running app over the VM Service:
 
 - 10 substrate command tools (`dowel_start`, `dowel_stop`, `dowel_status`, `dowel_logs`, `dowel_restart`, `dowel_reload`, `dowel_hot_restart`, `dowel_doctor`, `dowel_list`, `dowel_tinker`).
-- Plugin tools surface automatically once the consumer's `bin/dispatcher.dart` wrapper registers the provider; see each plugin's MCP tool reference for the current catalog ([tapir](https://anilcancakir.com/tapir/docs/mcp/tool-reference), [crumbs](https://anilcancakir.com/crumbs/docs/mcp/tool-reference)).
+- Plugin tools surface automatically once the consumer's `bin/dispatcher.dart` wrapper registers the provider; see each plugin's MCP tool reference for the current catalogue ([tapir](https://anilcancakir.com/tapir/docs/mcp/tool-reference), [crumbs](https://anilcancakir.com/crumbs/docs/mcp/tool-reference)).
 - Tool visibility filters via `.dowel/mcp.json` + env vars + CLI flags (Cargo-style replace for allow, union for deny).
 - Zero release-build impact: every dowel integration gates on `kDebugMode` at the consumer's `main.dart`.
 
@@ -146,7 +146,7 @@ Add the dowel MCP server configuration. Replace the `cwd` value with the absolut
 
 When `bin/dowel` is absent or on Windows, `mcp:install` writes `{"command": "dart", "args": ["run", ":dispatcher", "mcp:serve"]}` instead.
 
-> **Important:** Fully quit Claude Desktop via **File, Exit** (closing the window just minimizes it). Restart it for the new entry to take effect.
+> **Important:** Fully quit Claude Desktop via **File, Exit** (closing the window just minimises it). Restart it for the new entry to take effect.
 
 ---
 
@@ -429,7 +429,7 @@ Both commands work without a running Flutter app; they only edit the JSON file.
 <a name="available-tools"></a>
 ## Available Tools
 
-The dowel MCP server surfaces 10 substrate tools plus plugin-contributed tools from any registered sibling plugin (`tapir`, `crumbs`, or custom plugins). See [tool-reference.md](./tool-reference.md) for the per-tool input schema, output shape, and example invocations of the substrate tools, plus links to each plugin's MCP tool reference for the current plugin tool catalog.
+The dowel MCP server surfaces 10 substrate tools plus plugin-contributed tools from any registered sibling plugin (`tapir`, `crumbs`, or custom plugins). See [tool-reference.md](./tool-reference.md) for the per-tool input schema, output shape, and example invocations of the substrate tools, plus links to each plugin's MCP tool reference for the current plugin tool catalogue.
 
 Tool visibility is filtered in three layers (file `.dowel/mcp.json` lowest priority, env vars middle, CLI flags highest priority; deny always wins over allow). To temporarily hide a tool surface without uninstalling the server, edit `.dowel/mcp.json`:
 

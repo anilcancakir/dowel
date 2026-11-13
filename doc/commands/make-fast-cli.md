@@ -33,7 +33,7 @@ make:fast-cli {--force : Overwrite bin/dowel even when it already exists}
 ```
 
 | Option | Description |
-|---|---|
+|:---|:---|
 | `--force` | Rewrite `bin/dowel` and recompile the binary, even if a cached version exists. |
 
 ---
@@ -151,4 +151,4 @@ time ./bin/dowel status
 
 - [make:command](index.md): scaffold a single `DowelCommand` subclass.
 - [make:plugin](make-plugin.md): scaffold a full plugin package.
-- [install](install.md): initialize a dowel consumer project structure.
+- [install](install.md): initialise a dowel consumer project structure.

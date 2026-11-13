@@ -27,7 +27,7 @@ stitching together a collection of separate tools.
 Built on pure Dart 3.4+ with no Flutter runtime dependency, `dowel` runs as a plain VM
 process and ships 22 built-in commands across six groups: consumer setup, plugin lifecycle, code
 generators, dev-loop orchestration, inspection, and MCP server management. The plugin system extends
-this catalog via `DowelServiceProvider` subclasses, so teams can bundle project-specific commands
+this catalogue via `DowelServiceProvider` subclasses, so teams can bundle project-specific commands
 alongside the built-ins and install them into any consumer project with a single `plugin:install`
 call. The framework targets both developers (who use the CLI) and AI agents (which use the MCP
 server) with first-class support for both surfaces.

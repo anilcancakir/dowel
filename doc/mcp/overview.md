@@ -19,7 +19,7 @@ How `dowel` exposes its commands to AI clients as MCP tools: what MCP is, the te
 The [Model Context Protocol](https://modelcontextprotocol.io) (MCP) is an open standard that defines
 how AI clients (Claude Code, Cursor, Windsurf, and similar) discover and invoke tools exposed by a
 local or remote server over a JSON-RPC transport. A client connects once, calls `initialize` to
-receive the full tool catalog, and then invokes individual tools by name. The server handles routing,
+receive the full tool catalogue, and then invokes individual tools by name. The server handles routing,
 argument validation, and error formatting, returning structured content the client model can reason
 over. MCP decouples the tool surface (what the agent can do) from the tool implementation (how it is
 done), so the same server can serve multiple AI clients without code duplication.
@@ -50,22 +50,22 @@ reconnect across stop-restart cycles, and structured error formatting so the mod
 ## 10 Substrate Tools
 
 The MCP server always registers the following ten tools, derived from the dowel CLI's built-in
-command set. Tool names are normalized from `cmd:name` to `cmd_name` so they satisfy the MCP
+command set. Tool names are normalised from `cmd:name` to `cmd_name` so they satisfy the MCP
 identifier constraint (`[a-zA-Z][a-zA-Z0-9_]*`). These tools run in-process via the dowel
 registry; nine of them require no VM Service connection (so `dowel_start` works even before any
 Flutter app is running), while `dowel_tinker` dispatches over the VM Service and lazy-reconnects
 on first call.
 
 | Tool | Maps to CLI command | Purpose |
-|---|---|---|
+|:---|:---|:---|
 | `dowel_start` | `start` | Launch the Flutter app via `flutter run` and write `state.json` |
 | `dowel_stop` | `stop` | Stop the running Flutter process group, wait until it is gone, and delete `state.json` |
 | `dowel_status` | `status` | Read `state.json` and return the current process metadata as JSON |
-| `dowel_logs` | `logs` | Stream the most recent stdout lines captured from `flutter run` |
-| `dowel_restart` | `restart` | Full restart (equivalent to `R` in the flutter run TTY) |
-| `dowel_reload` | `reload` | Hot reload the running app without losing widget state |
-| `dowel_hot_restart` | `hot-restart` | Hot restart the running app, resetting ephemeral state |
-| `dowel_doctor` | `doctor` | Run `flutter doctor` and return the diagnostics report |
+| `dowel_logs` | `logs` | Return the log captured from `flutter run` (`follow` tails it) |
+| `dowel_restart` | `restart` | Stop the running app and start it again, carrying the prior session's device and ports across (not the `R` hot restart, which is `dowel_hot_restart`) |
+| `dowel_reload` | `reload` | Hot reload (sends `r` to `flutter run`) without losing widget state |
+| `dowel_hot_restart` | `hot-restart` | Hot restart (sends `R` to `flutter run`), resetting ephemeral state |
+| `dowel_doctor` | `doctor` | Run preflight checks (`flutter --version`, `dart --version`, port 3100 free, Flutter SDK 3.30.0 or newer for `--cdp-port`) and report each as pass or fail |
 | `dowel_list` | `list` | List all registered dowel commands with their signatures |
 | `dowel_tinker` | `tinker` | Evaluate Dart expression in running app via VM Service. Maps to: tinker command. Requires running app (dowel_start first). |
 
@@ -80,9 +80,9 @@ client's own file tools, or recurse into the MCP server itself.
 
 ## Plugin-Contributed Tools
 
-Beyond the ten substrate tools, plugins extend the MCP catalog by overriding
+Beyond the ten substrate tools, plugins extend the MCP catalogue by overriding
 `DowelServiceProvider.mcpTools()`. The default implementation returns an empty list; plugins return
-a list of `McpToolDescriptor` instances that the MCP server collects at initialize time and registers
+a list of `McpToolDescriptor` instances that the MCP server collects at initialise time and registers
 alongside the substrate tools. The same `McpFilterConfig` allow/deny rules apply uniformly, so a
 deny rule against a plugin tool name works identically to `tools.deny: [dowel_start]`.
 
@@ -101,13 +101,13 @@ plugin tools.
 The two sibling packages that ship production plugin tools are:
 
 | Package | MCP tool reference |
-|---|---|
+|:---|:---|
 | `tapir` | [anilcancakir.com/tapir/docs/mcp/tool-reference](https://anilcancakir.com/tapir/docs/mcp/tool-reference) |
 | `crumbs` | [anilcancakir.com/crumbs/docs/mcp/tool-reference](https://anilcancakir.com/crumbs/docs/mcp/tool-reference) |
 
 Each package's provider is wired by the consumer (`TapirDowelProvider`, `CrumbsDowelProvider`)
 registered in the wrapper's `baseProviders` list. See the per-package CLAUDE.md for registration
-details and each plugin's tool reference site for the current tool catalog. `magic_tinker` remains
+details and each plugin's tool reference site for the current tool catalogue. `magic_tinker` remains
 the CLI REPL host for `dart run dowel tinker`, but its MCP surface is now the substrate's
 `dowel_tinker`.
 
@@ -123,13 +123,13 @@ app's VM Service WebSocket URI. If the file is absent or lacks a `vmServiceUri` 
 stays online and registers all tools, but VM Service dispatch calls return an actionable error until
 the app is started.
 
-The state file is a single-slot store: starting a second app overwrites the previous record. It is
+The state file holds one record per project: starting a second app in the same project overwrites the previous record, while another project gets a session of its own. It is
 never committed to version control (`.gitignore` / `.pubignore` exclude `.dowel/`).
 
 Fields (from `lib/src/state/state_file.dart`):
 
 | Field | Type | Notes |
-|---|---|---|
+|:---|:---|:---|
 | `pid` | `int` | PID of the `flutter run` process |
 | `vmServiceUri` | `string` | Canonical `ws://host:port/<token>/ws` used for VM Service connection |
 | `webPort` | `int` | `--web-port` value passed to `flutter run` |

@@ -33,7 +33,7 @@ The schema is intentionally tolerant: every section except `plugin_name` is opti
 ## Top-Level Fields
 
 | Field | Type | Required | Default | Source |
-|-------|------|----------|---------|--------|
+|:---|:---|:---|:---|:---|
 | `plugin_name` | string | yes | (none) | `manifest_parser.dart:112` |
 | `dependencies` | map | no | empty | `manifest_parser.dart:124` |
 | `publish` | map | no | empty | `manifest_parser.dart:127` |
@@ -69,7 +69,7 @@ plugin_name: example_plugin
 Pubspec mutations. The `dependencies:` map (note the YAML key is plural, but the typed model is `PubspecDeps`) carries three sub-keys, all optional.
 
 | Sub-key | Type | Translates to |
-|---------|------|---------------|
+|:---|:---|:---|
 | `pubspec` | `Map<String, String>` | `dependencies:` entries in the consumer's `pubspec.yaml` |
 | `dev_pubspec` | `Map<String, String>` | `dev_dependencies:` entries |
 | `pubspec_assets` | `List<String>` | Paths appended under `flutter.assets:` |
@@ -92,7 +92,7 @@ dependencies:
 Stub-name to target-path mapping. Each entry becomes a `publishConfig` operation: the named stub is read from the plugin's `install/` directory, placeholder-substituted, and written to the target path inside the consumer project.
 
 | Key shape | Value shape |
-|-----------|-------------|
+|:---|:---|
 | Stub name (string) | Target path (string) |
 
 Non-string values raise `FormatException('publish entry "<key>" must map to a String target path; got <type>.')`.
@@ -108,7 +108,7 @@ publish:
 Map of target JSON file path to merge spec. Each entry triggers a `mergeJson` operation: the source stub is parsed as JSON, then merged into the target file according to `additive`.
 
 | Field | Type | Required | Default | Notes |
-|-------|------|----------|---------|-------|
+|:---|:---|:---|:---|:---|
 | `source` | string | yes | (none) | Stub key whose content is parsed as JSON. Missing or non-string raises `FormatException('json_merge entry missing required "source" string.')`. |
 | `additive` | bool | no | `true` | When `true`, existing keys in the target file survive a collision. When `false`, source keys overwrite target keys. |
 
@@ -125,7 +125,7 @@ json_merge:
 Magic-framework integration block. Every slot is optional; the section defaults to an empty integration when absent.
 
 | Field | Type | Translates to |
-|-------|------|---------------|
+|:---|:---|:---|
 | `provider` | string (PascalCase) | `injectProvider(provider)` |
 | `config_factory` | string | `injectConfigFactory(name)` |
 | `routes` | string | `injectRoute(name)` |
@@ -153,7 +153,7 @@ Per-platform native configuration. Each platform sub-section is independently op
 ### native.android
 
 | Field | Type | Translates to |
-|-------|------|---------------|
+|:---|:---|:---|
 | `permissions` | `List<String>` | `<uses-permission>` entries in `AndroidManifest.xml` |
 | `meta_data` | `Map<String, String>` | `<meta-data>` entries in `AndroidManifest.xml` |
 | `activities` | `List<{name, exported?, task_affinity?, intent_filters?}>` | `<activity>` elements inside `<application>` in `AndroidManifest.xml` |
@@ -197,7 +197,7 @@ native:
 ### native.ios
 
 | Field | Type | Notes |
-|-------|------|-------|
+|:---|:---|:---|
 | `info_plist` | `Map<String, Object>` | Values may be String, bool, num, or List. Runtime-type branching happens in the dispatcher. |
 | `url_schemes` | `List<String>` | Custom URL schemes registered under `CFBundleURLTypes`, written without the `://` suffix. One `CFBundleURLTypes` dict (role `Editor`) is appended per scheme; a scheme any existing dict already lists is skipped. |
 | `entitlements` | `Map<String, Object>` | Values may be String, bool, or a list of strings. Written to every entitlements file the application target signs with; see below. |
@@ -230,7 +230,7 @@ Shape mirrors `native.ios` exactly. Same field set (`info_plist`, `url_schemes`,
 ### native.web
 
 | Field | Type | Translates to |
-|-------|------|---------------|
+|:---|:---|:---|
 | `head_scripts` | `List<String>` | HTML snippets injected before `</head>` in `web/index.html` |
 | `meta_tags` | `List<Map<String, String>>` | `<meta>` attribute maps appended to `web/index.html` |
 
@@ -249,7 +249,7 @@ native:
 Environment variables to inject into the consumer's `.env`. Map of var name to spec.
 
 | Field | Type | Required | Notes |
-|-------|------|----------|-------|
+|:---|:---|:---|:---|
 | `default` | scalar | yes | Default value written into `.env`. Coerced via `toString()`. Missing raises `FormatException('env entry missing required "default".')`. |
 | `comment` | string | no | Advisory documentation. The v1 dispatcher does NOT emit the comment into the `.env` file. |
 
@@ -268,7 +268,7 @@ env:
 Ordered list of prompts driven immediately at the start of install (before any deferred operation runs). Prompt answers populate the prompt-result map that `placeholders` interpolates.
 
 | Field | Type | Required | Notes |
-|-------|------|----------|-------|
+|:---|:---|:---|:---|
 | `key` | string | yes | Unique within the prompts list. Duplicates raise `ManifestValidationException('Duplicate prompt key "<key>" in prompts list.')`. |
 | `type` | string | yes | One of `string`, `bool`, `choice`. |
 | `question` | string | yes | Human-readable question text. |
@@ -309,7 +309,7 @@ placeholders:
 Post-install shell operations plus a final info message. Every sub-field is optional.
 
 | Field | Type | Notes |
-|-------|------|-------|
+|:---|:---|:---|
 | `run` | `List<{cmd, args?}>` | Shell commands run unconditionally at commit phase. `cmd` is required; missing raises `FormatException('Shell spec missing required "cmd".')`. |
 | `ask_to_run` | `List<{prompt, cmd, args?}>` | Shell commands run only after user confirmation. The prompt fires immediately at install time; on yes the shell call is deferred. Missing `prompt` or `cmd` raises `FormatException('ask_to_run entry requires "prompt" and "cmd" strings.')`. |
 | `message` | string | Optional info message emitted after a Success result. |

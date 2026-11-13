@@ -68,7 +68,7 @@ strips the description annotation before modifier parsing in both branches.
 ## Token Types
 
 | Token form | Type | Read via |
-|---|---|---|
+|:---|:---|:---|
 | `{name}` | Positional argument | `ctx.input.argument('name')` |
 | `{--name}` | Boolean flag | `ctx.input.flag('name')` |
 | `{--name=}` | Value option, no default | `ctx.input.option('name')` |
@@ -80,7 +80,7 @@ strips the description annotation before modifier parsing in both branches.
 ## Argument Modifiers
 
 | Syntax | `isOptional` | `isVariadic` | `defaultValue` | Behaviour |
-|---|---|---|---|---|
+|:---|:---|:---|:---|:---|
 | `{name}` | false | false | null | Required positional. |
 | `{name?}` | true | false | null | Optional; `argument()` returns null when absent. |
 | `{name=default}` | true | false | `"default"` | Inline default; implies optional. |
@@ -96,7 +96,7 @@ Modifiers are parsed in declaration order (`command_signature.dart:125`):
 ## Option Modifiers
 
 | Syntax | `isFlag` | `defaultValue` | Behaviour |
-|---|---|---|---|
+|:---|:---|:---|:---|
 | `{--flag}` | true | null | Boolean switch; absent means false. |
 | `{--option=}` | false | null | Value option; `option()` returns null when absent. |
 | `{--option=value}` | false | `"value"` | Value option with inline default. |
@@ -150,7 +150,7 @@ parse time with the invalid value and expected pattern quoted in the message.
 <a name="error-handling"></a>
 ## Error Handling
 
-When a command is invoked with an option the parser does not recognize, the
+When a command is invoked with an option the parser does not recognise, the
 dispatcher fails loudly: it writes `Unknown option: <flag>` to stderr, prints
 the command help, and exits with a non-zero code. This applies to both long
 (`--unknown`) and short (`-x`) forms.
@@ -165,7 +165,7 @@ $ dowel make:command Foo --bogus
 Every other parse failure keeps its original, specific message:
 
 | Cause | Example invocation | Message |
-|-------|--------------------|---------|
+|:---|:---|:---|
 | Unknown option | `--bogus`, `-x` | `Unknown option: <flag>` |
 | Missing option value | `--output` (value required) | `Missing argument for "--output".` |
 | Disallowed value | `--mode=zoom` (not in `allowed`) | `"zoom" is not an allowed value for option "--mode".` |

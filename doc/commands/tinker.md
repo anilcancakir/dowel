@@ -40,7 +40,7 @@ tinker {--eval=expr}
 ```
 
 | Option | Description |
-|--------|-------------|
+|:---|:---|
 | `--eval=<expr>` | Evaluate a single Dart expression and exit. REPL is skipped. |
 
 ---

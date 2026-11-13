@@ -37,7 +37,7 @@ make:plugin {name} {--path=} {--target=} {--magic} {--bootstrap-command=}
 ```
 
 | Argument / Option | Description |
-|---|---|
+|:---|:---|
 | `name` | Plugin package name in snake_case (required). |
 | `--path=<dir>` | Target directory. Takes precedence over `--target` when both are set. |
 | `--target=<dir>` | Target directory (alias for `--path`). |
@@ -69,7 +69,7 @@ registry), four generic stubs are replaced by variants from
 `provider.dart`), and six additional files are written from the same directory:
 
 | Stub | Written to |
-|---|---|
+|:---|:---|
 | `install_command.dart` | `lib/src/commands/install_command.dart` |
 | `uninstall_command.dart` | `lib/src/commands/uninstall_command.dart` |
 | `install.yaml` | `install.yaml` |

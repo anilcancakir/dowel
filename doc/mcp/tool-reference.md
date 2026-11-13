@@ -1,8 +1,8 @@
 # MCP Tool Reference
 
-Catalog of every MCP tool surfaced by `dowel` directly. The MCP server exposes
+Catalogue of every MCP tool surfaced by `dowel` directly. The MCP server exposes
 **10 substrate tools** (always available) plus plugin-contributed tools when the matching
-provider is registered in the consumer's `bin/dispatcher.dart`. Plugin tool catalogs live on
+provider is registered in the consumer's `bin/dispatcher.dart`. Plugin tool catalogues live on
 each plugin's own documentation site (see [Plugin Tools](#plugin-tools) below).
 
 - [Tool Naming Convention](#tool-naming-convention)
@@ -42,7 +42,7 @@ Plugin tools are contributed via `DowelServiceProvider.mcpTools()`. Each plugin 
 owns a prefix that matches the package name or domain:
 
 | Plugin package | Tool prefix | Reference |
-|---|---|---|
+|:---|:---|:---|
 | `tapir` | `tapir_` | [anilcancakir.com/tapir/docs/mcp/tool-reference](https://anilcancakir.com/tapir/docs/mcp/tool-reference) |
 | `crumbs` | `crumbs_` | [anilcancakir.com/crumbs/docs/mcp/tool-reference](https://anilcancakir.com/crumbs/docs/mcp/tool-reference) |
 
@@ -75,8 +75,8 @@ this project's session file. Once it exists the plugin tools (tapir, crumbs,
 tinker) can connect to the running VM.
 
 | Parameter | Type | Default | Description |
-|---|---|---|---|
-| `device` | string | first available | Flutter device id. Common values: `chrome` (web), `macos` (desktop), `<adb-serial>` (Android), or any id from `flutter devices`. |
+|:---|:---|:---|:---|
+| `device` | string | `chrome` | Flutter device id. Common values: `chrome` (web), `macos` (desktop), `<adb-serial>` (Android), or any id from `flutter devices`. |
 | `port` | string | `3100` | Web port for the chrome device (numeric string). Ignored for non-web devices. |
 | `vm-service-port` | string | `8181` | Port the VM Service binds to on the host. Change when 8181 is already taken. |
 | `dds` | boolean | `false` | Enable the Dart Development Service (DDS) proxy. Set `true` when a tool requires DDS-only features. |
@@ -113,20 +113,21 @@ No parameters.
 
 Maps to dowel command: `logs`
 
-Returns buffered stdout/stderr lines produced by the Flutter process since it started. Use
+Returns the log captured from the Flutter process since this project's session started. Use
 this to see compilation errors, framework warnings, and `print()` output from the app.
 
 | Parameter | Type | Default | Description |
-|---|---|---|---|
-| `follow` | boolean | `false` | When `true`, tail the live log stream until the client disconnects (`-f` on the CLI). When `false`, return the most recent buffered lines and exit immediately. |
+|:---|:---|:---|:---|
+| `follow` | boolean | `false` | When `true`, tail the live log stream until the client disconnects (`-f` on the CLI). When `false`, return the whole captured log and exit immediately. |
 
 ### dowel_restart
 
 Maps to dowel command: `restart`
 
-Sends a full restart signal to the running Flutter process via the VM Service. Equivalent to
-pressing `R` in the flutter run terminal. All widget state is destroyed; static state in Dart
-globals persists.
+Stops the running Flutter app and starts it again (stop plus start, not a hot restart). The
+relaunch carries the prior session's device, web port, VM Service port, CDP port, `--flutter-arg`
+values and profile build mode across. The Dart process is new, so all in-memory state is lost.
+For the `R` keypress, use [dowel_hot_restart](#dowel_hot_restart).
 
 No parameters.
 
@@ -134,8 +135,9 @@ No parameters.
 
 Maps to dowel command: `reload`
 
-Sends a hot reload signal to the running Flutter process via the VM Service. Equivalent to
-pressing `r` in the flutter run terminal. Updates code in place; widget state is preserved.
+Sends `r` to the stdin of the running `flutter run` process (through the FIFO the session
+records), so it works on every device target. Equivalent to pressing `r` in the flutter run
+terminal. Updates code in place; widget state is preserved.
 Faster than `dowel_restart` but does not pick up changes to `initState` or constructor
 bodies.
 
@@ -145,8 +147,8 @@ No parameters.
 
 Maps to dowel command: `hot-restart`
 
-Alias for the hot-restart cycle: tears down the widget tree and rebuilds from `main()` while
-keeping the Dart VM alive. Faster than a full process restart; slower than hot reload. Use
+Sends `R` to the stdin of the running `flutter run` process (the same FIFO as `dowel_reload`):
+tears down the widget tree and rebuilds from `main()` while keeping the Dart VM alive. Faster than a full process restart; slower than hot reload. Use
 when hot reload cannot pick up the change (e.g. changes to `StatefulWidget.createState`,
 `didChangeDependencies`, or provider boot logic).
 
@@ -156,9 +158,11 @@ No parameters.
 
 Maps to dowel command: `doctor`
 
-Checks the dowel environment: Flutter SDK on `PATH`, `flutter devices` reachability,
-state file presence, and VM Service connectivity. Returns a summary report with per-check
-status (OK / WARNING / ERROR). Run this first when plugin tools fail unexpectedly.
+Runs four preflight checks, each reported as pass or fail: `flutter --version`,
+`dart --version`, port 3100 free, and a Flutter SDK of 3.30.0 or newer (needed for
+`--cdp-port`). It also prints advisory warnings for a stale `.mcp.json` entry and an SDK too
+old for CDP commands; those never change the exit code. Run this first when `dowel_start`
+fails unexpectedly.
 
 No parameters.
 
@@ -183,7 +187,7 @@ expression runs in the foreground isolate's root library scope and is passed thr
 `Tinker.casters` chain before return.
 
 | Parameter | Type | Default | Description |
-|---|---|---|---|
+|:---|:---|:---|:---|
 | `eval` | string | (required) | Dart expression to evaluate in the running app's root library (e.g. `User.current.name`, `MonitorController.instance.refresh()`, `1+1`). Runs synchronously in the foreground isolate; the formatted result returns as text. |
 
 ---
@@ -206,7 +210,7 @@ plugin inside the running Flutter app.
 E2E interaction driver. Tools operate over `ext.tapir.*` VM Service extensions installed by
 `tapir` inside the running app. Tool names use the `tapir_` prefix.
 
-The plugin's MCP tool catalog evolves alongside the package; the canonical reference lives
+The plugin's MCP tool catalogue evolves alongside the package; the canonical reference lives
 at [anilcancakir.com/tapir/docs/mcp/tool-reference](https://anilcancakir.com/tapir/docs/mcp/tool-reference)
 (per-tool input schema, required parameters, return shape, example invocations).
 
@@ -218,7 +222,7 @@ Runtime inspector. Tools read ring buffers populated by `ext.crumbs.*` VM Servic
 extensions installed by `crumbs` inside the running app. Tool names use the
 `crumbs_` prefix.
 
-The plugin's MCP tool catalog evolves alongside the package; the canonical reference lives
+The plugin's MCP tool catalogue evolves alongside the package; the canonical reference lives
 at [anilcancakir.com/crumbs/docs/mcp/tool-reference](https://anilcancakir.com/crumbs/docs/mcp/tool-reference)
 (per-tool input schema, required parameters, return shape, example invocations).
 
@@ -269,7 +273,7 @@ Place this file in the project root (next to `bin/dispatcher.dart`):
 Field reference:
 
 | Key | Type | Meaning |
-|---|---|---|
+|:---|:---|:---|
 | `packages.allow` | `null` or `string[]` | `null` = allow all packages; array = allow only named packages |
 | `packages.deny` | `string[]` | Package names always excluded (wins over allow) |
 | `tools.allow` | `null` or `string[]` | `null` = allow all tool names; array = allow only named tools |
@@ -282,7 +286,7 @@ Package names match `DowelServiceProvider.providerName`: `dowel` (substrate),
 ### Layer 2: environment variables
 
 | Variable | Effect |
-|---|---|
+|:---|:---|
 | `DOWEL_MCP_PACKAGES_ALLOW` | CSV of package names to allow |
 | `DOWEL_MCP_PACKAGES_DENY` | CSV of package names to deny |
 | `DOWEL_MCP_TOOLS_ALLOW` | CSV of tool names to allow |

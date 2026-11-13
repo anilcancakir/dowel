@@ -48,7 +48,7 @@ commands and plugins.
 ## 2. Add a custom command
 
 Generate a command scaffold under `lib/app/commands/`. The name argument is
-normalized: `HelloWorld` becomes class `HelloWorldCommand` with signature
+normalised: `HelloWorld` becomes class `HelloWorldCommand` with signature
 `hello-world`. The codegen barrel is refreshed automatically so the command appears
 on the next `dowel list` without an extra step.
 
@@ -86,8 +86,8 @@ dart pub add awesome_plugin
 dart run dowel plugin:install awesome_plugin
 ```
 
-After installation the plugin's commands appear in `dart run dowel list` under the
-plugin's own namespace. Pass `--dry-run` to preview every write operation before it
+After installation the plugin's commands appear in `dart run dowel list`, under the
+heading of the prefix before the `:` in their names. Pass `--dry-run` to preview every write operation before it
 commits. Pass `--use-yaml-only` to error out instead of falling back when no
 `install.yaml` is found.
 
@@ -107,7 +107,7 @@ dart run dowel start --device=chrome
 
 The default target is `chrome`. Pass `--device=macos` (or any Flutter device
 identifier) for desktop or mobile targets. The command scrapes the VM Service URI
-from the flutter run output, normalizes it to a `ws://` WebSocket address, and
+from the flutter run output, normalises it to a `ws://` WebSocket address, and
 writes the full state (PID, VM URI, web port, device, project root) to this
 project's session at `~/.dowel/sessions/<hash>/state.json`. Sessions are per
 project, so a second app can be driven at the same time without either
@@ -122,25 +122,26 @@ resolve the running process automatically from the file without extra flags.
 ## 5. List everything wired
 
 Verify the full command registry by running `list`. The output is grouped by `:`
-namespace so built-in commands, your custom commands, and plugin-contributed commands
-each appear in their own section.
+namespace: commands without a `:` come first with no heading, and each `:` prefix
+(built-in or plugin-contributed) gets its own section.
 
 ```bash
 dart run dowel list
 ```
 
-A clean setup shows the 22 built-in commands (under namespaces `consumer`, `make`,
-`plugin`, `plugins`, `commands`, `mcp`, and a few root-level commands including
-`start`, `stop`, `status`, `logs`, `restart`, `reload`, `hot-restart`, `doctor`,
-`list`) plus your `hello-world` command under the root namespace (or under
-`awesome_plugin:` if the plugin contributed commands).
+A clean setup shows the 22 built-in commands: 12 without a namespace (`start`,
+`stop`, `status`, `logs`, `restart`, `reload`, `hot-restart`, `doctor`, `list`,
+`help`, `install`, `tinker`) listed first, then the namespaced ones under the
+headings `commands`, `make`, `mcp`, `plugin` and `plugins`. Your `hello-world`
+command appears among the commands without a namespace, and a plugin's commands
+appear under the heading of the prefix before the `:` in their names.
 
 ---
 
 <a name="whats-next"></a>
 ## What's next?
 
-- Browse the full [command catalog](../commands/index.md) to see what each builtin does.
+- Browse the full [command catalogue](../commands/index.md) to see what each builtin does.
 - Wire the MCP server into your AI client via [MCP setup](../mcp/setup.md).
 - Write your own plugin via the [plugin authoring guide](../plugins/authoring.md).
 

@@ -72,7 +72,7 @@ class StopCommand extends DowelCommand {
 
   @override
   String get description =>
-      'Stop the running flutter app + delete ~/.dowel/state.json.';
+      'Stop the running flutter app and delete this project\'s session.';
 
   @override
   CommandBoot get boot => CommandBoot.none;

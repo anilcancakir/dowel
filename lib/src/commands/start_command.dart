@@ -132,7 +132,7 @@ class StartCommand extends DowelCommand {
 
   @override
   String get description =>
-      'Boot `flutter run -d <device>` detached and record the VM Service URI to ~/.dowel/state.json.';
+      'Boot `flutter run -d <device>` detached and record the VM Service URI to this project\'s session.';
 
   @override
   CommandBoot get boot => CommandBoot.none;

@@ -56,7 +56,7 @@ The four inherited flags come from `DowelInstallCommand.baseFlags` and are
 available on every install command, not only `plugin:install`.
 
 | Flag | Effect |
-|---|---|
+|:---|:---|
 | `--bootstrap-command=cmd` | Overrides the post-registration bootstrap hint (e.g. `logger:install`). |
 | `--use-yaml-only` | Error out when no `install.yaml` found; no direct registration (Mode 2). |
 | `--force` | Bypass conflict detection; overwrite user-modified files. |

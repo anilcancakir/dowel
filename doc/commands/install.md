@@ -66,7 +66,7 @@ install
 ```
 
 | Flag | Effect |
-|---|---|
+|:---|:---|
 | `--force` | Overwrite `bin/dispatcher.dart`, the two generated barrels, and `bin/dowel` even when they are already present. Does not re-inject already-present pubspec entries. |
 
 ---
@@ -156,7 +156,7 @@ At the end of `scaffoldInto`, `install` calls `MakeFastCliCommand.scaffoldInto(r
 
 The fast-CLI step is not separately gated: if `dart build cli` fails (e.g. the Dart SDK is too old to support it, the toolchain is missing, or the build itself errors), `make:fast-cli` returns a non-zero exit code and `install` propagates that failure. The scaffold artefacts written before the failure remain on disk so the project is still usable via `dart run dowel <cmd>` (the slower fallback). Re-running `install --force` after fixing the underlying issue recompiles `bin/dowel` and the AOT cache.
 
-See [make:fast-cli](make-fast-cli.md) for the full performance profile, cache-hit behavior, and POSIX-only caveat.
+See [make:fast-cli](make-fast-cli.md) for the full performance profile, cache-hit behaviour, and POSIX-only caveat.
 
 ---
 
