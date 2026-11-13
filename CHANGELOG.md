@@ -8,6 +8,8 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.0.21] - 2026-11-13
+
 ### Changed
 
 - **Renamed from `fluttersdk_artisan` to `dowel`.** The package, the repository (`anilcancakir/dowel`), the barrel (`package:dowel/dowel.dart`), every `Artisan*` class (now `Dowel*`, `runArtisan` is `runDowel`), the executable and the MCP server (`dowel_mcp`) carry the new name. Also renamed: the MCP tools (`artisan_*` is `dowel_*`), the `.mcp.json` server key (`fluttersdk` is `dowel`), the environment variables (`ARTISAN_*` is `DOWEL_*`, `FSA_LOCK_TIMEOUT` is `DOWEL_LOCK_TIMEOUT`), the state directories (`~/.artisan/` is `~/.dowel/`, `.artisan/` is `.dowel/`, including `plugins.json` and `mcp.json`), the wrapper (`bin/fsa` is `bin/dowel`) and the generated plugin provider (`<name>_artisan_provider.dart` is `<name>_dowel_provider.dart`). The plugin names in the docs follow the renames of their packages: `dusk` is `tapir` and `telescope` is `crumbs`.
@@ -441,7 +443,8 @@ Both write through `.tmp` + atomic rename; never hand-edit.
 
 ---
 
-[Unreleased]: https://github.com/anilcancakir/dowel/compare/0.0.20...HEAD
+[Unreleased]: https://github.com/anilcancakir/dowel/compare/0.0.21...HEAD
+[0.0.21]: https://github.com/anilcancakir/dowel/compare/0.0.20...0.0.21
 [0.0.20]: https://github.com/fluttersdk/artisan/compare/0.0.19...0.0.20
 [0.0.19]: https://github.com/fluttersdk/artisan/compare/0.0.18...0.0.19
 [0.0.18]: https://github.com/fluttersdk/artisan/compare/0.0.17...0.0.18
