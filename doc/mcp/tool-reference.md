@@ -92,7 +92,7 @@ there is sent `SIGKILL` and waited on for up to 5 seconds more; then, on a web s
 web port gets up to 5 seconds to come free. A CDP session's Chrome is stopped the same way,
 with its CDP port. A pid that now belongs to a process started after the session was recorded
 is left alone. The call returns once the app is gone (about 15 seconds at worst, 30 with
-Chrome), so an `dowel_start` straight after it does not race the old app for its port. Then it deletes this project's session; an app that outlives `SIGKILL`
+Chrome), so a `dowel_start` straight after it does not race the old app for its port. Then it deletes this project's session; an app that outlives `SIGKILL`
 keeps its session and fails the call, so it can be retried. On an Android device it also runs
 `adb -s <serial> shell am force-stop <applicationId>` (the id comes from
 `android/app/build.gradle*`), because signalling the flutter tool leaves the app running.

@@ -19,7 +19,7 @@ and the recovery loop for every common failure substring.
 - [Recovery loops by substring](#recovery-loops-by-substring)
 - [Quick state cleanup](#quick-state-cleanup)
 - [Running two projects at once](#running-two-projects-at-once)
-- [When to favour `./bin/dowel` over MCP](#when-to-favour-binfsa-over-mcp)
+- [When to favour `./bin/dowel` over MCP](#when-to-favour-bindowel-over-mcp)
 
 ## state.json schema
 

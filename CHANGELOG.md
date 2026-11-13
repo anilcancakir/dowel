@@ -10,11 +10,19 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- **Renamed from `fluttersdk_artisan` to `dowel`.** The package, the repository (`anilcancakir/dowel`), the barrel (`package:dowel/dowel.dart`), every `Artisan*` class (now `Dowel*`, `runArtisan` is `runDowel`), the executable and the MCP server (`dowel_mcp`) carry the new name. **Breaking:** `dart pub remove fluttersdk_artisan && dart pub add dowel`, then re-run `dart run dowel install` and `dart run dowel make:fast-cli` (the wrapper is `bin/dowel`, the build state `.dowel/`). Also renamed: the MCP tools (`artisan_*` is `dowel_*`), the `.mcp.json` server key (`fluttersdk` is `dowel`), the environment variables (`ARTISAN_*` is `DOWEL_*`, `FSA_LOCK_TIMEOUT` is `DOWEL_LOCK_TIMEOUT`), the state directories (`~/.artisan/` is `~/.dowel/`, `.artisan/` is `.dowel/`, including `plugins.json` and `mcp.json`) and the generated plugin provider (`<name>_artisan_provider.dart` is `<name>_dowel_provider.dart`). Nothing is migrated automatically: move the state directories and delete the old `fluttersdk` entry from `.mcp.json` by hand. The plugin names in the docs follow the renames of their packages: `dusk` is `tapir` and `telescope` is `crumbs`.
+- **Renamed from `fluttersdk_artisan` to `dowel`.** The package, the repository (`anilcancakir/dowel`), the barrel (`package:dowel/dowel.dart`), every `Artisan*` class (now `Dowel*`, `runArtisan` is `runDowel`), the executable and the MCP server (`dowel_mcp`) carry the new name. Also renamed: the MCP tools (`artisan_*` is `dowel_*`), the `.mcp.json` server key (`fluttersdk` is `dowel`), the environment variables (`ARTISAN_*` is `DOWEL_*`, `FSA_LOCK_TIMEOUT` is `DOWEL_LOCK_TIMEOUT`), the state directories (`~/.artisan/` is `~/.dowel/`, `.artisan/` is `.dowel/`, including `plugins.json` and `mcp.json`), the wrapper (`bin/fsa` is `bin/dowel`) and the generated plugin provider (`<name>_artisan_provider.dart` is `<name>_dowel_provider.dart`). The plugin names in the docs follow the renames of their packages: `dusk` is `tapir` and `telescope` is `crumbs`.
+- **Breaking, nothing is migrated automatically.** In a consumer project: (1) `dart pub remove fluttersdk_artisan && dart pub add dowel`; (2) move `.artisan/` to `.dowel/` and `~/.artisan/` to `~/.dowel/`; (3) delete the generated `bin/dispatcher.dart`, `bin/fsa`, `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, which import the old package, and rename the `Artisan*` classes in your own commands to `Dowel*`; (4) run `dart run dowel install`, which scaffolds the wrapper again and builds `bin/dowel`; (5) delete the old `fluttersdk` entry from `.mcp.json`, then run `dart run dowel mcp:install`.
 
 ### Removed
 
-- **`bin/dowel.dart` is no longer accepted as a consumer wrapper.** It is this package's own entry point, so a repository that ships it (this one) delegated to itself. Only `bin/dispatcher.dart` marks a consumer wrapper. The `fluttersdk_` convention prefix is no longer stripped by `make:plugin` and `plugin:install` (`magic_` still is).
+- **`bin/dowel.dart` is no longer accepted as a consumer wrapper.** It is this package's own entry point, so a repository that ships it (this one) delegated to itself. Only `bin/dispatcher.dart` marks a consumer wrapper.
+- **The wrapper-injection fallback of `plugin:install` and its `--provider` option.** A plugin without an `install.yaml` is now recorded in `.dowel/plugins.json` and needs the scaffold from `dowel install`; without it the command stops and says so. `plugin:uninstall` no longer edits `bin/dowel.dart`.
+- **The `fluttersdk_` prefix stripping** in `make:plugin` and `plugin:install` (`magic_` is still stripped).
+
+### Fixed
+
+- **`mcp:install` advice for a stale `.mcp.json`.** The doctor warnings now tell you to delete the `fluttersdk` entry first, since `mcp:install` writes the `dowel` key next to it.
+- **`StubLoader` matched any `name: dowel...` pubspec** when it walked up from the running script; it now matches the exact package name.
 
 ## [0.0.20] - 2026-10-11
 

@@ -285,7 +285,6 @@ Dowel is subsystem-first under `lib/src/`, every directory owns a single concern
 ```
 lib/
 ├── dowel.dart                # Single barrel, re-exports the full public API
-├── dowel.dart     # Convention sibling, re-exports the same surface
 └── src/
     ├── console/                # DowelApplication, DowelRegistry, CommandSignature DSL, DowelContext
     ├── commands/               # 21 built-in commands, one final class per file

@@ -39,7 +39,7 @@ Pure Dart 3.4+ CLI framework. NO Flutter runtime dependency: the package is cons
 
 ## Architecture
 
-Single barrel: `package:dowel/dowel.dart` re-exports the full public API. `lib/dowel.dart` is a convention sibling that re-exports the same. Two binaries under `bin/`: `dowel.dart` (CLI) and `mcp.dart` (MCP server entry; prepends `mcp:serve`, forces `collectMcpTools: true`, forces `delegateToConsumer: false` so the substrate's complete builtin list owns dispatch). Subsystem-first layout under `lib/src/`:
+Single barrel: `package:dowel/dowel.dart` re-exports the full public API. Two binaries under `bin/`: `dowel.dart` (CLI) and `mcp.dart` (MCP server entry; prepends `mcp:serve`, forces `collectMcpTools: true`, forces `delegateToConsumer: false` so the substrate's complete builtin list owns dispatch). Subsystem-first layout under `lib/src/`:
 
 | Path | Purpose |
 |---|---|

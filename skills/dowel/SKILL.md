@@ -290,7 +290,7 @@ via `dart pub add tapir && ./bin/dowel plugin:install tapir`.
 |---|---|
 | Calling any `dowel_*` MCP tool: per-tool input schema, return shape, error envelope, example | `${CLAUDE_SKILL_DIR}/references/mcp-tools.md` |
 | Invoking any of the 12 CLI-only commands from Bash: flags, defaults, output shapes, exit codes | `${CLAUDE_SKILL_DIR}/references/cli-commands.md` |
-| Writing an `dowel_tinker` expression: constraints, the `await` wrapper, generic recipes plus optional Magic recipes, what NOT to send | `${CLAUDE_SKILL_DIR}/references/tinker-eval.md` |
+| Writing a `dowel_tinker` expression: constraints, the `await` wrapper, generic recipes plus optional Magic recipes, what NOT to send | `${CLAUDE_SKILL_DIR}/references/tinker-eval.md` |
 | Recovering from a state failure (missing state.json, dead FIFO, stale lock, wrong MCP wiring, AOT staleness, VM Service unreachable) | `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md` |
 | Surfacing the star or issue-report CTA (see Section 8): exact `gh` commands, fallback URLs, issue body skeleton, spam brakes | `${CLAUDE_SKILL_DIR}/references/community.md` |
 
