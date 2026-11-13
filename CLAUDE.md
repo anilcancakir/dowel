@@ -74,12 +74,9 @@ One barrel, `package:dowel/dowel.dart`. Two binaries: `bin/dowel.dart` (the CLI,
 2. Stamps: `pubspec.yaml`, `lib/src/console/dowel_version.dart` (guarded by `dowel_version_test.dart` and `mcp_server_version_test.dart`), `example/pubspec.yaml` and `example/packages/awesome_plugin/pubspec.yaml` (`flutter pub get` fails when they drift), `server.json` (guarded by `server_json_version_test.dart`; the MCP registry never rewrites a published version). `publish.yml` checks the tag against `pubspec.yaml` and `server.json`. The skill keeps its own `version:` in `skills/dowel/SKILL.md`. Docs that quote the caret constraint track the released version.
 3. After it merges, tag the merge commit with the bare version: `git tag X.Y.Z && git push origin X.Y.Z`. `publish.yml` requires the tag on `master`, checks the stamps, analyzes, tests, dry-runs, requires 160/160 pana points, extracts the CHANGELOG section, publishes through OIDC and creates the GitHub Release.
 4. A recovery after a failed `Validate` is forward: delete the tag, fix on a PR, tag the new merge commit.
-5. `dowel` is a new pub.dev package (renamed from `fluttersdk_artisan`), so the first publish is by hand: `dart pub publish --force` from a clean checkout of the merge commit, push the tag, cancel the tag run's `publish` job (the version already exists, so it can only fail), then `gh release create <tag> --title <tag> --verify-tag --notes-file <CHANGELOG section>`. After that the Admin tab gets automated publishing from `anilcancakir/dowel` with tag pattern `{{version}}`, and later tags publish themselves. The `registry` job that mirrors the skill is not wired yet (see the comment at the end of `publish.yml`).
-
 ## CI
 
 - `ci.yml` (`Lint & Test`): push and PR, format, analyze, tests with coverage and the 80% floor, Codecov upload.
 - `changelog.yml` (`Changelog`): a PR that changes `lib/`, `bin/` or `assets/` must change `CHANGELOG.md`; Dependabot, `release:` PRs and the `skip-changelog` label are exempt.
 - `docs-link-check.yml` (`Internal Links`): `python3 tool/check-docs.py` plus an offline lychee pass on every PR; `External Links` on Mondays.
-- `publish.yml`: tag on master, stamps, analyze, format, test, dry-run, pana 160/160, CHANGELOG section, OIDC publish, GitHub Release.
-- `dispatch-to-registry.yml`: mirrors the skill into `anilcancakir/ai` once the `registry` job is wired.
+- `publish.yml`: tag on master, stamps, analyze, format, test, dry-run, pana 160/160, CHANGELOG section, OIDC publish, GitHub Release, skill mirror to the registry.
