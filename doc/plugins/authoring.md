@@ -139,6 +139,40 @@ Example provider with commands and MCP tools:
 ```dart
 import 'package:dowel/dowel.dart';
 
+final class AwesomeStartCommand extends DowelCommand {
+  @override
+  String get signature => 'awesome:start';
+
+  @override
+  String get description => 'Start the awesome service.';
+
+  @override
+  CommandBoot get boot => CommandBoot.connected;
+
+  @override
+  Future<int> handle(DowelContext context) async {
+    context.output.success('Awesome service started.');
+    return 0;
+  }
+}
+
+final class AwesomeStopCommand extends DowelCommand {
+  @override
+  String get signature => 'awesome:stop';
+
+  @override
+  String get description => 'Stop the awesome service.';
+
+  @override
+  CommandBoot get boot => CommandBoot.connected;
+
+  @override
+  Future<int> handle(DowelContext context) async {
+    context.output.success('Awesome service stopped.');
+    return 0;
+  }
+}
+
 final class AwesomePluginDowelProvider extends DowelServiceProvider {
   @override
   List<DowelCommand> commands() => [
@@ -152,14 +186,14 @@ final class AwesomePluginDowelProvider extends DowelServiceProvider {
           name: 'awesome_start',
           description: 'Start the awesome service',
           inputSchema: {'type': 'object', 'properties': {}},
+          extensionMethod: 'ext.awesome.start',
         ),
       ];
 }
 ```
 
-The example above omits `extensionMethod` for brevity. In production all four
-fields are required; `extensionMethod` must match the `registerExtension` call
-in the running Flutter isolate (e.g. `'ext.awesome.start'`).
+`extensionMethod` must match the `registerExtension` call in the running Flutter
+isolate; the descriptor is not callable without it.
 
 The MCP server collects descriptors from all loaded providers when
 `runDowel(collectMcpTools: true)` fires (`bin/mcp.dart` sets this
