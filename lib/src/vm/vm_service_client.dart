@@ -5,8 +5,8 @@ import 'package:vm_service/vm_service_io.dart';
 
 import 'extension_not_registered_exception.dart';
 
-/// Wrapper around `package:vm_service` exposing the fluttersdk-house-style
-/// surface that artisan connected-mode commands consume.
+/// Wrapper around `package:vm_service` exposing the surface that dowel
+/// connected-mode commands consume.
 ///
 /// Critical design choice: `getMainIsolateId()` calls `getVM` on EVERY
 /// invocation (NO closure caching). The ai-test MCP server's prior
@@ -52,7 +52,7 @@ class VmServiceClient {
   }
 
   /// Returns the list of `ext.*` extension RPCs registered on the isolate.
-  /// Used by fluttersdk_mcp for runtime tool discovery.
+  /// Used by the MCP server for runtime tool discovery.
   Future<List<String>> getExtensionRPCs(String isolateId) async {
     final s = _requireConnected();
     final iso = await s.getIsolate(isolateId);
@@ -68,7 +68,7 @@ class VmServiceClient {
   /// [getMainIsolateId] and retries ONCE. The retry only fires when the
   /// fresh id differs from [isolateId]; otherwise the sentinel propagates.
   /// This makes every connected-mode handler tolerant of the standard
-  /// `artisan_hot_restart` → next-MCP-call workflow without forcing every
+  /// `dowel_hot_restart` → next-MCP-call workflow without forcing every
   /// caller to invalidate its own cache.
   ///
   /// Throws [ExtensionNotRegisteredException] when the app has no handler

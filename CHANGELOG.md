@@ -8,6 +8,35 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Renamed from `fluttersdk_artisan` to `dowel`.** The package, the repository (`anilcancakir/dowel`), the barrel (`package:dowel/dowel.dart`), every `Artisan*` class (now `Dowel*`, `runArtisan` is `runDowel`), the executable and the MCP server (`dowel_mcp`) carry the new name. Also renamed: the MCP tools (`artisan_*` is `dowel_*`), the `.mcp.json` server key (`fluttersdk` is `dowel`), the environment variables (`ARTISAN_*` is `DOWEL_*`, `FSA_LOCK_TIMEOUT` is `DOWEL_LOCK_TIMEOUT`), the state directories (`~/.artisan/` is `~/.dowel/`, `.artisan/` is `.dowel/`, including `plugins.json` and `mcp.json`), the wrapper (`bin/fsa` is `bin/dowel`) and the generated plugin provider (`<name>_artisan_provider.dart` is `<name>_dowel_provider.dart`). The plugin names in the docs follow the renames of their packages: `dusk` is `tapir` and `telescope` is `crumbs`.
+- **Breaking, nothing is migrated automatically.** In a consumer project: (1) `dart pub remove fluttersdk_artisan && dart pub add dowel`, and swap each plugin dependency for its renamed package (`fluttersdk_dusk` is `tapir`, `fluttersdk_telescope` is `crumbs`; any other plugin needs a release built on dowel); (2) move `.artisan/` to `.dowel/` and `~/.artisan/` to `~/.dowel/`, then delete `.dowel/plugins.json`, which names `fluttersdk_*` packages and `*ArtisanProvider` classes, and the `fluttersdk_*` records under `.dowel/installed/`; keep the other install records, because their file hashes still apply; (3) delete the generated `bin/dispatcher.dart`, `bin/fsa`, a legacy hand-injected `bin/artisan.dart`, `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, which import the old package, replace `package:fluttersdk_artisan/artisan.dart` with `package:dowel/dowel.dart` in your own commands and providers, and rename their `Artisan*` classes to `Dowel*`; (4) run `dart run dowel install`, which scaffolds the wrapper again and builds `bin/dowel`, then `dart run dowel commands:refresh` to register the commands under `lib/app/commands/` again, since `install` only recreates the empty index, and last run `plugin:install` again for each plugin, because a plugin's bootstrap command needs the new wrapper (a renamed plugin has no install record, so a file it published earlier is reported as an `unmanaged-file` conflict: review it, then re-run with `--force`); (5) delete the old `fluttersdk` entry from `.mcp.json`, then run `dart run dowel mcp:install`.
+- **Package metadata, README, `llms.txt` and the agent skill were rewritten** for the new name. The pub.dev description and topics lead with the job, the README follows the standard layout (at a glance, install, capabilities, rules for agents), and the skill is shorter and no longer carries the star and issue prompts.
+- **CI follows the standard.** `ci.yml` and `publish.yml` run on `master` only, pin every action by commit SHA and declare read-only permissions; `publish.yml` also checks that the tag, `pubspec.yaml` and `server.json` name one version, requires pana's full score and no longer calls the skill-registry sync until the registry exists.
+- **The bootstrap command a manifest plugin declares** runs through `dart run :dispatcher` when there is no `bin/dowel`, where 0.0.20 ran `dart run <consumer>:artisan` (the consumer's own `bin/artisan.dart`).
+
+### Added
+
+- `SECURITY.md`, a pull request template, `tool/check-docs.py` with the `Internal Links` workflow (and a weekly external link pass), and a `Changelog` workflow that asks for an entry when `lib/`, `bin/` or `assets/` change.
+- Every `doc/` page now opens with a one-sentence lead and a table of contents, and every section has an explicit anchor.
+
+### Removed
+
+- **`bin/artisan.dart` is no longer accepted as a consumer wrapper.** 0.0.20 delegated to it when a project had no `bin/dispatcher.dart`; it is now ignored, and so is `bin/dowel.dart`, which is this package's own entry point (a repository that ships it, this one, would delegate to itself). Only `bin/dispatcher.dart` marks a consumer wrapper.
+- **The wrapper-injection fallback of `plugin:install` (into `bin/artisan.dart`) and its `--provider` option.** A plugin without an `install.yaml` is now recorded in `.dowel/plugins.json` and needs the scaffold from `dowel install`; without it the command stops and says so. `plugin:uninstall` no longer edits `bin/artisan.dart`.
+- **The `fluttersdk_` prefix stripping** in `make:plugin` (`magic_` is still stripped there); `plugin:install` no longer derives a bootstrap command name from the package name.
+- **`DowelApplication.defaultVersion`.** `DowelApplication` takes the package version by default (see Fixed).
+
+### Fixed
+
+- **A stale `.mcp.json` is now spotted and explained.** `fluttersdk_artisan` wrote its server under the `fluttersdk` key, and `mcp:install` writes `dowel` next to it instead of replacing it. `doctor` warns about a `fluttersdk` entry in any shape (the 0.0.20 entries name no removed package), `mcp:install` prints the same advice, and the older warnings now say to delete the `fluttersdk` entry first.
+- **`plugin:install` for a plugin without a manifest** now honours `--dry-run` (it printed nothing and wrote the registry), exits `1` when the registration fails instead of reporting success, and runs `--bootstrap-command` after registering (the option was accepted and ignored).
+- **`plugin:uninstall` removes the plugin from `.dowel/plugins.json` and regenerates `lib/app/_plugins.g.dart`.** It used to leave the plugin registered, so its commands still loaded.
+- **The `plugins:refresh` header and error text, and the generated plugin stubs,** point at `dart run dowel ...` instead of `dart run magic:artisan ...`, which only resolved in a project that depends on `magic`.
+- **`StubLoader` matched any `name: dowel...` pubspec** when it walked up from the running script; it now matches the exact package name.
+- **`dowel --version` printed a hard-coded pre-release placeholder** instead of the package version. It now prints the package version, from the same constant the MCP handshake reports, and a test keeps that constant equal to `pubspec.yaml`. Plugins generated by `make:plugin` start at `0.0.1`.
+
 ## [0.0.20] - 2026-10-11
 
 ### Added
@@ -412,6 +441,7 @@ Both write through `.tmp` + atomic rename; never hand-edit.
 
 ---
 
+[Unreleased]: https://github.com/anilcancakir/dowel/compare/0.0.20...HEAD
 [0.0.20]: https://github.com/fluttersdk/artisan/compare/0.0.19...0.0.20
 [0.0.19]: https://github.com/fluttersdk/artisan/compare/0.0.18...0.0.19
 [0.0.18]: https://github.com/fluttersdk/artisan/compare/0.0.17...0.0.18

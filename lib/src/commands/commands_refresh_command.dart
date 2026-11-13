@@ -2,20 +2,20 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../helpers/file_helper.dart';
 import 'commands_index_writer.dart';
 
-/// `artisan commands:refresh` — scans `lib/app/commands/` and rewrites
-/// `_index.g.dart` so every ArtisanCommand subclass in that directory is
-/// auto-registered on the next `artisan` invocation.
+/// `dowel commands:refresh`: scans `lib/app/commands/` and rewrites
+/// `_index.g.dart` so every DowelCommand subclass in that directory is
+/// auto-registered on the next `dowel` invocation.
 ///
 /// Run after manually adding/removing/renaming a command file (the more
-/// common path is `artisan make:command Foo`, which already updates the
+/// common path is `dowel make:command Foo`, which already updates the
 /// index automatically).
-class CommandsRefreshCommand extends ArtisanCommand {
+class CommandsRefreshCommand extends DowelCommand {
   @override
   String get name => 'commands:refresh';
 
@@ -27,7 +27,7 @@ class CommandsRefreshCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final root = FileHelper.findProjectRoot();
     final commandsDir = Directory(p.join(root, 'lib', 'app', 'commands'));
     final discovered = writeCommandsIndex(commandsDir);

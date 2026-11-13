@@ -1,12 +1,12 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('ListCommand', () {
-    late ArtisanRegistry registry;
+    late DowelRegistry registry;
 
     setUp(() {
-      registry = ArtisanRegistry();
+      registry = DowelRegistry();
     });
 
     test('boot=none, name=list', () {
@@ -19,7 +19,7 @@ void main() {
     test('handle returns 0 even for empty registry', () async {
       final command = ListCommand(registry);
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -32,7 +32,7 @@ void main() {
       registry.register(_FakeCommand('stop', 'Stop the app'));
       final command = ListCommand(registry);
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
@@ -41,18 +41,18 @@ void main() {
     });
 
     test('groups colon-namespaced commands under a heading', () async {
-      registry.register(_FakeCommand('dusk:snap', 'Snap'));
-      registry.register(_FakeCommand('dusk:tap', 'Tap'));
+      registry.register(_FakeCommand('tapir:snap', 'Snap'));
+      registry.register(_FakeCommand('tapir:tap', 'Tap'));
       registry.register(_FakeCommand('start', 'Start'));
       final command = ListCommand(registry);
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
-      expect(output.content, contains('dusk'));
-      expect(output.content, contains('dusk:snap'));
-      expect(output.content, contains('dusk:tap'));
+      expect(output.content, contains('tapir'));
+      expect(output.content, contains('tapir:snap'));
+      expect(output.content, contains('tapir:tap'));
     });
 
     test('configure is a no-op (no flags)', () {
@@ -66,7 +66,7 @@ void main() {
   });
 }
 
-class _FakeCommand extends ArtisanCommand {
+class _FakeCommand extends DowelCommand {
   _FakeCommand(this._name, this._description);
   final String _name;
   final String _description;
@@ -81,5 +81,5 @@ class _FakeCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async => 0;
+  Future<int> handle(DowelContext ctx) async => 0;
 }

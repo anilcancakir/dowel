@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:meta/meta.dart';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 import 'helpers/process_group_reaper.dart';
@@ -20,7 +20,7 @@ import 'start_command.dart';
 /// that outlives SIGKILL keeps its session and fails the command, so
 /// `restart` never starts on top of it. Idempotent (silent if state.json
 /// absent).
-class StopCommand extends ArtisanCommand {
+class StopCommand extends DowelCommand {
   // ---------------------------------------------------------------------------
   // Test seams for Chrome cleanup. Replaced in tests to avoid spawning real
   // processes or waiting two seconds during unit runs.
@@ -72,13 +72,13 @@ class StopCommand extends ArtisanCommand {
 
   @override
   String get description =>
-      'Stop the running flutter app + delete ~/.artisan/state.json.';
+      'Stop the running flutter app and delete this project\'s session.';
 
   @override
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final state = await StateFile.read();
     if (state == null) {
       ctx.output.writeln('No state file; nothing to stop.');
@@ -133,7 +133,7 @@ class StopCommand extends ArtisanCommand {
 
     // 4. Chrome process + tmp profile dir (CDP mode only; absent in non-CDP
     //    runs). Mirrors the SIGTERM-grace-SIGKILL-rm pattern from
-    //    fluttersdk_dusk/lib/src/utils/chrome_reaper.dart without importing
+    //    tapir/lib/src/utils/chrome_reaper.dart without importing
     //    that package (no cross-package dep on a downstream plugin).
     final chromePid = state['chromePid'] as int?;
     if (chromePid != null) {
@@ -188,7 +188,7 @@ class StopCommand extends ArtisanCommand {
   /// The group is found through the tool pid, or through the FIFO holder in
   /// the same group when the tool is gone and a child of it may not be.
   Future<ReapResult> _reapApp(
-    ArtisanContext ctx,
+    DowelContext ctx,
     int pid,
     Map<String, dynamic> state,
   ) async {
@@ -242,7 +242,7 @@ class StopCommand extends ArtisanCommand {
   }
 
   void _warnUnverified(
-    ArtisanContext ctx,
+    DowelContext ctx,
     String label,
     int pid,
     ReapResult result,
@@ -254,7 +254,7 @@ class StopCommand extends ArtisanCommand {
     );
   }
 
-  void _warnBoundPorts(ArtisanContext ctx, ReapResult result) {
+  void _warnBoundPorts(DowelContext ctx, ReapResult result) {
     for (final int port in result.boundPorts) {
       ctx.output.warning(
         'Port $port is still bound; a `start` on it fails until it is freed.',
@@ -310,7 +310,7 @@ class StopCommand extends ArtisanCommand {
   /// left to abort. The operator does need to hear that the app may still be
   /// running.
   Future<void> _forceStopAndroidApp(
-    ArtisanContext ctx,
+    DowelContext ctx,
     String serial,
     String? projectRoot,
   ) async {
@@ -356,7 +356,7 @@ class StopCommand extends ArtisanCommand {
   /// A Chrome that survives is a warning, not a failure: the session belongs
   /// to the flutter tool, and a stray Chrome costs a port, not correctness.
   Future<void> _reapChrome(
-    ArtisanContext ctx,
+    DowelContext ctx,
     int chromePid,
     String? tmpProfileDir,
     int? cdpPort,

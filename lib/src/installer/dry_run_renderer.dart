@@ -1,4 +1,4 @@
-import '../console/artisan_output.dart';
+import '../console/dowel_output.dart';
 import 'install_operation.dart';
 
 /// Pure-function renderer that prints a structured dry-run preview of a
@@ -43,11 +43,11 @@ class DryRunRenderer {
   /// [InstallOperation.describe]. Empty categories are omitted. A footer
   /// line is always emitted at the end.
   ///
-  /// @param output      The [ArtisanOutput] to write to (never touches disk).
+  /// @param output      The [DowelOutput] to write to (never touches disk).
   /// @param ops         The staged operations to render.
   /// @param pluginName  Optional plugin identifier included in the header.
   static void render(
-    ArtisanOutput output,
+    DowelOutput output,
     List<InstallOperation> ops, {
     String? pluginName,
   }) {
@@ -126,7 +126,7 @@ class DryRunRenderer {
   /// @param label   Bracketed category label (e.g. `'[Pubspec]'`).
   /// @param ops     Operations belonging to this category.
   static void _renderCategory(
-    ArtisanOutput output,
+    DowelOutput output,
     String label,
     List<InstallOperation> ops,
   ) {

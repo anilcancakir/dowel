@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Minimal no-op [PromptDriver] used in transaction tests; the orchestrator
@@ -229,7 +229,7 @@ void main() {
       expect(result, isA<Success>());
       final success = result as Success;
       expect(success.opCount, 0);
-      expect(success.recordPath, '/proj/.artisan/installed/demo.json');
+      expect(success.recordPath, '/proj/.dowel/installed/demo.json');
     });
   });
 
@@ -248,7 +248,7 @@ void main() {
       expect((result as DryRun).opCount, 2);
       expect(fs.snapshot, isEmpty);
 
-      final out = (ctx.artisanContext.output as BufferedOutput).content;
+      final out = (ctx.dowelContext.output as BufferedOutput).content;
       expect(out, contains('DRY RUN'));
       expect(out, contains('2'));
       expect(out, contains('[write-file] lib/a.dart'));
@@ -256,7 +256,7 @@ void main() {
       expect(out, contains('No changes written'));
     });
 
-    test('dry-run never writes the .artisan/installed/<plugin>.json record',
+    test('dry-run never writes the .dowel/installed/<plugin>.json record',
         () async {
       final fs = InMemoryFs();
       final tx = InstallTransaction(_makeCtx(fs: fs), pluginName: 'demo');
@@ -264,7 +264,7 @@ void main() {
 
       await tx.commit(dryRun: true);
 
-      expect(fs.exists('/proj/.artisan/installed/demo.json'), isFalse);
+      expect(fs.exists('/proj/.dowel/installed/demo.json'), isFalse);
     });
   });
 
@@ -334,7 +334,7 @@ void main() {
 
   group('commit() — record file', () {
     test(
-        'writes .artisan/installed/<plugin>.json with serialized ops + stubHashes',
+        'writes .dowel/installed/<plugin>.json with serialized ops + stubHashes',
         () async {
       final fs = InMemoryFs();
       final tx = InstallTransaction(
@@ -346,7 +346,7 @@ void main() {
       final result = await tx.commit();
 
       expect(result, isA<Success>());
-      final recordPath = '/proj/.artisan/installed/magic_logger.json';
+      final recordPath = '/proj/.dowel/installed/magic_logger.json';
       expect(fs.exists(recordPath), isTrue);
 
       final record =
@@ -376,7 +376,7 @@ void main() {
 
       expect(
         (result as Success).recordPath,
-        '/proj/.artisan/installed/firebase_messaging.json',
+        '/proj/.dowel/installed/firebase_messaging.json',
       );
     });
   });
@@ -400,7 +400,7 @@ void main() {
       expect(conflict.conflicts.first.absPath, '/proj/lib/a.dart');
       // No write should have happened, no record should exist.
       expect(fs.exists('/proj/lib/a.dart'), isFalse);
-      expect(fs.exists('/proj/.artisan/installed/demo.json'), isFalse);
+      expect(fs.exists('/proj/.dowel/installed/demo.json'), isFalse);
     });
 
     test('force = true bypasses conflicts and proceeds to Success', () async {
@@ -442,7 +442,7 @@ void main() {
       expect(failing.snapshot.containsKey('/proj/lib/a.dart'), isFalse);
       expect(failing.snapshot.containsKey('/proj/lib/b.dart'), isFalse);
       expect(
-        failing.snapshot.containsKey('/proj/.artisan/installed/demo.json'),
+        failing.snapshot.containsKey('/proj/.dowel/installed/demo.json'),
         isFalse,
       );
     });
@@ -512,7 +512,7 @@ void main() {
       final result = await tx.commit();
 
       expect(result, isA<Success>());
-      // The only artefact is the install record under .artisan/installed/.
+      // The only artefact is the install record under .dowel/installed/.
       final manifestlike = fs.snapshot.keys
           .where((k) => k.contains('AndroidManifest.xml'))
           .toList();
@@ -525,7 +525,7 @@ void main() {
     // dispatch without throwing, then asserts the persisted record entry
     // for that op carries every typed payload field, not just `{type: ...}`.
     Directory makeTempProject() {
-      final tmp = Directory.systemTemp.createTempSync('artisan_tx_test_');
+      final tmp = Directory.systemTemp.createTempSync('dowel_tx_test_');
       addTearDown(() {
         if (tmp.existsSync()) tmp.deleteSync(recursive: true);
       });
@@ -544,7 +544,7 @@ void main() {
 
     Map<String, dynamic> recordFor(Directory root, String plugin) {
       final raw = File(
-        '${root.path}/.artisan/installed/$plugin.json',
+        '${root.path}/.dowel/installed/$plugin.json',
       ).readAsStringSync();
       return jsonDecode(raw) as Map<String, dynamic>;
     }
@@ -913,7 +913,7 @@ class RouteServiceProvider {
 
   group('_buildRecord helper-target hashes (Phase 3 Fix 3)', () {
     Directory makeTempProject() {
-      final tmp = Directory.systemTemp.createTempSync('artisan_tx_hash_');
+      final tmp = Directory.systemTemp.createTempSync('dowel_tx_hash_');
       addTearDown(() {
         if (tmp.existsSync()) tmp.deleteSync(recursive: true);
       });
@@ -938,9 +938,8 @@ class RouteServiceProvider {
       tx.stage(const AddDependency(name: 'intl', version: '^0.20.0'));
       await tx.commit(force: true);
 
-      final record = jsonDecode(
-          File('${root.path}/.artisan/installed/demo.json')
-              .readAsStringSync()) as Map<String, dynamic>;
+      final record = jsonDecode(File('${root.path}/.dowel/installed/demo.json')
+          .readAsStringSync()) as Map<String, dynamic>;
       final hashes = record['stubHashes'] as Map<String, dynamic>;
       final pubspecAbs = '${root.path}/pubspec.yaml';
       expect(hashes[pubspecAbs], isA<String>(),
@@ -955,9 +954,8 @@ class RouteServiceProvider {
       tx.stage(const InjectEnvVar(key: 'API', value: 'x'));
       await tx.commit();
 
-      final record = jsonDecode(
-          File('${root.path}/.artisan/installed/demo.json')
-              .readAsStringSync()) as Map<String, dynamic>;
+      final record = jsonDecode(File('${root.path}/.dowel/installed/demo.json')
+          .readAsStringSync()) as Map<String, dynamic>;
       final hashes = record['stubHashes'] as Map<String, dynamic>;
       expect(hashes['${root.path}/.env'], isA<String>());
     });
@@ -965,7 +963,7 @@ class RouteServiceProvider {
 
   group('record-write happens BEFORE shell ops (Phase 3 Fix 4)', () {
     test('shell failure leaves the install record on disk', () async {
-      final tmp = Directory.systemTemp.createTempSync('artisan_tx_shell_');
+      final tmp = Directory.systemTemp.createTempSync('dowel_tx_shell_');
       addTearDown(() {
         if (tmp.existsSync()) tmp.deleteSync(recursive: true);
       });
@@ -985,7 +983,7 @@ class RouteServiceProvider {
       expect(result, isA<Error>(),
           reason: 'shell op exit 1 must surface as Error');
       // CRITICAL: record must already exist so uninstall can clean up.
-      final recordPath = '${tmp.path}/.artisan/installed/demo.json';
+      final recordPath = '${tmp.path}/.dowel/installed/demo.json';
       expect(File(recordPath).existsSync(), isTrue,
           reason: 'record must be persisted BEFORE shell ops run so a shell '
               'failure leaves the install state recoverable via uninstall');
@@ -996,7 +994,7 @@ class RouteServiceProvider {
 
   group('InjectEntitlement — Xcode build setting', () {
     Directory seedIosProject({String? pbxproj}) {
-      final root = Directory.systemTemp.createTempSync('artisan_tx_xcode_');
+      final root = Directory.systemTemp.createTempSync('dowel_tx_xcode_');
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
       });
@@ -1138,7 +1136,7 @@ class RouteServiceProvider {
         contains('aps-environment'),
       );
       expect(
-        File('${root.path}/.artisan/installed/demo.json').existsSync(),
+        File('${root.path}/.dowel/installed/demo.json').existsSync(),
         isTrue,
         reason: 'the install must be recorded so uninstall can reverse it',
       );
@@ -1148,7 +1146,7 @@ class RouteServiceProvider {
         reason: 'the project the editor refused must stay byte-identical',
       );
 
-      final out = (ctx.artisanContext.output as BufferedOutput).content;
+      final out = (ctx.dowelContext.output as BufferedOutput).content;
       expect(out, contains('CODE_SIGN_ENTITLEMENTS'));
       expect(out, contains('by hand'));
       expect(out, contains('Runner/Runner.entitlements'));
@@ -1315,7 +1313,7 @@ class RouteServiceProvider {
 
         expect(pbxprojOf(root), split);
         expect(
-          (ctx.artisanContext.output as BufferedOutput).content,
+          (ctx.dowelContext.output as BufferedOutput).content,
           isNot(contains('Left CODE_SIGN_ENTITLEMENTS alone')),
         );
       });
@@ -1397,7 +1395,7 @@ class RouteServiceProvider {
 
         expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
         expect(
-          (ctx.artisanContext.output as BufferedOutput).content,
+          (ctx.dowelContext.output as BufferedOutput).content,
           contains(r'$(TARGET_NAME)/x.entitlements'),
         );
         expect(Directory('${root.path}/ios/${r'$(TARGET_NAME)'}').existsSync(),
@@ -1436,7 +1434,7 @@ class RouteServiceProvider {
 
   group('InjectInfoPlistUrlScheme: through the installer', () {
     Directory seedProject(String platform, {String? plist}) {
-      final root = Directory.systemTemp.createTempSync('artisan_tx_scheme_');
+      final root = Directory.systemTemp.createTempSync('dowel_tx_scheme_');
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
       });
@@ -1512,7 +1510,7 @@ class RouteServiceProvider {
 
   group('InjectPodfileLine — create-if-absent, through the installer', () {
     Directory seedProject(String platform) {
-      final root = Directory.systemTemp.createTempSync('artisan_tx_podfile_');
+      final root = Directory.systemTemp.createTempSync('dowel_tx_podfile_');
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
       });

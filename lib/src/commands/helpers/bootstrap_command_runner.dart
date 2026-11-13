@@ -26,7 +26,7 @@ Future<ProcessResult> _defaultRunner(
 ///
 /// - [invoked]: a dispatcher was resolved and the bootstrap command was run
 ///   as a subprocess (regardless of the chained command's own exit code).
-/// - [notResolvable]: no dispatcher could be resolved (no `bin/fsa` wrapper
+/// - [notResolvable]: no dispatcher could be resolved (no `bin/dowel` wrapper
 ///   and no consumer package name in `pubspec.yaml`), so nothing was spawned
 ///   and the caller should fall back to the one-line bootstrap hint.
 enum BootstrapRunOutcome { invoked, notResolvable }
@@ -71,9 +71,9 @@ final class BootstrapRunResult {
 ///
 /// ## Dispatcher resolution
 ///
-/// 1. Prefer `./bin/fsa <command> --non-interactive` when a `bin/fsa` wrapper
+/// 1. Prefer `./bin/dowel <command> --non-interactive` when a `bin/dowel` wrapper
 ///    exists at the consumer project root (the AOT fast-CLI path).
-/// 2. Otherwise `dart run <pkg>:artisan <command> --non-interactive`, deriving
+/// 2. Otherwise `dart run <pkg>:dowel <command> --non-interactive`, deriving
 ///    `<pkg>` (the consumer package name) from the project's `pubspec.yaml`
 ///    `name:` field.
 /// 3. When neither resolves, return [BootstrapRunOutcome.notResolvable] so the
@@ -114,8 +114,8 @@ class BootstrapCommandRunner {
     required String bootstrapCommand,
     required String projectRoot,
   }) async {
-    // 1. Build the dispatcher invocation: bin/fsa fast-CLI when present,
-    //    else `dart run <consumer>:artisan`. Return early when neither is
+    // 1. Build the dispatcher invocation: bin/dowel fast-CLI when present,
+    //    else `dart run :dispatcher`. Return early when neither is
     //    resolvable so the caller can fall back to the hint.
     final invocation = _resolveDispatcher(projectRoot, bootstrapCommand);
     if (invocation == null) {
@@ -148,22 +148,23 @@ class BootstrapCommandRunner {
   ) {
     const nonInteractive = '--non-interactive';
 
-    // bin/fsa fast-CLI wrapper takes precedence when present.
-    if (File(p.join(projectRoot, 'bin', 'fsa')).existsSync()) {
+    // bin/dowel fast-CLI wrapper takes precedence when present.
+    if (File(p.join(projectRoot, 'bin', 'dowel')).existsSync()) {
       return _DispatcherInvocation(
-        executable: './bin/fsa',
+        executable: './bin/dowel',
         arguments: <String>[bootstrapCommand, nonInteractive],
       );
     }
 
-    // Fall back to `dart run <consumer>:artisan` using the pubspec name.
-    final consumerName = _readConsumerName(projectRoot);
-    if (consumerName != null) {
+    // Fall back to `dart run :dispatcher` when the consumer scaffold exists
+    // (Windows, or a failed fast-CLI build). bin/dowel.dart is dowel's own
+    // entry point and never stands in for a consumer wrapper.
+    if (File(p.join(projectRoot, 'bin', 'dispatcher.dart')).existsSync()) {
       return _DispatcherInvocation(
         executable: 'dart',
         arguments: <String>[
           'run',
-          '$consumerName:artisan',
+          ':dispatcher',
           bootstrapCommand,
           nonInteractive,
         ],
@@ -171,26 +172,6 @@ class BootstrapCommandRunner {
     }
 
     return null;
-  }
-
-  /// Reads the consumer package name from `<root>/pubspec.yaml` `name:` field.
-  /// Returns `null` when the pubspec is missing, unreadable, or has no `name:`
-  /// entry. An unreadable pubspec (permissions, mid-write) is treated as "not
-  /// resolvable" rather than crashing the post-install bootstrap step.
-  static String? _readConsumerName(String root) {
-    final pubspec = File(p.join(root, 'pubspec.yaml'));
-    if (!pubspec.existsSync()) return null;
-    final String content;
-    try {
-      content = pubspec.readAsStringSync();
-    } on FileSystemException {
-      return null;
-    }
-    final match = RegExp(
-      r'^name:\s*(\S+)',
-      multiLine: true,
-    ).firstMatch(content);
-    return match?.group(1);
   }
 }
 

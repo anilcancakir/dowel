@@ -3,26 +3,42 @@ import 'dart:io';
 
 import 'package:meta/meta.dart';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 
 /// Advisory warning emitted when `.mcp.json` still references the removed
-/// `fluttersdk_mcp` package. Instructs the user to run `mcp:install` to fix.
-const _staleMcpWarning =
+/// `fluttersdk_mcp` package. Those entries live under the `fluttersdk` key,
+/// which `mcp:install` no longer writes, so the user deletes the old entry
+/// first. [key] is the entry's server name, usually `fluttersdk`.
+String _staleMcpWarning(String key) =>
     'WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the '
-    'removed fluttersdk_mcp package. Run: ./bin/fsa mcp:install (or: '
-    'dart run fluttersdk_artisan mcp:install) to refresh the entry.';
+    'removed fluttersdk_mcp package. Delete the "$key" entry from '
+    '.mcp.json, then run: ./bin/dowel mcp:install (or: '
+    'dart run dowel mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
 /// `fluttersdk_artisan:mcp` args shape. That shape routes through the substrate
-/// standalone, which never loads consumer plugin providers. Instructs the user
-/// to re-run `mcp:install` to upgrade to the branched entry shape.
-const _preFixMcpWarning =
+/// standalone, which never loads consumer plugin providers. It lives under the
+/// `fluttersdk` key as well, so the user deletes it before `mcp:install`
+/// writes the branched entry shape under `dowel`. [key] is the entry's server
+/// name, usually `fluttersdk`.
+String _preFixMcpWarning(String key) =>
     'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
     'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Run: ./bin/fsa mcp:install (or: dart run fluttersdk_artisan mcp:install) '
-    'to upgrade to the correct entry shape.';
+    'Delete the "$key" entry from .mcp.json, then run: '
+    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
+
+/// Advisory warning emitted when `.mcp.json` still has the `fluttersdk` server
+/// key that fluttersdk_artisan's `mcp:install` wrote, whatever its args:
+/// `./bin/fsa mcp:serve` and `dart run :dispatcher mcp:serve` name no removed
+/// package, so only the key gives them away. `mcp:install` writes `dowel` next
+/// to it instead of replacing it.
+const _oldKeyMcpWarning =
+    'WARN: Old MCP entry detected. Your .mcp.json still has the "fluttersdk" '
+    'server that fluttersdk_artisan wrote, and that package no longer exists. '
+    'Delete the "fluttersdk" entry from .mcp.json, then run: '
+    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
 
 /// Minimum Flutter SDK version required for the WebSocket hot reload fix that
 /// enables CDP commands (flutter/flutter#170612).
@@ -32,12 +48,12 @@ const _minSdkVersion = '3.30.0';
 /// [_minSdkVersion]. Instructs the user to run `flutter upgrade`.
 const _cdpUpgradeWarning =
     'WARN: Flutter SDK is older than $_minSdkVersion. CDP commands '
-    '(dusk:resize, dusk:device, artisan start --cdp-port) require the '
+    '(tapir:resize, tapir:device, dowel start --cdp-port) require the '
     'WebSocket hot reload fix from flutter/flutter#170612. '
     'Run `flutter upgrade` and re-check.';
 
-/// Runs environment preflight checks (artisan toolchain).
-class DoctorCommand extends ArtisanCommand {
+/// Runs environment preflight checks (dowel toolchain).
+class DoctorCommand extends DowelCommand {
   /// Creates a [DoctorCommand].
   ///
   /// [workingDir] pins the directory used for `.mcp.json` detection. Defaults
@@ -81,7 +97,7 @@ class DoctorCommand extends ArtisanCommand {
       _checkFlutterSdkVersion();
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Run hard preflight checks.
     final checks = <_Check>[
       _Check('flutter --version', _checkFlutter),
@@ -112,10 +128,11 @@ class DoctorCommand extends ArtisanCommand {
   /// `mcpServers` entry. Emits [_staleMcpWarning] when `fluttersdk_mcp:server`
   /// appears in any entry's args (legacy removed-package shape), or emits
   /// [_preFixMcpWarning] when `fluttersdk_artisan:mcp` appears (the pre-Bug-B
-  /// substrate-standalone shape that never loads consumer plugin providers).
-  /// Does nothing when the file is absent or cannot be parsed.
+  /// substrate-standalone shape that never loads consumer plugin providers),
+  /// or [_oldKeyMcpWarning] when only the `fluttersdk` server key gives an
+  /// entry away. Does nothing when the file is absent or cannot be parsed.
   /// This is advisory only and never influences the exit code.
-  static void _checkStaleMcpJson(String dir, ArtisanContext ctx) {
+  static void _checkStaleMcpJson(String dir, DowelContext ctx) {
     final file = File('$dir/.mcp.json');
     if (!file.existsSync()) return;
 
@@ -131,13 +148,14 @@ class DoctorCommand extends ArtisanCommand {
     if (servers is! Map<String, dynamic>) return;
 
     // 1. Scan all server entries for the legacy fluttersdk_mcp:server shape
-    //    (the removed package from before the artisan absorption).
-    for (final entry in servers.values) {
+    //    (the removed package from before the dowel absorption).
+    for (final server in servers.entries) {
+      final entry = server.value;
       if (entry is! Map<String, dynamic>) continue;
       final args = entry['args'];
       if (args is! List<dynamic>) continue;
       if (args.contains('fluttersdk_mcp:server')) {
-        ctx.output.writeln(_staleMcpWarning);
+        ctx.output.writeln(_staleMcpWarning(server.key));
         return;
       }
     }
@@ -145,20 +163,28 @@ class DoctorCommand extends ArtisanCommand {
     // 2. Scan all server entries for the pre-Bug-B fluttersdk_artisan:mcp shape
     //    (routes through the substrate standalone, which never loads consumer
     //    plugin providers; upgrading via mcp:install writes the correct shape).
-    for (final entry in servers.values) {
+    for (final server in servers.entries) {
+      final entry = server.value;
       if (entry is! Map<String, dynamic>) continue;
       final args = entry['args'];
       if (args is! List<dynamic>) continue;
       if (args.contains('fluttersdk_artisan:mcp')) {
-        ctx.output.writeln(_preFixMcpWarning);
+        ctx.output.writeln(_preFixMcpWarning(server.key));
         return;
       }
+    }
+
+    // 3. The fluttersdk key itself: the entries written by fluttersdk_artisan
+    //    0.0.20 used `./bin/fsa mcp:serve` or `dart run :dispatcher
+    //    mcp:serve`, which the two scans above cannot tell from a current one.
+    if (servers.containsKey('fluttersdk')) {
+      ctx.output.writeln(_oldKeyMcpWarning);
     }
   }
 
   /// Emits [_cdpUpgradeWarning] to [ctx] when [_checkFlutterSdkVersion]
   /// returns false. Advisory only; never influences the exit code.
-  static Future<void> _checkCdpReadiness(ArtisanContext ctx) async {
+  static Future<void> _checkCdpReadiness(DowelContext ctx) async {
     final sdkOk = await _checkFlutterSdkVersion();
     if (!sdkOk) {
       ctx.output.writeln(_cdpUpgradeWarning);

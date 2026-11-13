@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Verifies that two projects driven at once do not share one state file.
 ///
-/// `~/.artisan/state.json` was a single global slot. A second project's
-/// `artisan start` silently took it over, and every connected command from
+/// `~/.dowel/state.json` was a single global slot. A second project's
+/// `dowel start` silently took it over, and every connected command from
 /// the first project then drove the second app, succeeding each time. The
 /// measured case had a worktree in another repository rewrite the file
 /// mid-session; two commands later produced a screenshot of an entirely
@@ -19,9 +19,9 @@ void main() {
     late Directory projectB;
 
     setUp(() async {
-      tempHome = await Directory.systemTemp.createTemp('artisan_session_');
-      projectA = await Directory.systemTemp.createTemp('artisan_proj_a_');
-      projectB = await Directory.systemTemp.createTemp('artisan_proj_b_');
+      tempHome = await Directory.systemTemp.createTemp('dowel_session_');
+      projectA = await Directory.systemTemp.createTemp('dowel_proj_a_');
+      projectB = await Directory.systemTemp.createTemp('dowel_proj_b_');
       StateFile.debugHomeOverride = tempHome.path;
       StateFile.pathOverride = null;
     });
@@ -46,8 +46,8 @@ void main() {
       final String b = StateFile.path;
 
       expect(a, isNot(equals(b)));
-      expect(a, contains('/.artisan/sessions/'));
-      expect(b, contains('/.artisan/sessions/'));
+      expect(a, contains('/.dowel/sessions/'));
+      expect(b, contains('/.dowel/sessions/'));
     });
 
     test('the same project resolves to the same file', () {
@@ -98,9 +98,9 @@ void main() {
 
     test('read falls back to the legacy pointer when no session file exists',
         () async {
-      // The documented recovery recipe is to hand-write ~/.artisan/state.json
-      // when `artisan start` cannot boot the app. That has to keep working.
-      final Directory dir = Directory('${tempHome.path}/.artisan');
+      // The documented recovery recipe is to hand-write ~/.dowel/state.json
+      // when `dowel start` cannot boot the app. That has to keep working.
+      final Directory dir = Directory('${tempHome.path}/.dowel');
       await dir.create(recursive: true);
       await File('${dir.path}/state.json').writeAsString(
         jsonEncode(<String, dynamic>{'pid': 999}),
@@ -157,7 +157,7 @@ void main() {
     });
 
     test('a trailing separator resolves to the same session', () {
-      // `artisan start` records `Directory.current.path`; a shell or a script
+      // `dowel start` records `Directory.current.path`; a shell or a script
       // that appends a separator would otherwise open a SECOND session for
       // the same project and every connected command would miss the first.
       StateFile.debugProjectRootOverride = projectA.path;
@@ -196,16 +196,16 @@ void main() {
           Platform.environment['USERPROFILE'] ??
           '/tmp';
 
-      expect(StateFile.path, startsWith('$home/.artisan/sessions/'));
-      expect(StateFile.legacyPointerPath, equals('$home/.artisan/state.json'));
-      expect(StateFile.homeDir, equals('$home/.artisan'));
+      expect(StateFile.path, startsWith('$home/.dowel/sessions/'));
+      expect(StateFile.legacyPointerPath, equals('$home/.dowel/state.json'));
+      expect(StateFile.homeDir, equals('$home/.dowel'));
     });
 
     test('delete leaves a pointer that records no project', () async {
       // The hand-written recovery file usually omits projectRoot, and the
       // read path honours it. Deleting it took away the escape hatch people
       // reach for precisely when `start` has already failed them.
-      final Directory dir = Directory('${tempHome.path}/.artisan');
+      final Directory dir = Directory('${tempHome.path}/.dowel');
       await dir.create(recursive: true);
       await File('${dir.path}/state.json').writeAsString(
         jsonEncode(<String, dynamic>{'pid': 999}),
@@ -244,7 +244,7 @@ void main() {
       StateFile.debugProjectRootOverride = projectA.path;
       await StateFile.write(<String, dynamic>{'pid': 1});
 
-      final List<String> leftovers = Directory('${tempHome.path}/.artisan')
+      final List<String> leftovers = Directory('${tempHome.path}/.dowel')
           .listSync()
           .whereType<File>()
           .map((File f) => f.path)
@@ -275,7 +275,7 @@ void main() {
 
     test('a nested package with its own pubspec keeps its own session', () {
       // The walk stops at the NEAREST pubspec, because that is the unit
-      // `artisan start` boots. Two packages in one repo are two apps.
+      // `dowel start` boots. Two packages in one repo are two apps.
       File('${projectA.path}/pubspec.yaml').writeAsStringSync('name: proj_a\n');
       final Directory inner = Directory('${projectA.path}/example');
       inner.createSync(recursive: true);
@@ -294,7 +294,7 @@ void main() {
       // walk that climbs to the filesystem root and lands everyone in one
       // shared session.
       StateFile.debugProjectRootOverride = projectB.path;
-      expect(StateFile.path, contains('/.artisan/sessions/'));
+      expect(StateFile.path, contains('/.dowel/sessions/'));
       expect(
         StateFile.path,
         equals(StateFile.sessionPathFor(projectB.path)),

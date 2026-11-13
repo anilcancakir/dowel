@@ -12,8 +12,8 @@ import 'dart:developer' as developer;
 /// package without coordination).
 ///
 /// Hot-restart-safety contract documented in the V3 ai-test plugin's
-/// `v3_register.dart` and inherited by fluttersdk_artisan as the substrate
-/// for dusk + telescope + tinker + magic_tinker extension registrations.
+/// `v3_register.dart` and inherited by dowel as the substrate
+/// for tapir + crumbs + tinker + magic_tinker extension registrations.
 void registerExtensionIdempotent(
   String method,
   developer.ServiceExtensionHandler handler,

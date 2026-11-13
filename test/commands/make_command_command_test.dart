@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -17,31 +17,31 @@ void main() {
     test('declares the canonical stub name + default namespace', () {
       final command = MakeCommandCommand();
 
-      expect(command.getStub(), 'artisan_command');
+      expect(command.getStub(), 'dowel_command');
       expect(command.getDefaultNamespace(), 'lib/app/commands');
     });
 
-    test('artisan_command stub asset ships with the substrate', () {
+    test('dowel_command stub asset ships with the substrate', () {
       // Regression guard: make:command resolves stub by name via StubLoader's
       // 4-tier resolution. If the asset is missing from assets/stubs/, every
       // make:command invocation crashes with a FileSystemException at scaffold
-      // time. The 'artisan_command' stub MUST ship in the publish archive.
-      final stub = StubLoader.load('artisan_command');
+      // time. The 'dowel_command' stub MUST ship in the publish archive.
+      final stub = StubLoader.load('dowel_command');
 
       expect(stub, isNotEmpty);
-      // Required placeholders driven by ArtisanGeneratorCommand.buildClass
+      // Required placeholders driven by DowelGeneratorCommand.buildClass
       // (_replaceClass + _replaceNamespace) and MakeCommandCommand.getReplacements.
       expect(stub, contains('{{ className }}'));
       expect(stub, contains('{{ namespace }}'));
       expect(stub, contains('{{ commandName }}'));
-      // The rendered output must subclass ArtisanCommand.
-      expect(stub, contains('ArtisanCommand'));
+      // The rendered output must subclass DowelCommand.
+      expect(stub, contains('DowelCommand'));
     });
 
-    test('inherits from ArtisanGeneratorCommand', () {
+    test('inherits from DowelGeneratorCommand', () {
       final command = MakeCommandCommand();
 
-      expect(command, isA<ArtisanGeneratorCommand>());
+      expect(command, isA<DowelGeneratorCommand>());
     });
 
     test('getPath composes the default namespace + snake-cased file name', () {
@@ -75,7 +75,7 @@ void main() {
 
 class _ProjectRootOverride extends MakeCommandCommand {
   _ProjectRootOverride() {
-    fakeRoot = Directory.systemTemp.createTempSync('artisan_mkc_').path;
+    fakeRoot = Directory.systemTemp.createTempSync('dowel_mkc_').path;
   }
 
   late String fakeRoot;

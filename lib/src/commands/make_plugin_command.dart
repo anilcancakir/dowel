@@ -4,18 +4,18 @@ import 'dart:isolate';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../console/string_helper.dart';
 import '../helpers/file_helper.dart';
 import '../installer/virtual_fs.dart';
 import '../stubs/stub_loader.dart';
-import 'helpers/artisan_path_resolver.dart';
+import 'helpers/dowel_path_resolver.dart';
 import 'helpers/flutter_create_runner.dart';
 import 'helpers/workspace_enroller.dart';
 
-/// `artisan make:plugin <name>`, scaffolds a new `fluttersdk_artisan` plugin
+/// `dowel make:plugin <name>`, scaffolds a new `dowel` plugin
 /// skeleton under `packages/<name>/` (or a `--target` / `--path` override).
 ///
 /// ## Pipeline
@@ -29,7 +29,7 @@ import 'helpers/workspace_enroller.dart';
 ///    lay down the baseline Dart package (pubspec, LICENSE, CHANGELOG,
 ///    `.gitignore`, `.metadata`, `lib/<name>.dart`, `test/<name>_test.dart`,
 ///    README, analysis_options).
-/// 4. Compute the dynamic `artisanPath` (and `magicPath` in magic mode) and
+/// 4. Compute the dynamic `dowelPath` (and `magicPath` in magic mode) and
 ///    render the generic scaffold stubs from `assets/stubs/make_plugin/generic/`,
 ///    overwriting `flutter create`'s pubspec.yaml, `lib/<name>.dart`,
 ///    `test/<name>_test.dart`, and `README.md` with our versions.
@@ -52,13 +52,13 @@ import 'helpers/workspace_enroller.dart';
 ///
 /// - `name`, the snake_case package name (e.g. `magic_logger`).
 /// - `pascalName`, the PascalCase class root (e.g. `MagicLogger`).
-/// - `commandPrefix`, the package name with the `magic_` / `fluttersdk_`
-///   convention prefix stripped (e.g. `magic_logger` → `logger`). Drives the
+/// - `commandPrefix`, the package name with the `magic_` convention prefix
+///   stripped (e.g. `magic_logger` → `logger`). Drives the
 ///   default `<commandPrefix>:install` / `<commandPrefix>:uninstall` names.
 /// - `bootstrapCommand`, the value of the `--bootstrap-command` option, or
 ///   `<commandPrefix>:install` when the option is absent.
-/// - `artisanPath`, the dynamically computed relative path from the target
-///   directory to the `fluttersdk_artisan` package root. Replaces the old
+/// - `dowelPath`, the dynamically computed relative path from the target
+///   directory to the `dowel` package root. Replaces the old
 ///   hardcoded `path: ../../` that broke for non-standard target depths.
 /// - `magicPath`, the dynamically computed relative path from the target to
 ///   the `magic` package root. Only set in magic mode; absent in generic
@@ -68,14 +68,14 @@ import 'helpers/workspace_enroller.dart';
 ///
 /// Three seams support deterministic tests:
 ///
-/// - [resolveArtisanRoot] / [resolveMagicRoot] / [resolveStubDir] —
+/// - [resolveDowelRoot] / [resolveMagicRoot] / [resolveStubDir] —
 ///   override in test subclasses to pin the package roots without touching
 ///   `Isolate.resolvePackageUri`.
 /// - [FlutterCreateRunner] — pass a stub via the constructor to skip the
 ///   real subprocess spawn.
 /// - [WorkspaceEnroller] — pass an in-memory variant via the constructor
 ///   to assert workspace enrollment without touching real pubspec files.
-class MakePluginCommand extends ArtisanCommand {
+class MakePluginCommand extends DowelCommand {
   /// Public default constructor. Optional injection seams default to real
   /// implementations.
   ///
@@ -105,13 +105,13 @@ class MakePluginCommand extends ArtisanCommand {
   /// magic-flavored variant from the `magic/` stub subdirectory.
   static const List<({String stub, String target})> _genericScaffoldPlan = [
     (stub: 'pubspec.yaml', target: 'pubspec.yaml'),
-    (stub: 'bin_artisan.dart', target: 'bin/{{ name }}.dart'),
+    (stub: 'bin_dowel.dart', target: 'bin/{{ name }}.dart'),
     (stub: 'cli.dart', target: 'lib/cli.dart'),
     (stub: 'runtime.dart', target: 'lib/{{ name }}.dart'),
-    (stub: 'provider.dart', target: 'lib/src/{{ name }}_artisan_provider.dart'),
+    (stub: 'provider.dart', target: 'lib/src/{{ name }}_dowel_provider.dart'),
     (
       stub: 'provider_test.dart',
-      target: 'test/{{ name }}_artisan_provider_test.dart',
+      target: 'test/{{ name }}_dowel_provider_test.dart',
     ),
     (stub: 'readme.md', target: 'README.md'),
   ];
@@ -157,34 +157,33 @@ class MakePluginCommand extends ArtisanCommand {
       '(default: <commandPrefix>:install)}';
 
   @override
-  String get description =>
-      'Scaffold a new fluttersdk_artisan plugin skeleton.';
+  String get description => 'Scaffold a new dowel plugin skeleton.';
 
   @override
   CommandBoot get boot => CommandBoot.none;
 
-  /// Resolves the absolute path of the `fluttersdk_artisan` package root.
-  /// Used by [ArtisanPathResolver] to compute the dynamic `artisanPath`
+  /// Resolves the absolute path of the `dowel` package root.
+  /// Used by [DowelPathResolver] to compute the dynamic `dowelPath`
   /// placeholder and by [resolveStubDir] to locate the stub bundle.
   ///
-  /// Production walks `Isolate.resolvePackageUri('package:fluttersdk_artisan/artisan.dart')`
-  /// up two directories (`<root>/lib/artisan.dart` → `<root>`). Tests
+  /// Production walks `Isolate.resolvePackageUri('package:dowel/dowel.dart')`
+  /// up two directories (`<root>/lib/dowel.dart` → `<root>`). Tests
   /// override to pin a deterministic path.
   ///
-  /// @return Absolute path to the `fluttersdk_artisan` package root.
+  /// @return Absolute path to the `dowel` package root.
   /// @throws StateError when the package URI cannot be resolved.
   @visibleForTesting
-  Future<String> resolveArtisanRoot() async {
+  Future<String> resolveDowelRoot() async {
     final resolved = await Isolate.resolvePackageUri(
-      Uri.parse('package:fluttersdk_artisan/artisan.dart'),
+      Uri.parse('package:dowel/dowel.dart'),
     );
     if (resolved == null || resolved.scheme != 'file') {
       throw StateError(
-        'make:plugin could not resolve the fluttersdk_artisan package URI. '
-        'Run from a project with `fluttersdk_artisan` listed in pubspec.yaml.',
+        'make:plugin could not resolve the dowel package URI. '
+        'Run from a project with `dowel` listed in pubspec.yaml.',
       );
     }
-    // resolved = <pkg_root>/lib/artisan.dart → walk up two for <pkg_root>.
+    // resolved = <pkg_root>/lib/dowel.dart → walk up two for <pkg_root>.
     return p.dirname(p.dirname(resolved.toFilePath()));
   }
 
@@ -213,17 +212,17 @@ class MakePluginCommand extends ArtisanCommand {
   }
 
   /// Resolves the directory holding the `make_plugin/` stub bundle. Tests
-  /// can override either this method directly or [resolveArtisanRoot] to
+  /// can override either this method directly or [resolveDowelRoot] to
   /// pin the bundle location.
   ///
   /// @return Absolute path to the `make_plugin` stub bundle directory.
   @visibleForTesting
   Future<String> resolveStubDir() async {
-    return p.join(await resolveArtisanRoot(), 'assets', 'stubs', 'make_plugin');
+    return p.join(await resolveDowelRoot(), 'assets', 'stubs', 'make_plugin');
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Validate the positional name argument up-front so the rest of the
     //    handler can assume a snake_case identifier.
     final name = ctx.input.argument('name') ?? '';
@@ -243,13 +242,13 @@ class MakePluginCommand extends ArtisanCommand {
     final targetRoot = _resolveTargetRoot(ctx, name: name);
     final magicMode = isMagic(ctx);
 
-    // 3. Resolve the artisan package root once; reused for stub dir + path
+    // 3. Resolve the dowel package root once; reused for stub dir + path
     //    computation. Resolve magic root only in magic mode so generic-mode
     //    invocations never depend on magic being installed.
-    final String artisanRoot;
+    final String dowelRoot;
     final String stubDir;
     try {
-      artisanRoot = await resolveArtisanRoot();
+      dowelRoot = await resolveDowelRoot();
       stubDir = await resolveStubDir();
     } on StateError catch (e) {
       ctx.output.error(e.message);
@@ -271,23 +270,23 @@ class MakePluginCommand extends ArtisanCommand {
       magicRoot = null;
     }
 
-    // 4. Build the replacement map. artisanPath is always present; magicPath
+    // 4. Build the replacement map. dowelPath is always present; magicPath
     //    is set only in magic mode (the generic pubspec stub does not
     //    reference it).
-    final artisanPath = ArtisanPathResolver.computeRelative(
-      artisanRoot: artisanRoot,
+    final dowelPath = DowelPathResolver.computeRelative(
+      dowelRoot: dowelRoot,
       targetDir: targetRoot,
     );
     final magicPath = magicRoot == null
         ? null
-        : ArtisanPathResolver.computeRelative(
-            artisanRoot: magicRoot,
+        : DowelPathResolver.computeRelative(
+            dowelRoot: magicRoot,
             targetDir: targetRoot,
           );
     final replacements = _buildReplacements(
       ctx,
       name: name,
-      artisanPath: artisanPath,
+      dowelPath: dowelPath,
       magicPath: magicPath,
     );
 
@@ -318,7 +317,7 @@ class MakePluginCommand extends ArtisanCommand {
     //     `lib/<name>.dart` (which our runtime.dart stub overwrites). Leaving
     //     it behind produces a compile error on the first `flutter analyze`.
     //     Our provider_test.dart stub renders to a different path
-    //     (test/<name>_artisan_provider_test.dart) so there is no conflict.
+    //     (test/<name>_dowel_provider_test.dart) so there is no conflict.
     final defaultTestFile = File(
       p.join(targetRoot, 'test', '${name}_test.dart'),
     );
@@ -415,7 +414,7 @@ class MakePluginCommand extends ArtisanCommand {
     required String stubBundleDir,
     required Map<String, String> replacements,
     required String targetRoot,
-    required ArtisanContext ctx,
+    required DowelContext ctx,
     Map<String, String> stubOverrides = const <String, String>{},
   }) {
     for (final entry in plan) {
@@ -435,18 +434,18 @@ class MakePluginCommand extends ArtisanCommand {
 
   /// Builds the replacement map shared by every stub render pass.
   ///
-  /// @param ctx          The active [ArtisanContext] (read for
+  /// @param ctx          The active [DowelContext] (read for
   ///                     `--bootstrap-command`).
   /// @param name         The validated snake_case plugin name.
-  /// @param artisanPath  Relative path from target to fluttersdk_artisan root.
+  /// @param dowelPath  Relative path from target to dowel root.
   /// @param magicPath    Relative path from target to magic root (magic mode
   ///                     only); omitted from the map when null so generic-mode
   ///                     pubspec stubs never reference it.
   /// @return A map suitable for [StubLoader.replace].
   Map<String, String> _buildReplacements(
-    ArtisanContext ctx, {
+    DowelContext ctx, {
     required String name,
-    required String artisanPath,
+    required String dowelPath,
     String? magicPath,
   }) {
     final pascalName = _pascalCase(name);
@@ -462,7 +461,7 @@ class MakePluginCommand extends ArtisanCommand {
       'pascalName': pascalName,
       'commandPrefix': commandPrefix,
       'bootstrapCommand': bootstrapCommand,
-      'artisanPath': artisanPath,
+      'dowelPath': dowelPath,
       if (magicPath != null) 'magicPath': magicPath,
     };
   }
@@ -473,7 +472,7 @@ class MakePluginCommand extends ArtisanCommand {
   /// conventional `<projectRoot>/packages/<name>` default. `FileHelper`
   /// failing to find a project root surfaces as the underlying exception,
   /// not a swallowed null.
-  String _resolveTargetRoot(ArtisanContext ctx, {required String name}) {
+  String _resolveTargetRoot(DowelContext ctx, {required String name}) {
     final override = resolvedPath(ctx);
     if (override != null && override.isNotEmpty) return override;
     final projectRoot = FileHelper.findProjectRoot();
@@ -486,12 +485,12 @@ class MakePluginCommand extends ArtisanCommand {
   ///
   /// 1. **Explicit flag**: the operator passed `--magic` on the command line.
   /// 2. **Auto-detect**: the running registry contains `magic:install`, which
-  ///    means the command was invoked through `MagicArtisanProvider`; the
+  ///    means the command was invoked through `MagicDowelProvider`; the
   ///    operator is already in a magic project and expects magic defaults.
   ///
-  /// @param ctx  The active [ArtisanContext] handed to [handle].
+  /// @param ctx  The active [DowelContext] handed to [handle].
   /// @return `true` when either trigger is active.
-  bool isMagic(ArtisanContext ctx) {
+  bool isMagic(DowelContext ctx) {
     final flagSet = ctx.input.option('magic') == true;
     final autoDetected = ctx.registry?.find('magic:install') != null;
     return flagSet || autoDetected;
@@ -504,9 +503,9 @@ class MakePluginCommand extends ArtisanCommand {
   /// `null` when neither flag is present, leaving the caller free to fall back
   /// to the `packages/<name>` convention.
   ///
-  /// @param ctx  The active [ArtisanContext] handed to [handle].
+  /// @param ctx  The active [DowelContext] handed to [handle].
   /// @return The resolved path string, or `null` when neither flag is set.
-  String? resolvedPath(ArtisanContext ctx) {
+  String? resolvedPath(DowelContext ctx) {
     return ctx.input.option('path') as String? ??
         ctx.input.option('target') as String?;
   }
@@ -520,15 +519,13 @@ class MakePluginCommand extends ArtisanCommand {
         .join();
   }
 
-  /// Strips the `magic_` / `fluttersdk_` convention prefix from a snake_case
-  /// package name. Falls back to the unchanged input when neither prefix
-  /// applies so `foo_bar` → `foo_bar` (no surprise mutilation for plugins
-  /// outside the fluttersdk org).
+  /// Strips the `magic_` convention prefix from a snake_case package name.
+  /// Falls back to the unchanged input when the prefix does not apply so
+  /// `foo_bar` → `foo_bar` (no surprise mutilation for other plugins).
   static String _stripConventionPrefix(String snake) {
-    for (final prefix in const ['magic_', 'fluttersdk_']) {
-      if (snake.startsWith(prefix) && snake.length > prefix.length) {
-        return snake.substring(prefix.length);
-      }
+    const prefix = 'magic_';
+    if (snake.startsWith(prefix) && snake.length > prefix.length) {
+      return snake.substring(prefix.length);
     }
     return snake;
   }

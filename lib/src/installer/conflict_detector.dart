@@ -64,9 +64,9 @@ class FileConflict {
 ///
 /// Detection reads from two JSON sources:
 ///
-/// 1. `<projectRoot>/.artisan/installed/<pluginName>.json` -- per-plugin
+/// 1. `<projectRoot>/.dowel/installed/<pluginName>.json` -- per-plugin
 ///    record that stores `stubHashes` (absolute path to md5 hex string).
-/// 2. `<projectRoot>/.artisan/installed/INDEX.json` -- global shared-file
+/// 2. `<projectRoot>/.dowel/installed/INDEX.json` -- global shared-file
 ///    index (V1: existence check only; absence of this file causes any
 ///    unrecorded file to be treated as an `'unmanaged-file'` conflict).
 ///
@@ -99,7 +99,7 @@ class ConflictDetector {
   ///
   /// @param ops         The staged [InstallOperation] list to inspect.
   /// @param pluginName  Identifier used to locate the per-plugin hash record
-  ///                    at `.artisan/installed/<pluginName>.json`.
+  ///                    at `.dowel/installed/<pluginName>.json`.
   /// @return An empty list when no conflicts exist, or a list of
   ///         [FileConflict]s describing each problematic file.
   List<FileConflict> detect(
@@ -304,14 +304,14 @@ class ConflictDetector {
   }
 
   /// Loads and decodes the per-plugin JSON record from
-  /// `<projectRoot>/.artisan/installed/<pluginName>.json`.
+  /// `<projectRoot>/.dowel/installed/<pluginName>.json`.
   ///
   /// @param pluginName  The plugin identifier.
   /// @return The parsed JSON map, or `null` when the record file is absent.
   Map<String, dynamic>? _loadPluginRecord(String pluginName) {
     final recordPath = p.join(
       _ctx.projectRoot,
-      '.artisan',
+      '.dowel',
       'installed',
       '$pluginName.json',
     );

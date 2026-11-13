@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -9,7 +9,7 @@ void main() {
     late Directory tempHome;
 
     setUp(() {
-      tempHome = Directory.systemTemp.createTempSync('artisan_status_');
+      tempHome = Directory.systemTemp.createTempSync('dowel_status_');
       StateFile.debugHomeOverride = tempHome.path;
     });
 
@@ -31,7 +31,7 @@ void main() {
     test('emits {"running":false} when no state file', () async {
       final command = StatusCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -50,7 +50,7 @@ void main() {
       });
       final command = StatusCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -74,7 +74,7 @@ void main() {
       });
       final command = StatusCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -92,7 +92,7 @@ void main() {
       });
       final command = StatusCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
@@ -106,10 +106,10 @@ void main() {
       // an agent reading `running: true` from a checkout with nothing up
       // would conclude its own app is live.
       final Directory sibling =
-          Directory.systemTemp.createTempSync('artisan_status_sibling_');
+          Directory.systemTemp.createTempSync('dowel_status_sibling_');
       addTearDown(() => sibling.deleteSync(recursive: true));
 
-      final Directory dir = Directory('${tempHome.path}/.artisan');
+      final Directory dir = Directory('${tempHome.path}/.dowel');
       dir.createSync(recursive: true);
       File('${dir.path}/state.json').writeAsStringSync(
         jsonEncode(<String, dynamic>{
@@ -120,7 +120,7 @@ void main() {
 
       final output = BufferedOutput();
       await StatusCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(output.content, contains('"ownedByThisProject":false'));
@@ -128,7 +128,7 @@ void main() {
     });
 
     test('marks a session that belongs to this project', () async {
-      final Directory dir = Directory('${tempHome.path}/.artisan');
+      final Directory dir = Directory('${tempHome.path}/.dowel');
       dir.createSync(recursive: true);
       File('${dir.path}/state.json').writeAsStringSync(
         jsonEncode(<String, dynamic>{
@@ -139,7 +139,7 @@ void main() {
 
       final output = BufferedOutput();
       await StatusCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(output.content, contains('"ownedByThisProject":true'));
@@ -151,7 +151,7 @@ void main() {
       // and it said `running: false` about an app that was serving. It now
       // says running, and says what is missing.
       final Directory tempHome =
-          Directory.systemTemp.createTempSync('artisan_status_booting_');
+          Directory.systemTemp.createTempSync('dowel_status_booting_');
       addTearDown(() {
         StateFile.debugHomeOverride = null;
         StateFile.debugProjectRootOverride = null;
@@ -170,7 +170,7 @@ void main() {
 
       final output = BufferedOutput();
       final int code = await StatusCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(code, 0);

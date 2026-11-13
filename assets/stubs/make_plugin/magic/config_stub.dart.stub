@@ -1,7 +1,7 @@
 /// {{ pascalName }} configuration template.
 ///
 /// Rendered into `lib/config/{{ name }}.dart` when the consumer runs
-/// `artisan {{ commandPrefix }}:install`. The `{{ configFilePath }}` token is
+/// `dowel {{ commandPrefix }}:install`. The `{{ configFilePath }}` token is
 /// resolved by [ManifestInstaller] at install time from the prompt answer
 /// declared in `install.yaml`.
 class {{ pascalName }}Config {

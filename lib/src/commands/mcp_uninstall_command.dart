@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
-/// `artisan mcp:uninstall` — remove the `fluttersdk` MCP server entry from
-/// `.mcp.json`. Handles both the legacy `fluttersdk_mcp:server` args shape and
-/// the new `fluttersdk_artisan:mcp` args shape; the key name is `fluttersdk`
-/// in both cases. Preserves all other entries. Idempotent.
-class McpUninstallCommand extends ArtisanCommand {
+/// `dowel mcp:uninstall`: remove the `dowel` MCP server entry from
+/// `.mcp.json`, whatever its args shape. Entries written by earlier releases
+/// live under the `fluttersdk` key and are not touched: delete them by hand.
+/// Preserves all other entries. Idempotent.
+class McpUninstallCommand extends DowelCommand {
   @override
   String get name => 'mcp:uninstall';
 
   @override
   String get description =>
-      'Remove the fluttersdk MCP server entry from .mcp.json (preserves other entries).';
+      'Remove the dowel MCP server entry from .mcp.json (preserves other entries).';
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -28,7 +28,7 @@ class McpUninstallCommand extends ArtisanCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final path = (ctx.input.option('path') as String?) ?? '.mcp.json';
     final file = File(path);
 
@@ -53,21 +53,21 @@ class McpUninstallCommand extends ArtisanCommand {
     // 3. Guard: warn and exit cleanly when the entry is already absent
     //    (handles both the idempotent second-run case and the never-installed
     //    case).
-    if (!servers.containsKey('fluttersdk')) {
+    if (!servers.containsKey('dowel')) {
       ctx.output.warning(
-        'fluttersdk entry not present in $path; nothing to uninstall.',
+        'dowel entry not present in $path; nothing to uninstall.',
       );
       return 0;
     }
 
     // 4. Remove the entry and persist the updated config.
-    servers.remove('fluttersdk');
+    servers.remove('dowel');
     config['mcpServers'] = servers;
     await file.writeAsString(
       '${const JsonEncoder.withIndent('  ').convert(config)}\n',
     );
 
-    ctx.output.success('Removed fluttersdk MCP server entry from $path.');
+    ctx.output.success('Removed dowel MCP server entry from $path.');
     return 0;
   }
 }

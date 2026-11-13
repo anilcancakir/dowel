@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -20,7 +20,7 @@ void main() {
     String abs(String relative) => p.join(tempDir.path, relative);
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_vfs_real_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_vfs_real_');
       fs = const RealFs();
     });
 
@@ -281,7 +281,7 @@ void main() {
     test('md5 matches RealFs hash for identical content', () {
       // Cross-implementation parity: the same bytes yield the same digest
       // regardless of where they live.
-      final realDir = Directory.systemTemp.createTempSync('artisan_vfs_xref_');
+      final realDir = Directory.systemTemp.createTempSync('dowel_vfs_xref_');
       addTearDown(() {
         if (realDir.existsSync()) realDir.deleteSync(recursive: true);
       });

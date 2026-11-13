@@ -78,13 +78,13 @@ import 'install_transaction.dart';
 /// ```dart
 /// final installer = PluginInstaller(ctx, pluginName: 'magic_logger');
 /// final result = await installer
-///   .startWith((ctx) => ctx.artisanContext.output.info('Installing...'))
+///   .startWith((ctx) => ctx.dowelContext.output.info('Installing...'))
 ///   .addDependency('intl', '^0.20.0')
 ///   .publishConfig(stubName: 'install/logger.dart.stub',
 ///                  targetPath: 'lib/config/logger.dart')
 ///   .injectProvider('LoggerServiceProvider')
 ///   .ask(varName: 'logPath', question: 'Log path?', defaultValue: '/tmp/log')
-///   .endWith((ctx) => ctx.artisanContext.output.success('Run "flutter pub get"'))
+///   .endWith((ctx) => ctx.dowelContext.output.success('Run "flutter pub get"'))
 ///   .commit(dryRun: false, force: false);
 /// ```
 class PluginInstaller {
@@ -92,7 +92,7 @@ class PluginInstaller {
   /// [pluginName].
   ///
   /// [pluginName] threads through [InstallTransaction] to the
-  /// `.artisan/installed/<pluginName>.json` record file path.
+  /// `.dowel/installed/<pluginName>.json` record file path.
   ///
   /// @param ctx         The active [InstallContext] (fs / prompt / stubs /
   ///                    clock / output).

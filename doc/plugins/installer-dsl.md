@@ -3,8 +3,6 @@
 The `PluginInstaller` class is the procedural escape hatch for plugin install logic that the
 declarative `install.yaml` manifest cannot express.
 
-## Table of Contents
-
 - [When to Use](#when-to-use)
 - [Two Phases: IMMEDIATE vs DEFERRED](#two-phases-immediate-vs-deferred)
 - [DSL Method Reference](#dsl-method-reference)
@@ -20,10 +18,11 @@ declarative `install.yaml` manifest cannot express.
   - [Lifecycle Hooks](#lifecycle-hooks)
 - [Atomic Commit Semantics](#atomic-commit-semantics)
 - [Example](#example)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="when-to-use"></a>
 ## When to Use
 
 Prefer `install.yaml` for straightforward installs. Use the procedural DSL when:
@@ -39,6 +38,7 @@ When none of these apply, `install.yaml` + `ManifestInstaller` is simpler and pr
 
 ---
 
+<a name="two-phases-immediate-vs-deferred"></a>
 ## Two Phases: IMMEDIATE vs DEFERRED
 
 Every chain method falls into one of two categories. This split determines whether a method's
@@ -50,7 +50,7 @@ IMMEDIATE methods run synchronously the moment they appear in the chain. They do
 `InstallOperation`; they produce a side effect right now.
 
 | Method | Effect |
-|---|---|
+|:---|:---|
 | `ask(...)` | Drives `InstallContext.prompt.ask(...)`; stores the answer in `_vars` |
 | `confirm(...)` | Drives `InstallContext.prompt.confirm(...)`; stores `'true'` or `'false'` |
 | `choice(...)` | Drives `InstallContext.prompt.choice(...)`; stores the selected option |
@@ -73,6 +73,7 @@ user confirms, so the shell command still executes deferredly during commit.
 
 ---
 
+<a name="dsl-method-reference"></a>
 ## DSL Method Reference
 
 All methods return `this` (chainable) unless noted otherwise.
@@ -80,7 +81,7 @@ All methods return `this` (chainable) unless noted otherwise.
 ### Prompts
 
 | Method | Description |
-|---|---|
+|:---|:---|
 | `ask(varName:, question:, [defaultValue:, validator:])` | Free-text prompt; stores answer in `vars[varName]` |
 | `confirm(varName:, question:, [defaultValue:])` | Yes/no prompt; stores `'true'` or `'false'` in `vars[varName]` |
 | `choice(varName:, question:, options:, [defaultValue:])` | Pick-one-of prompt; stores selected option string in `vars[varName]` |
@@ -88,7 +89,7 @@ All methods return `this` (chainable) unless noted otherwise.
 ### Pubspec Operations
 
 | Method | Operation | Description |
-|---|---|---|
+|:---|:---|:---|
 | `addDependency(name, version)` | `AddDependency` | Adds a runtime dependency to `pubspec.yaml` |
 | `addDevDependency(name, version)` | `AddDependency(isDev: true)` | Adds a dev dependency to `pubspec.yaml` |
 | `addPathDependency(name, path)` | `AddPathDependency` | Adds a relative-path dependency to `pubspec.yaml` |
@@ -98,7 +99,7 @@ All methods return `this` (chainable) unless noted otherwise.
 ### File Operations
 
 | Method | Operation | Description |
-|---|---|---|
+|:---|:---|:---|
 | `publishConfig(stubName:, targetPath:, [replacements:])` | `PublishFile` | Loads a stub, applies token replacements, writes to `targetPath` |
 | `writeFile(targetPath:, content:)` | `WriteFile` | Writes raw programmatic content to `targetPath` |
 | `deleteFile(targetPath)` | `DeleteFile` | Deletes `targetPath` if it exists (idempotent) |
@@ -111,7 +112,7 @@ allow source values to overwrite conflicting target keys.
 ### Injection Operations
 
 | Method | Operation | Description |
-|---|---|---|
+|:---|:---|:---|
 | `injectImport(targetFile:, importStatement:)` | `InjectImport` | Appends an import line to any Dart file (idempotent) |
 | `injectBefore(targetFile:, pattern:, code:, [fallbackPattern:])` | `InjectBeforePattern` | Inserts code before the first match of `pattern` in `targetFile` |
 | `injectAfter(targetFile:, pattern:, code:, [fallbackPattern:])` | `InjectAfterPattern` | Inserts code after the first match of `pattern` in `targetFile` |
@@ -182,7 +183,7 @@ neither field.
 ### Android Operations
 
 | Method | Operation | Description |
-|---|---|---|
+|:---|:---|:---|
 | `injectAndroidPermission(permission)` | `InjectAndroidPermission` | Adds `<uses-permission>` to `AndroidManifest.xml`; silently skipped on non-Android consumers |
 | `injectAndroidMetaData(name:, value:)` | `InjectAndroidMetaData` | Adds `<meta-data>` inside `<application>` in `AndroidManifest.xml` |
 | `injectAndroidActivity(name:, exported:, [taskAffinity:], [intentFilters:])` | `InjectAndroidActivity` | Adds an `<activity>` with its `<intent-filter>` elements inside `<application>` in `AndroidManifest.xml`; idempotent by content (see below) |
@@ -192,7 +193,7 @@ neither field.
 ### iOS and macOS Operations
 
 | Method | Operation | Description |
-|---|---|---|
+|:---|:---|:---|
 | `injectInfoPlistKey(key:, value:, [platform:])` | `InjectInfoPlistKey` | Sets a key in `ios/Runner/Info.plist` or `macos/Runner/Info.plist`; value may be `String`, `bool`, or `List<String>` |
 | `injectInfoPlistUrlScheme(scheme:, [platform:])` | `InjectInfoPlistUrlScheme` | Registers a custom URL scheme under `CFBundleURLTypes` in `ios/Runner/Info.plist` or `macos/Runner/Info.plist`; `scheme` is written without the `://` suffix |
 | `injectEntitlement(platform:, key:, value:)` | `InjectEntitlement` | Sets a key in every entitlements file the application target signs with; when the project names none, writes `<platform>/Runner/Runner.entitlements` AND `CODE_SIGN_ENTITLEMENTS` into `<platform>/Runner.xcodeproj/project.pbxproj`; `platform` is `'ios'` or `'macos'`; value may be `String`, `bool` or `List<String>` |
@@ -206,7 +207,7 @@ Platform-scoped ops are silently skipped when the target platform directory is a
 renders an empty affinity, `null` omits the attribute) and a list of `AndroidIntentFilter`, each with
 `autoVerify`, `actions`, `categories` and a list of `AndroidIntentData` (`scheme`, `host`, `path`,
 `pathPrefix`). `AndroidIntentFilter` and `AndroidIntentData` come from
-`package:fluttersdk_artisan/artisan.dart`.
+`package:dowel/dowel.dart`.
 
 ```dart
 installer.injectAndroidActivity(
@@ -239,7 +240,7 @@ the file keeps its bytes. The write is helper-backed, so the transaction's `.tmp
 cover it.
 
 | Manifest state | Result |
-|---|---|
+|:---|:---|
 | No `<activity>` with this `android:name` under `<application>` | The element is inserted |
 | One exists with an equal set of intent filters (same `autoVerify`, actions, categories and `<data>` attributes, in any order) | No-op |
 | One exists with a different set | Left alone, never rewritten; the install finishes and warns with the block it expected so you can reconcile it by hand |
@@ -296,20 +297,20 @@ and the project file is left untouched in every one of these cases.
 ### Web Operations
 
 | Method | Operation | Description |
-|---|---|---|
+|:---|:---|:---|
 | `injectIntoWebHead(content)` | `InjectIntoWebHead` | Inserts raw HTML before `</head>` in `web/index.html`; skipped on non-web consumers |
 | `addWebMetaTag(attributes)` | `AddWebMetaTag` | Adds a `<meta>` element with the given attribute map to `web/index.html` |
 
 ### Environment Operations
 
 | Method | Operation | Description |
-|---|---|---|
+|:---|:---|:---|
 | `injectEnvVar(key:, value:, [comment:])` | `InjectEnvVar` | Writes `KEY=value` to `.env`; creates the file when absent; an optional `comment` is written as `# <comment>` above the key line |
 
 ### Shell Operations
 
 | Method | Phase | Description |
-|---|---|---|
+|:---|:---|:---|
 | `runShell(command:, [args:, workingDir:])` | DEFERRED | Enqueues a `RunShell` op that executes after all file mutations have landed |
 | `askToRunShell(prompt:, command:, [args:])` | HYBRID | Prompts immediately; enqueues `RunShell` only when the user confirms |
 
@@ -320,12 +321,13 @@ mutations independently.
 ### Lifecycle Hooks
 
 | Method | Phase | Description |
-|---|---|---|
+|:---|:---|:---|
 | `startWith(hook)` | IMMEDIATE (registration); fires pre-commit | `void Function(InstallContext)` invoked before op dispatch, on every outcome |
 | `endWith(hook)` | IMMEDIATE (registration); fires post-Success only | Invoked after `Success`; never fires on `DryRun`, `Conflict`, or `Error` |
 
 ---
 
+<a name="atomic-commit-semantics"></a>
 ## Atomic Commit Semantics
 
 `commit()` delegates to `InstallTransaction.commit()` (see
@@ -341,7 +343,7 @@ mutations independently.
 5. **Rename into place** (line 193): `.tmp` files are renamed over their targets; deletes are
    applied. POSIX `rename(2)` is atomic, so readers never see partial state. Failures past this
    point surface as `Error(rolledBack: false)`.
-6. **Install record** (line 213): `.artisan/installed/<plugin>.json` is written BEFORE shell ops
+6. **Install record** (line 213): `.dowel/installed/<plugin>.json` is written BEFORE shell ops
    so the install is always reversible even when a shell step fails later.
 7. **Shell ops** (line 228): `RunShell` ops execute last. A non-zero exit returns `Error`; the
    record from phase 6 stays intact.
@@ -360,15 +362,16 @@ anchor-bracket markers for reversible injections.
 
 ---
 
+<a name="example"></a>
 ## Example
 
 Pattern from `assets/stubs/make_plugin/magic/install_command.dart.stub`, with a conditional
 backend branch illustrating IMMEDIATE prompt + DEFERRED ops:
 
 ```dart
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
-class AnalyticsInstallCommand extends ArtisanInstallCommand {
+class AnalyticsInstallCommand extends DowelInstallCommand {
   @override
   String get signature => 'analytics:install $baseFlags';
 
@@ -376,10 +379,10 @@ class AnalyticsInstallCommand extends ArtisanInstallCommand {
   String get description => 'Install the Analytics plugin into the host project.';
 
   @override
-  String pluginName(ArtisanContext ctx) => 'analytics';
+  String pluginName(DowelContext ctx) => 'analytics';
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final installer = PluginInstaller(buildContext(ctx), pluginName: pluginName(ctx));
 
     // 1. IMMEDIATE prompt: answer is readable in vars before any op is enqueued.
@@ -422,7 +425,8 @@ class AnalyticsInstallCommand extends ArtisanInstallCommand {
 }
 ```
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [install-yaml.md](install-yaml.md): declarative manifest schema; preferred for straightforward installs.
 - [authoring.md](authoring.md): end-to-end plugin authoring guide (scaffold, provider registration, publish checklist).

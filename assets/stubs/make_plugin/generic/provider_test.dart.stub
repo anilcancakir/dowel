@@ -2,9 +2,9 @@ import 'package:{{ name }}/cli.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('{{ pascalName }}ArtisanProvider', () {
+  group('{{ pascalName }}DowelProvider', () {
     test('registers install + uninstall commands', () {
-      final provider = {{ pascalName }}ArtisanProvider();
+      final provider = {{ pascalName }}DowelProvider();
       final commands = provider.commands();
 
       expect(commands.length, 2);

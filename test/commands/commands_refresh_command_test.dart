@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -18,8 +18,8 @@ void main() {
       expect(cmd.description, contains('index'));
     });
 
-    test('extends ArtisanCommand', () {
-      expect(cmd, isA<ArtisanCommand>());
+    test('extends DowelCommand', () {
+      expect(cmd, isA<DowelCommand>());
     });
   });
 }

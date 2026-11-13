@@ -23,7 +23,7 @@
 /// ## Uninstall semantics (v1 limitations)
 ///
 /// `uninstall()` reads the install record at
-/// `.artisan/installed/<pluginName>.json`, reconstructs each recorded op
+/// `.dowel/installed/<pluginName>.json`, reconstructs each recorded op
 /// from its persisted typed payload, replays through [reverseOf], and
 /// commits a fresh [InstallTransaction] carrying the reverse ops. The
 /// install record carries the full typed payload for every op subclass
@@ -47,7 +47,7 @@
 /// ```dart
 /// final manifest = ManifestParser.parseFile('install.yaml');
 /// final installer = ManifestInstaller(
-///   InstallContext.real(artisanCtx),
+///   InstallContext.real(dowelCtx),
 ///   manifest,
 ///   promptOverrides: {'configPath': '/etc/example.conf'},
 /// );
@@ -119,7 +119,7 @@ class ManifestInstaller {
     // plugin author's banner text. Dry-run / Conflict / Error short-circuit
     // the message because the install did not actually land.
     if (result is Success && _manifest.postInstall.message != null) {
-      _ctx.artisanContext.output.info(_manifest.postInstall.message!);
+      _ctx.dowelContext.output.info(_manifest.postInstall.message!);
     }
 
     return result;
@@ -217,7 +217,7 @@ class ManifestInstaller {
     }
 
     if (skipped.isNotEmpty) {
-      _ctx.artisanContext.output.warning(
+      _ctx.dowelContext.output.warning(
         'ManifestInstaller.uninstall: skipped ${skipped.length} op(s) without '
         'a clean reverse: ${skipped.join(', ')}. The Plugin Authoring Guide '
         'lists the V1 limitations.',
@@ -263,7 +263,7 @@ class ManifestInstaller {
   ) {
     // Resolve the plugin's own assets/stubs/ directory and render each stub
     // through it directly. The PublishFile op's dispatcher uses _ctx.stubs.load
-    // with the substrate's default search paths (fluttersdk_artisan's
+    // with the substrate's default search paths (dowel's
     // assets/stubs), which would never find a plugin-shipped stub. Inlining
     // the render + writeFile here threads the stub through the plugin's
     // package root via Isolate.resolvePackageUri.
@@ -567,7 +567,7 @@ class ManifestInstaller {
 
   String _recordPath() => p.join(
         _ctx.projectRoot,
-        '.artisan',
+        '.dowel',
         'installed',
         '${_manifest.pluginName}.json',
       );

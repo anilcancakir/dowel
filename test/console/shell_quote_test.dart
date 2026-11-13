@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -36,15 +36,15 @@ void main() {
 
     test('preserves bareword path-like tokens', () {
       expect(
-        shellQuoteTokens(['/Users/anilcan/.artisan/state.json']),
-        '/Users/anilcan/.artisan/state.json',
+        shellQuoteTokens(['/Users/anilcan/.dowel/state.json']),
+        '/Users/anilcan/.dowel/state.json',
       );
     });
 
     test('quotes path with space', () {
       expect(
-        shellQuoteTokens(['/Users/anil can/.artisan/state.json']),
-        "'/Users/anil can/.artisan/state.json'",
+        shellQuoteTokens(['/Users/anil can/.dowel/state.json']),
+        "'/Users/anil can/.dowel/state.json'",
       );
     });
 

@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -15,10 +15,10 @@ void main() {
       expect(command.description, isNotEmpty);
     });
 
-    test('inherits ArtisanCommand contract', () {
+    test('inherits DowelCommand contract', () {
       final command = TinkerCommand();
 
-      expect(command, isA<ArtisanCommand>());
+      expect(command, isA<DowelCommand>());
     });
 
     test('Tinker.casters chain is consulted by every invocation (contract)',
@@ -46,7 +46,7 @@ void main() {
       // one-shot path is wired (REPL would never even reach evaluate without
       // stdin input).
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(const {'eval': '1 + 1'}),
         output,
       );
@@ -70,7 +70,7 @@ void main() {
       // non-tty test returns null (EOF) so the loop exits immediately. The
       // banner + closing line are written; exit is 0.
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final exit = await TinkerCommand().handle(ctx);
 

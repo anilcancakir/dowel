@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -10,7 +10,7 @@ void main() {
     late String htmlPath;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_html_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_html_');
       htmlPath = p.join(tempDir.path, 'index.html');
       File(htmlPath).writeAsStringSync(
         '<!DOCTYPE html>\n<html>\n<head>\n<title>X</title>\n</head>\n<body></body>\n</html>\n',

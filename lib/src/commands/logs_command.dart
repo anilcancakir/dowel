@@ -2,13 +2,13 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 
 /// Print or tail the captured `flutter run` stdout/stderr log.
-class LogsCommand extends ArtisanCommand {
+class LogsCommand extends DowelCommand {
   @override
   String get name => 'logs';
 
@@ -24,10 +24,10 @@ class LogsCommand extends ArtisanCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // The log lives beside the state file, in this project's session
-    // directory. An app started by an older artisan wrote it to the shared
-    // `~/.artisan/` instead, so fall back there rather than reporting no
+    // directory. An app started by an older dowel wrote it to the shared
+    // `~/.dowel/` instead, so fall back there rather than reporting no
     // log for a run that has one.
     final sessionLog =
         File('${File(StateFile.path).parent.path}/flutter-dev.log');
@@ -36,7 +36,7 @@ class LogsCommand extends ArtisanCommand {
         : File('${StateFile.homeDir}/flutter-dev.log');
     if (!logFile.existsSync()) {
       ctx.output.warning(
-        'Log file not found at ${logFile.path}. Run `artisan start` first.',
+        'Log file not found at ${logFile.path}. Run `dowel start` first.',
       );
       return 1;
     }

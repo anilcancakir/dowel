@@ -1,4 +1,4 @@
-/// Thrown by [ArtisanRegistry.registerMcpToolsFor] when two providers register
+/// Thrown by [DowelRegistry.registerMcpToolsFor] when two providers register
 /// an MCP tool with the same name.
 ///
 /// MCP tool names map 1:1 to the JSON-RPC method surface exposed to the LLM
@@ -6,9 +6,9 @@
 /// another's, making the resulting behaviour unpredictable and undebuggable.
 /// Fail-fast at registration time forces the plugin author to rename the tool
 /// before any client ever connects, mirroring the semantics of
-/// [ArtisanCommandCollisionException] at the command layer.
-final class ArtisanMcpToolCollisionException implements Exception {
-  ArtisanMcpToolCollisionException({
+/// [DowelCommandCollisionException] at the command layer.
+final class DowelMcpToolCollisionException implements Exception {
+  DowelMcpToolCollisionException({
     required this.toolName,
     required this.existingProvider,
     required this.newProvider,

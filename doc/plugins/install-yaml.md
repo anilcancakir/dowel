@@ -20,17 +20,20 @@ Canonical schema for the declarative `install.yaml` manifest consumed by `plugin
 - [post_install](#post_install)
 - [bootstrap_command](#bootstrap_command)
 - [Complete Example](#complete-example)
+- [Related Documentation](#related-documentation)
 
+<a name="overview"></a>
 ## Overview
 
 `install.yaml` is the declarative manifest that drives `plugin:install`'s manifest flow. The file is parsed by `ManifestParser` (`lib/src/installer/manifest_parser.dart`) into a typed `InstallManifest` (`lib/src/installer/install_manifest.dart`) and consumed by `ManifestInstaller`, which translates each section into deferred `InstallOperation`s on the `PluginInstaller` transaction. Nothing writes to disk until `commit(dryRun:, force:)` fires.
 
 The schema is intentionally tolerant: every section except `plugin_name` is optional, every section factory returns a sensible empty default when absent, and partial manifests parse cleanly. Schema violations raise `ManifestValidationException`; raw YAML syntax errors raise `FormatException`.
 
+<a name="top-level-fields"></a>
 ## Top-Level Fields
 
 | Field | Type | Required | Default | Source |
-|-------|------|----------|---------|--------|
+|:---|:---|:---|:---|:---|
 | `plugin_name` | string | yes | (none) | `manifest_parser.dart:112` |
 | `dependencies` | map | no | empty | `manifest_parser.dart:124` |
 | `publish` | map | no | empty | `manifest_parser.dart:127` |
@@ -43,9 +46,10 @@ The schema is intentionally tolerant: every section except `plugin_name` is opti
 | `post_install` | map | no | empty | `manifest_parser.dart:138` |
 | `bootstrap_command` | string | no | `null` | `manifest_parser.dart:141` |
 
+<a name="plugin_name"></a>
 ## plugin_name
 
-The plugin's pubspec package name. Used to scope `.artisan/installed/<plugin>.json` reversibility records, the `plugins.json` registry entry, and the generated `lib/app/_plugins.g.dart` import line.
+The plugin's pubspec package name. Used to scope `.dowel/installed/<plugin>.json` reversibility records, the `plugins.json` registry entry, and the generated `lib/app/_plugins.g.dart` import line.
 
 **Validation regex** (`manifest_parser.dart:31`):
 
@@ -59,12 +63,13 @@ The value must start with a lowercase letter or underscore, followed by any numb
 plugin_name: example_plugin
 ```
 
+<a name="dependencies"></a>
 ## dependencies
 
 Pubspec mutations. The `dependencies:` map (note the YAML key is plural, but the typed model is `PubspecDeps`) carries three sub-keys, all optional.
 
 | Sub-key | Type | Translates to |
-|---------|------|---------------|
+|:---|:---|:---|
 | `pubspec` | `Map<String, String>` | `dependencies:` entries in the consumer's `pubspec.yaml` |
 | `dev_pubspec` | `Map<String, String>` | `dev_dependencies:` entries |
 | `pubspec_assets` | `List<String>` | Paths appended under `flutter.assets:` |
@@ -81,12 +86,13 @@ dependencies:
     - assets/example/
 ```
 
+<a name="publish"></a>
 ## publish
 
 Stub-name to target-path mapping. Each entry becomes a `publishConfig` operation: the named stub is read from the plugin's `install/` directory, placeholder-substituted, and written to the target path inside the consumer project.
 
 | Key shape | Value shape |
-|-----------|-------------|
+|:---|:---|
 | Stub name (string) | Target path (string) |
 
 Non-string values raise `FormatException('publish entry "<key>" must map to a String target path; got <type>.')`.
@@ -96,12 +102,13 @@ publish:
   install/example_config.dart.stub: lib/config/example.dart
 ```
 
+<a name="json_merge"></a>
 ## json_merge
 
 Map of target JSON file path to merge spec. Each entry triggers a `mergeJson` operation: the source stub is parsed as JSON, then merged into the target file according to `additive`.
 
 | Field | Type | Required | Default | Notes |
-|-------|------|----------|---------|-------|
+|:---|:---|:---|:---|:---|
 | `source` | string | yes | (none) | Stub key whose content is parsed as JSON. Missing or non-string raises `FormatException('json_merge entry missing required "source" string.')`. |
 | `additive` | bool | no | `true` | When `true`, existing keys in the target file survive a collision. When `false`, source keys overwrite target keys. |
 
@@ -112,12 +119,13 @@ json_merge:
     additive: true
 ```
 
+<a name="magic"></a>
 ## magic
 
 Magic-framework integration block. Every slot is optional; the section defaults to an empty integration when absent.
 
 | Field | Type | Translates to |
-|-------|------|---------------|
+|:---|:---|:---|
 | `provider` | string (PascalCase) | `injectProvider(provider)` |
 | `config_factory` | string | `injectConfigFactory(name)` |
 | `routes` | string | `injectRoute(name)` |
@@ -137,6 +145,7 @@ magic:
   routes: registerExampleRoutes
 ```
 
+<a name="native"></a>
 ## native
 
 Per-platform native configuration. Each platform sub-section is independently optional.
@@ -144,7 +153,7 @@ Per-platform native configuration. Each platform sub-section is independently op
 ### native.android
 
 | Field | Type | Translates to |
-|-------|------|---------------|
+|:---|:---|:---|
 | `permissions` | `List<String>` | `<uses-permission>` entries in `AndroidManifest.xml` |
 | `meta_data` | `Map<String, String>` | `<meta-data>` entries in `AndroidManifest.xml` |
 | `activities` | `List<{name, exported?, task_affinity?, intent_filters?}>` | `<activity>` elements inside `<application>` in `AndroidManifest.xml` |
@@ -188,7 +197,7 @@ native:
 ### native.ios
 
 | Field | Type | Notes |
-|-------|------|-------|
+|:---|:---|:---|
 | `info_plist` | `Map<String, Object>` | Values may be String, bool, num, or List. Runtime-type branching happens in the dispatcher. |
 | `url_schemes` | `List<String>` | Custom URL schemes registered under `CFBundleURLTypes`, written without the `://` suffix. One `CFBundleURLTypes` dict (role `Editor`) is appended per scheme; a scheme any existing dict already lists is skipped. |
 | `entitlements` | `Map<String, Object>` | Values may be String, bool, or a list of strings. Written to every entitlements file the application target signs with; see below. |
@@ -221,7 +230,7 @@ Shape mirrors `native.ios` exactly. Same field set (`info_plist`, `url_schemes`,
 ### native.web
 
 | Field | Type | Translates to |
-|-------|------|---------------|
+|:---|:---|:---|
 | `head_scripts` | `List<String>` | HTML snippets injected before `</head>` in `web/index.html` |
 | `meta_tags` | `List<Map<String, String>>` | `<meta>` attribute maps appended to `web/index.html` |
 
@@ -234,12 +243,13 @@ native:
       - {name: "description", content: "Example plugin metadata"}
 ```
 
+<a name="env"></a>
 ## env
 
 Environment variables to inject into the consumer's `.env`. Map of var name to spec.
 
 | Field | Type | Required | Notes |
-|-------|------|----------|-------|
+|:---|:---|:---|:---|
 | `default` | scalar | yes | Default value written into `.env`. Coerced via `toString()`. Missing raises `FormatException('env entry missing required "default".')`. |
 | `comment` | string | no | Advisory documentation. The v1 dispatcher does NOT emit the comment into the `.env` file. |
 
@@ -252,12 +262,13 @@ env:
     comment: "Example plugin runtime config"
 ```
 
+<a name="prompts"></a>
 ## prompts
 
 Ordered list of prompts driven immediately at the start of install (before any deferred operation runs). Prompt answers populate the prompt-result map that `placeholders` interpolates.
 
 | Field | Type | Required | Notes |
-|-------|------|----------|-------|
+|:---|:---|:---|:---|
 | `key` | string | yes | Unique within the prompts list. Duplicates raise `ManifestValidationException('Duplicate prompt key "<key>" in prompts list.')`. |
 | `type` | string | yes | One of `string`, `bool`, `choice`. |
 | `question` | string | yes | Human-readable question text. |
@@ -273,6 +284,7 @@ prompts:
   - {key: enableFeature, type: bool, default: false, question: "Enable optional feature?"}
 ```
 
+<a name="placeholders"></a>
 ## placeholders
 
 Map of placeholder key to value template. Values may reference prompt answers via `{{ prompts.KEY }}`. Whitespace around the dotted reference is optional, so `{{prompts.x}}` and `{{ prompts.x }}` are both accepted.
@@ -291,12 +303,13 @@ placeholders:
   runtimeMode: "{{ prompts.mode }}"
 ```
 
+<a name="post_install"></a>
 ## post_install
 
 Post-install shell operations plus a final info message. Every sub-field is optional.
 
 | Field | Type | Notes |
-|-------|------|-------|
+|:---|:---|:---|
 | `run` | `List<{cmd, args?}>` | Shell commands run unconditionally at commit phase. `cmd` is required; missing raises `FormatException('Shell spec missing required "cmd".')`. |
 | `ask_to_run` | `List<{prompt, cmd, args?}>` | Shell commands run only after user confirmation. The prompt fires immediately at install time; on yes the shell call is deferred. Missing `prompt` or `cmd` raises `FormatException('ask_to_run entry requires "prompt" and "cmd" strings.')`. |
 | `message` | string | Optional info message emitted after a Success result. |
@@ -314,15 +327,16 @@ post_install:
     example_plugin installed.
 ```
 
+<a name="bootstrap_command"></a>
 ## bootstrap_command
 
 Optional plugin-specific bootstrap command name AUTO-RUN after a Success result. On a non-dry-run install, once the plugin is registered (`plugins.json` + `lib/app/_plugins.g.dart` regenerated), `plugin:install` spawns the declared command as a fresh dispatcher subprocess so the just-registered plugin command actually executes. The chained command is a plugin command that was only just written to `_plugins.g.dart`, so it is not loaded in the current process; a subprocess is the only way to reach it.
 
 Dispatcher resolution:
 
-1. `./bin/fsa <name> --non-interactive` when a `bin/fsa` wrapper exists at the consumer project root (the AOT fast-CLI path).
-2. Otherwise `dart run <consumer>:artisan <name> --non-interactive`, deriving the consumer package name from the project's `pubspec.yaml` `name:` field.
-3. When neither resolves, `plugin:install` prints the one-line bootstrap hint (`Bootstrap with: artisan <name>`) instead, so the operator can run it manually.
+1. `./bin/dowel <name> --non-interactive` when a `bin/dowel` wrapper exists at the consumer project root (the AOT fast-CLI path).
+2. Otherwise `dart run :dispatcher <name> --non-interactive` when `bin/dispatcher.dart` exists (Windows, or a failed fast-CLI build).
+3. When neither resolves, `plugin:install` prints the one-line bootstrap hint (`Bootstrap with: dowel <name>`) instead, so the operator can run it manually.
 
 `--non-interactive` is ALWAYS forwarded to the chained command so an interactive bootstrap (e.g. `starter:install`) cannot hang waiting on stdin.
 
@@ -331,12 +345,13 @@ Override and opt-out:
 - `--bootstrap-command=<name>` on the `plugin:install` invocation overrides the manifest value (the override command runs instead of the declared one).
 - `--no-bootstrap` skips the auto-run entirely; the command falls back to printing the hint.
 
-This was hint-only before `0.0.9`: prior versions only printed `Bootstrap with: artisan <name>` and never executed the command.
+This was hint-only before `0.0.9`: prior versions only printed `Bootstrap with: dowel <name>` and never executed the command.
 
 ```yaml
 bootstrap_command: example:install
 ```
 
+<a name="complete-example"></a>
 ## Complete Example
 
 The example below is the canonical `_fullYaml` test fixture from `test/installer/manifest_parser_test.dart`. Every section above appears here in context.
@@ -444,3 +459,10 @@ post_install:
 
 bootstrap_command: example:install
 ```
+
+<a name="related-documentation"></a>
+## Related Documentation
+
+- [Plugin Authoring](authoring.md): the whole flow of writing a plugin.
+- [Installer DSL](installer-dsl.md): the procedural escape hatch for what a manifest cannot express.
+- [plugin:install](../commands/plugin-install.md): how a manifest is applied.

@@ -1,14 +1,14 @@
 name: {{ name }}
 description: "TODO: describe your plugin"
-version: 0.0.1-alpha.1
+version: 0.0.1
 publish_to: none
 
 environment:
   sdk: ^3.6.0
 
 dependencies:
-  fluttersdk_artisan:
-    path: {{ artisanPath }}
+  dowel:
+    path: {{ dowelPath }}
   magic:
     path: {{ magicPath }}
 

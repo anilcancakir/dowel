@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../helpers/cli_bundle_cache.dart';
 import '../helpers/file_helper.dart';
@@ -12,17 +12,17 @@ import '../installer/virtual_fs.dart';
 
 /// Matches a valid Dart class identifier (PascalCase, ASCII alphanumeric +
 /// underscore, no leading digit). Used to defend the code generator against
-/// arbitrary strings landing in `.artisan/plugins.json` being interpolated
+/// arbitrary strings landing in `.dowel/plugins.json` being interpolated
 /// straight into the emitted Dart source.
 final RegExp _identifierPattern = RegExp(r'^[A-Z][a-zA-Z0-9_]*$');
 
-/// `artisan plugins:refresh`: regenerates `lib/app/_plugins.g.dart` from the
-/// authoritative `.artisan/plugins.json` registry written by plugin install
+/// `dowel plugins:refresh`: regenerates `lib/app/_plugins.g.dart` from the
+/// authoritative `.dowel/plugins.json` registry written by plugin install
 /// commands.
 ///
 /// The generated file is the consumer-side codegen barrel imported by the
 /// project's `bin/dispatcher.dart` wrapper to wire every installed plugin's
-/// [ArtisanServiceProvider] into the in-process command registry without
+/// [DowelServiceProvider] into the in-process command registry without
 /// `dart:mirrors` (AOT-prohibited) or runtime file scanning.
 ///
 /// Parallels [CommandsRefreshCommand]: both are deterministic codegen
@@ -33,10 +33,10 @@ final RegExp _identifierPattern = RegExp(r'^[A-Z][a-zA-Z0-9_]*$');
 /// ## Failure modes
 ///
 /// - `lib/app/` missing → [FormatException] pointing the operator at
-///   `dart run magic:artisan install`.
+///   `dart run dowel install`.
 /// - Two registry entries claiming the same `providerClass` → [FormatException]
 ///   naming both colliding plugin names (mirrors the fail-fast collision
-///   semantics already enforced by [ArtisanRegistry]).
+///   semantics already enforced by [DowelRegistry]).
 /// - A `providerClass` that is not a valid Dart identifier →
 ///   [FormatException] (defense against code injection via the registry).
 ///
@@ -47,7 +47,7 @@ final RegExp _identifierPattern = RegExp(r'^[A-Z][a-zA-Z0-9_]*$');
 /// command can be driven against an [InMemoryFs] without touching the host
 /// filesystem. Production callers pass nothing and get [RealFs] +
 /// [FileHelper.findProjectRoot] + `Directory.existsSync` by default.
-class PluginsRefreshCommand extends ArtisanCommand {
+class PluginsRefreshCommand extends DowelCommand {
   /// Creates a [PluginsRefreshCommand].
   ///
   /// @param fs               File-system abstraction (defaults to [RealFs]).
@@ -79,13 +79,13 @@ class PluginsRefreshCommand extends ArtisanCommand {
 
   @override
   String get description =>
-      'Regenerate lib/app/_plugins.g.dart from .artisan/plugins.json registry.';
+      'Regenerate lib/app/_plugins.g.dart from .dowel/plugins.json registry.';
 
   @override
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Resolve where in the host filesystem to operate.
     final root = _projectRootOverride ?? FileHelper.findProjectRoot();
     final libAppDir = p.join(root, 'lib', 'app');
@@ -97,8 +97,8 @@ class PluginsRefreshCommand extends ArtisanCommand {
     if (!_directoryExists(libAppDir)) {
       throw FormatException(
         'lib/app/ directory not found at $libAppDir. '
-        'Project does not look magic-structured. '
-        'Run `dart run magic:artisan install` first to bootstrap.',
+        'Project does not look dowel-structured. '
+        'Run `dart run dowel install` first to bootstrap.',
       );
     }
 
@@ -116,7 +116,7 @@ class PluginsRefreshCommand extends ArtisanCommand {
     final source = _renderSource(_sortedForOutput(entries));
     _atomicWrite(outputPath, source);
 
-    // 6. Purge the AOT cli-bundle so the next ./bin/fsa invocation rebuilds
+    // 6. Purge the AOT cli-bundle so the next ./bin/dowel invocation rebuilds
     //    against the freshly-generated _plugins.g.dart (issue #9 GAP A).
     CliBundleCache.purge(root);
 
@@ -134,7 +134,7 @@ class PluginsRefreshCommand extends ArtisanCommand {
       if (!_identifierPattern.hasMatch(entry.providerClass)) {
         throw FormatException(
           'Invalid providerClass "${entry.providerClass}" for plugin '
-          '"${entry.name}" in .artisan/plugins.json. '
+          '"${entry.name}" in .dowel/plugins.json. '
           'Expected a PascalCase Dart identifier matching '
           r'^[A-Z][a-zA-Z0-9_]*$.',
         );
@@ -178,17 +178,17 @@ class PluginsRefreshCommand extends ArtisanCommand {
   String _renderSource(List<PluginEntry> entries) {
     final buf = StringBuffer()
       ..writeln('// GENERATED: do not edit by hand.')
-      ..writeln('// Regenerate via: dart run magic:artisan plugins:refresh')
+      ..writeln('// Regenerate via: dart run dowel plugins:refresh')
       ..writeln('//')
-      ..writeln('// Source: .artisan/plugins.json')
+      ..writeln('// Source: .dowel/plugins.json')
       ..writeln()
-      ..writeln("import 'package:fluttersdk_artisan/artisan.dart';");
+      ..writeln("import 'package:dowel/dowel.dart';");
 
     if (entries.isEmpty) {
       buf
         ..writeln()
-        ..writeln('List<ArtisanServiceProvider> autoDiscoveredProviders() {')
-        ..writeln('  return <ArtisanServiceProvider>[];')
+        ..writeln('List<DowelServiceProvider> autoDiscoveredProviders() {')
+        ..writeln('  return <DowelServiceProvider>[];')
         ..writeln('}')
         ..writeln();
       return buf.toString();
@@ -209,8 +209,8 @@ class PluginsRefreshCommand extends ArtisanCommand {
 
     buf
       ..writeln()
-      ..writeln('List<ArtisanServiceProvider> autoDiscoveredProviders() {')
-      ..writeln('  return <ArtisanServiceProvider>[');
+      ..writeln('List<DowelServiceProvider> autoDiscoveredProviders() {')
+      ..writeln('  return <DowelServiceProvider>[');
     for (final entry in entries) {
       buf.writeln('    ${entry.providerClass}(),');
     }

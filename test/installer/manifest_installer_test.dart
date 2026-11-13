@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
@@ -396,7 +396,7 @@ void main() {
       expect(fs.exists('/proj/lib/config/example.dart'), isTrue);
       expect(
           fs.readAsString('/proj/lib/config/example.dart'), 'const x = 1;\n');
-      expect(fs.exists('/proj/.artisan/installed/example_plugin.json'), isTrue);
+      expect(fs.exists('/proj/.dowel/installed/example_plugin.json'), isTrue);
     });
   });
 
@@ -509,7 +509,7 @@ void main() {
         'stubHashes': <String, String>{},
       };
       fs.writeAsString(
-        '/proj/.artisan/installed/example_plugin.json',
+        '/proj/.dowel/installed/example_plugin.json',
         const JsonEncoder.withIndent('  ').convert(record),
       );
 
@@ -528,7 +528,7 @@ void main() {
       expect(fs.exists('/proj/lib/c.dart'), isTrue);
       // Record file is removed on Success.
       expect(
-        fs.exists('/proj/.artisan/installed/example_plugin.json'),
+        fs.exists('/proj/.dowel/installed/example_plugin.json'),
         isFalse,
       );
     });
@@ -546,7 +546,7 @@ void main() {
         'stubHashes': <String, String>{},
       };
       fs.writeAsString(
-        '/proj/.artisan/installed/example_plugin.json',
+        '/proj/.dowel/installed/example_plugin.json',
         const JsonEncoder.withIndent('  ').convert(record),
       );
 
@@ -608,7 +608,7 @@ void main() {
       // Phase B: read back the install record and assert PublishFile carries
       // its typed payload (not just `{type: ...}`).
       final record = jsonDecode(
-        fs.readAsString('/proj/.artisan/installed/example_plugin.json'),
+        fs.readAsString('/proj/.dowel/installed/example_plugin.json'),
       ) as Map<String, dynamic>;
       final ops = (record['ops'] as List).cast<Map<String, dynamic>>();
       final publishEntry = ops.firstWhere((o) => o['type'] == 'PublishFile');
@@ -625,7 +625,7 @@ void main() {
       expect(fs.exists('/proj/lib/config/example.dart'), isFalse,
           reason: 'PublishFile must reverse to DeleteFile and remove the '
               'rendered config file');
-      expect(fs.exists('/proj/.artisan/installed/example_plugin.json'), isFalse,
+      expect(fs.exists('/proj/.dowel/installed/example_plugin.json'), isFalse,
           reason: 'install record must be deleted on successful uninstall');
     });
 
@@ -776,7 +776,7 @@ native:
 
     test('the same manifest run twice leaves every file byte-identical',
         () async {
-      final root = Directory.systemTemp.createTempSync('artisan_manifest_ios_');
+      final root = Directory.systemTemp.createTempSync('dowel_manifest_ios_');
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
       });
@@ -920,7 +920,7 @@ native:
     test('install writes the activity once, records it, and uninstall succeeds',
         () async {
       final root =
-          Directory.systemTemp.createTempSync('artisan_manifest_activity_');
+          Directory.systemTemp.createTempSync('dowel_manifest_activity_');
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
       });
@@ -963,7 +963,7 @@ native:
 
       // 3. The record carries the whole payload.
       final record = jsonDecode(
-        File(p.join(root.path, '.artisan', 'installed', 'example_plugin.json'))
+        File(p.join(root.path, '.dowel', 'installed', 'example_plugin.json'))
             .readAsStringSync(),
       ) as Map<String, dynamic>;
       final entry = (record['ops'] as List)

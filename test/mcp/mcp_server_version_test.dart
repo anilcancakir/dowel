@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 
@@ -28,7 +28,7 @@ void main() {
       final controller = StreamChannelController<String>(sync: true);
       McpServer.test(
         channel: controller.local,
-        registry: ArtisanRegistry(),
+        registry: DowelRegistry(),
         filter: McpFilterConfig.empty(),
         // The handshake never dials the VM Service, so neither seam is
         // exercised; both are here because the factory requires them.

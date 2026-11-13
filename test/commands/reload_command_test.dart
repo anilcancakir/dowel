@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -9,7 +9,7 @@ void main() {
     late Directory tempHome;
 
     setUp(() {
-      tempHome = Directory.systemTemp.createTempSync('artisan_reload_');
+      tempHome = Directory.systemTemp.createTempSync('dowel_reload_');
       StateFile.debugHomeOverride = tempHome.path;
     });
 
@@ -31,7 +31,7 @@ void main() {
     test('returns 2 with friendly message when no state file', () async {
       final command = ReloadCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -43,7 +43,7 @@ void main() {
       await StateFile.write(<String, dynamic>{'pid': 1});
       final command = ReloadCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -57,7 +57,7 @@ void main() {
       });
       final command = ReloadCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -95,7 +95,7 @@ void main() {
 
       final command = ReloadCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -111,10 +111,10 @@ void main() {
       // this a reload run from here writes `r` into a sibling project's FIFO
       // and reports success while nothing in this project moved.
       final Directory sibling =
-          Directory.systemTemp.createTempSync('artisan_sibling_');
+          Directory.systemTemp.createTempSync('dowel_sibling_');
       addTearDown(() => sibling.deleteSync(recursive: true));
 
-      final Directory stateDir = Directory('${tempHome.path}/.artisan');
+      final Directory stateDir = Directory('${tempHome.path}/.dowel');
       stateDir.createSync(recursive: true);
       File('${stateDir.path}/state.json').writeAsStringSync(
         jsonEncode(<String, dynamic>{
@@ -126,7 +126,7 @@ void main() {
 
       final output = BufferedOutput();
       final int code = await ReloadCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(code, 1);

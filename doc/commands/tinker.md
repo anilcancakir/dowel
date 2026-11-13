@@ -2,9 +2,7 @@
 
 Connected REPL into the running Flutter app. Evaluates Dart expressions via the
 VM Service protocol and pretty-prints the result. Requires the app to be running
-before invoking (see [start](start)).
-
-## Table of contents
+before invoking (see [start](start.md)).
 
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
@@ -13,14 +11,15 @@ before invoking (see [start](start)).
 - [Examples](#examples)
 - [VM Service Evaluate](#vm-service-evaluate)
 - [MCP Surface](#mcp-surface)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="basic-usage"></a>
 ## Basic Usage
 
 ```bash
-dart run fluttersdk_artisan tinker
+dart run dowel tinker
 ```
 
 Drops you into an interactive read-eval-print loop connected to the running Flutter
@@ -28,11 +27,12 @@ app. Type any Dart expression at the `>>>` prompt and press Enter. Press Ctrl+D
 or type `exit` / `quit` to end the session.
 
 ```bash
-dart run artisan tinker        # via consumer wrapper (same effect)
+dart run dowel tinker        # via consumer wrapper (same effect)
 ```
 
 ---
 
+<a name="synopsis"></a>
 ## Synopsis
 
 ```
@@ -40,11 +40,12 @@ tinker {--eval=expr}
 ```
 
 | Option | Description |
-|--------|-------------|
+|:---|:---|
 | `--eval=<expr>` | Evaluate a single Dart expression and exit. REPL is skipped. |
 
 ---
 
+<a name="connected-mode"></a>
 ## Connected Mode
 
 `tinker` sets `CommandBoot.connected` as its boot mode. Before `handle` runs, the
@@ -52,12 +53,13 @@ dispatcher reads this project's session (written by `start`) and dials the VM
 Service WebSocket URI recorded there. If no state file is present, or the app
 is not running, the command exits with an error.
 
-Prerequisite: the Flutter app must be running via `dart run fluttersdk_artisan start`
+Prerequisite: the Flutter app must be running via `dart run dowel start`
 (or the consumer wrapper equivalent) before any `tinker` invocation. The `status`
 command reports whether a state file is present and what VM Service URI it holds.
 
 ---
 
+<a name="two-modes"></a>
 ## Two Modes
 
 ### REPL (default)
@@ -81,29 +83,31 @@ pipe-friendly: scripts and pipelines can capture the output without filtering ou
 interactive chatter.
 
 ```bash
-dart run artisan tinker --eval "1+1"   # prints: 2
+dart run dowel tinker --eval "1+1"   # prints: 2
 echo $?                                 # 0
 ```
 
 ---
 
+<a name="examples"></a>
 ## Examples
 
 ```bash
 # Interactive REPL session
-dart run artisan tinker
+dart run dowel tinker
 # >>> Magic.find<MonitorController>().rxState.value
 # MonitorState{...}
 # >>> Ctrl+D
 # Tinker session ended.
 
 # One-shot eval (pipe-friendly)
-dart run artisan tinker --eval "DateTime.now().toIso8601String()"
+dart run dowel tinker --eval "DateTime.now().toIso8601String()"
 # 2026-05-19T10:30:00.000Z
 ```
 
 ---
 
+<a name="vm-service-evaluate"></a>
 ## VM Service Evaluate
 
 Expression evaluation routes through `VmServiceClient.evaluate`, which opens a
@@ -118,21 +122,23 @@ await-awareness. The `InstanceRef` response is unwrapped and passed through the
 
 ---
 
+<a name="mcp-surface"></a>
 ## MCP Surface
 
-artisan ships `artisan_tinker` as a substrate MCP tool. When `mcp:serve` runs, any MCP
-client (Claude Code, Cursor, Windsurf, etc.) can call `artisan_tinker` with an `eval`
+dowel ships `dowel_tinker` as a substrate MCP tool. When `mcp:serve` runs, any MCP
+client (Claude Code, Cursor, Windsurf, etc.) can call `dowel_tinker` with an `eval`
 argument to evaluate Dart in the running app. This is the same evaluation path as
-`dart run fluttersdk_artisan tinker --eval "..."` but accessible to AI agents over
+`dart run dowel tinker --eval "..."` but accessible to AI agents over
 stdio JSON-RPC; the dispatcher uses the same lazy-reconnect to the VM Service that
 the CLI form uses, and the result returns as MCP text content.
 
-See [mcp:serve](mcp-serve) and the [MCP tool reference](../mcp/tool-reference.md) for
+See [mcp:serve](mcp-serve.md) and the [MCP tool reference](../mcp/tool-reference.md) for
 the full input schema, filter precedence, and the substrate vs plugin separation.
 
 ---
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
-- [start](start): boot the Flutter app and write the VM Service URI to the state file.
+- [start](start.md): boot the Flutter app and write the VM Service URI to the state file.
 - [status](index.md): confirm the app is running and inspect the recorded state.

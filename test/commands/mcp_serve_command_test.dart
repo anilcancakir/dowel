@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Capture-only serve stub: records the call and returns immediately without
 /// spawning any VM Service connection or blocking on stdio.
 Future<void> _noOpServe({
-  required ArtisanRegistry registry,
+  required DowelRegistry registry,
   required McpFilterConfig filter,
 }) async {
   // Intentional no-op: unit tests must not block on a live stdio connection.
@@ -123,7 +123,7 @@ void main() {
       // extended help string (plan step: APPEND hint paragraph to description).
       expect(
         command.description,
-        contains('/mcp reconnect fluttersdk'),
+        contains('/mcp reconnect dowel'),
       );
     });
 
@@ -131,49 +131,49 @@ void main() {
     // Environment variable → McpFilterConfig.fromEnv
     // -------------------------------------------------------------------------
 
-    test('env var ARTISAN_MCP_PACKAGES_ALLOW populates envConfig', () {
+    test('env var DOWEL_MCP_PACKAGES_ALLOW populates envConfig', () {
       final env = <String, String>{
-        'ARTISAN_MCP_PACKAGES_ALLOW': 'fluttersdk_dusk,fluttersdk_telescope',
+        'DOWEL_MCP_PACKAGES_ALLOW': 'tapir,crumbs',
       };
 
       final envConfig = McpFilterConfig.fromEnv(env);
 
       expect(
         envConfig.packagesAllow,
-        {'fluttersdk_dusk', 'fluttersdk_telescope'},
+        {'tapir', 'crumbs'},
       );
     });
 
-    test('env var ARTISAN_MCP_TOOLS_DENY populates envConfig', () {
+    test('env var DOWEL_MCP_TOOLS_DENY populates envConfig', () {
       final env = <String, String>{
-        'ARTISAN_MCP_TOOLS_DENY': 'dusk_snap',
+        'DOWEL_MCP_TOOLS_DENY': 'tapir_snap',
       };
 
       final envConfig = McpFilterConfig.fromEnv(env);
 
-      expect(envConfig.toolsDeny, {'dusk_snap'});
+      expect(envConfig.toolsDeny, {'tapir_snap'});
     });
 
     // -------------------------------------------------------------------------
     // File config → McpFilterConfig.fromFile
     // -------------------------------------------------------------------------
 
-    test('fileConfig populates when .artisan/mcp.json exists', () async {
-      final tempDir = Directory.systemTemp.createTempSync('artisan_mcp_serve_');
+    test('fileConfig populates when .dowel/mcp.json exists', () async {
+      final tempDir = Directory.systemTemp.createTempSync('dowel_mcp_serve_');
       addTearDown(() => tempDir.deleteSync(recursive: true));
 
-      final artisanDir = Directory('${tempDir.path}/.artisan')..createSync();
-      final mcpJson = File('${artisanDir.path}/mcp.json');
+      final dowelDir = Directory('${tempDir.path}/.dowel')..createSync();
+      final mcpJson = File('${dowelDir.path}/mcp.json');
       mcpJson.writeAsStringSync('''
 {
-  "packages": { "allow": null, "deny": ["fluttersdk_telescope"] },
+  "packages": { "allow": null, "deny": ["crumbs"] },
   "tools":    { "allow": null, "deny": [] }
 }
 ''');
 
       final fileConfig = McpFilterConfig.fromFile(mcpJson.path);
 
-      expect(fileConfig.packagesDeny, {'fluttersdk_telescope'});
+      expect(fileConfig.packagesDeny, {'crumbs'});
       expect(fileConfig.packagesAllow, isNull);
     });
 
@@ -248,7 +248,7 @@ void main() {
         () async {
       final command = McpServeCommand(serveOverride: _noOpServe);
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(const {
           'include-package': <String>[],
           'exclude-package': <String>[],

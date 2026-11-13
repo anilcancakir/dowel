@@ -1,6 +1,6 @@
-import '../console/artisan_context.dart';
-import '../console/artisan_input.dart';
-import '../console/artisan_output.dart';
+import '../console/dowel_context.dart';
+import '../console/dowel_input.dart';
+import '../console/dowel_output.dart';
 import '../helpers/file_helper.dart';
 import 'prompt_driver.dart';
 import 'stub_driver.dart';
@@ -9,7 +9,7 @@ import 'virtual_fs.dart';
 /// Dependency-injection container handed to every install operation in the
 /// PluginInstaller DSL.
 ///
-/// Composes (never inherits) [ArtisanContext] so command-side concerns
+/// Composes (never inherits) [DowelContext] so command-side concerns
 /// (input / output / VM client) stay reachable while the installer adds its
 /// own four-way seam: [VirtualFs] for filesystem access, [PromptDriver] for
 /// interactive prompts, [StubDriver] for template resolution, and a [clock]
@@ -31,7 +31,7 @@ import 'virtual_fs.dart';
 ///
 /// ```dart
 /// // production
-/// final ctx = InstallContext.real(artisanCtx);
+/// final ctx = InstallContext.real(dowelCtx);
 /// final installer = PluginInstaller(ctx);
 ///
 /// // tests
@@ -49,15 +49,15 @@ class InstallContext {
   ///
   /// When [projectRoot] is `null`, falls back to [FileHelper.findProjectRoot]
   /// from the current working directory so commands invoked via
-  /// `dart run artisan ...` always pick up the right repository root.
+  /// `dart run dowel ...` always pick up the right repository root.
   ///
-  /// @param artisanContext  The already-constructed [ArtisanContext] handed
+  /// @param dowelContext  The already-constructed [DowelContext] handed
   ///                        to the active command's `handle()` method.
   /// @param projectRoot     Optional explicit override of the project root.
   /// @return A fully wired [InstallContext] ready for production install ops.
-  InstallContext.real(ArtisanContext artisanContext, {String? projectRoot})
+  InstallContext.real(DowelContext dowelContext, {String? projectRoot})
       : this._(
-          artisanContext: artisanContext,
+          dowelContext: dowelContext,
           fs: const RealFs(),
           prompt: const RealPromptDriver(),
           stubs: const RealStubDriver(),
@@ -68,18 +68,18 @@ class InstallContext {
   /// Wires a fully injectable [InstallContext] for tests.
   ///
   /// Every collaborator can be replaced. When [input] / [output] are absent
-  /// the wrapping [ArtisanContext] is constructed as a bare context backed by
+  /// the wrapping [DowelContext] is constructed as a bare context backed by
   /// an empty [MapInput] and a [BufferedOutput] so tests can introspect the
-  /// captured output via `ctx.artisanContext.output as BufferedOutput`.
+  /// captured output via `ctx.dowelContext.output as BufferedOutput`.
   ///
   /// @param fs           In-memory or stub [VirtualFs] implementation.
   /// @param prompt       Fake / recording [PromptDriver].
   /// @param stubs        Fake / fixture-backed [StubDriver].
   /// @param clock        Optional deterministic clock; defaults to
   ///                     [DateTime.now] when omitted.
-  /// @param input        Optional pre-built [ArtisanInput]; defaults to an
+  /// @param input        Optional pre-built [DowelInput]; defaults to an
   ///                     empty [MapInput].
-  /// @param output       Optional pre-built [ArtisanOutput]; defaults to a
+  /// @param output       Optional pre-built [DowelOutput]; defaults to a
   ///                     [BufferedOutput] for assertions.
   /// @param projectRoot  Logical project root used by relative-path
   ///                     resolution; defaults to `/test`.
@@ -89,14 +89,14 @@ class InstallContext {
     required PromptDriver prompt,
     required StubDriver stubs,
     DateTime Function()? clock,
-    ArtisanInput? input,
-    ArtisanOutput? output,
+    DowelInput? input,
+    DowelOutput? output,
     String projectRoot = '/test',
   }) {
     final wrappedInput = input ?? MapInput(const <String, dynamic>{});
     final wrappedOutput = output ?? BufferedOutput();
     return InstallContext._(
-      artisanContext: ArtisanContext.bare(wrappedInput, wrappedOutput),
+      dowelContext: DowelContext.bare(wrappedInput, wrappedOutput),
       fs: fs,
       prompt: prompt,
       stubs: stubs,
@@ -109,7 +109,7 @@ class InstallContext {
   /// [InstallContext.test] funnel through here to guarantee identical field
   /// initialisation semantics.
   InstallContext._({
-    required this.artisanContext,
+    required this.dowelContext,
     required this.fs,
     required this.prompt,
     required this.stubs,
@@ -120,7 +120,7 @@ class InstallContext {
   /// The wrapping command context (input / output / optional VM client).
   /// Composed, not inherited, so install ops can reach the command surface
   /// without polluting the [InstallContext] API.
-  final ArtisanContext artisanContext;
+  final DowelContext dowelContext;
 
   /// Filesystem seam. Production wiring uses [RealFs]; tests typically pass
   /// an [InMemoryFs].
@@ -135,7 +135,7 @@ class InstallContext {
   final StubDriver stubs;
 
   /// Clock callback used for any time-stamped metadata (e.g. the
-  /// `installedAt` field in `.artisan/installed/<plugin>.json`).
+  /// `installedAt` field in `.dowel/installed/<plugin>.json`).
   /// Injectable so tests can pin the time to a fixed value.
   final DateTime Function() clock;
 

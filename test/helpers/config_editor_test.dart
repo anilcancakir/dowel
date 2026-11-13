@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -10,7 +10,7 @@ void main() {
     late String pubspecPath;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_cfg_editor_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_cfg_editor_');
       pubspecPath = p.join(tempDir.path, 'pubspec.yaml');
       File(pubspecPath).writeAsStringSync(
         'name: host_app\nversion: 1.0.0\n\ndependencies:\n  meta: ^1.0.0\n',
@@ -248,7 +248,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_cfg_editor_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_cfg_editor_');
     });
 
     tearDown(() {

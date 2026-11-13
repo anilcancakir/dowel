@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 // ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ void main() {
       expect(result, isA<Success>());
       final success = result as Success;
       expect(success.opCount, 0);
-      expect(success.recordPath, '/proj/.artisan/installed/demo.json');
+      expect(success.recordPath, '/proj/.dowel/installed/demo.json');
       expect(fs.exists(success.recordPath), isTrue);
     });
   });
@@ -281,7 +281,7 @@ void main() {
 
       expect(
         (result as Success).recordPath,
-        '/proj/.artisan/installed/firebase_messaging.json',
+        '/proj/.dowel/installed/firebase_messaging.json',
       );
     });
   });

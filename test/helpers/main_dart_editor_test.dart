@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -79,12 +79,12 @@ void main() {
     test('injectBeforeMagicInit inserts code before multi-line Magic.init', () {
       MainDartEditor.injectBeforeMagicInit(
         multiLinePath,
-        '  DuskPlugin.install();\n',
+        '  TapirPlugin.install();\n',
       );
 
       final content = File(multiLinePath).readAsStringSync();
       final initIndex = content.indexOf('await Magic.init(');
-      final insertedIndex = content.indexOf('DuskPlugin.install()');
+      final insertedIndex = content.indexOf('TapirPlugin.install()');
       expect(insertedIndex, isNonNegative);
       expect(insertedIndex, lessThan(initIndex));
     });
@@ -117,7 +117,7 @@ void main() {
     test('injectAfterMagicInit inserts code after multi-line Magic.init', () {
       MainDartEditor.injectAfterMagicInit(
         multiLinePath,
-        '  MagicDuskIntegration.install();\n',
+        '  MagicTapirIntegration.install();\n',
       );
 
       final content = File(multiLinePath).readAsStringSync();
@@ -129,7 +129,7 @@ void main() {
         '\n  );\n',
         initIndex,
       );
-      final insertedIndex = content.indexOf('MagicDuskIntegration.install()');
+      final insertedIndex = content.indexOf('MagicTapirIntegration.install()');
       final runAppIndex = content.indexOf('runApp(');
       expect(insertedIndex, isNonNegative);
       expect(insertedIndex, greaterThan(magicInitClosingIndex));
@@ -327,11 +327,11 @@ void main() {
       final result = MainDartEditor.injectAfterAnchor(
         source: source,
         anchor: 'Magic.init',
-        snippet: '  MagicDuskIntegration.install();\n',
+        snippet: '  MagicTapirIntegration.install();\n',
       );
 
       final initIndex = result.indexOf('await Magic.init();');
-      final snippetIndex = result.indexOf('MagicDuskIntegration.install();');
+      final snippetIndex = result.indexOf('MagicTapirIntegration.install();');
       final runAppIndex = result.indexOf('runApp(MyApp());');
       expect(initIndex, greaterThan(-1));
       expect(snippetIndex, greaterThan(initIndex));
@@ -342,14 +342,14 @@ void main() {
     test('injectAfterAnchor is idempotent when snippet is already present', () {
       const source = 'void main() async {\n'
           '  await Magic.init();\n'
-          '  MagicDuskIntegration.install();\n'
+          '  MagicTapirIntegration.install();\n'
           '  runApp(MyApp());\n'
           '}\n';
 
       final result = MainDartEditor.injectAfterAnchor(
         source: source,
         anchor: 'Magic.init',
-        snippet: '  MagicDuskIntegration.install();\n',
+        snippet: '  MagicTapirIntegration.install();\n',
       );
 
       expect(result, equals(source));
@@ -386,13 +386,13 @@ void main() {
       final result = MainDartEditor.injectAfterAnchor(
         source: source,
         anchor: 'Magic.init',
-        snippet: '  MagicDuskIntegration.install();\n',
+        snippet: '  MagicTapirIntegration.install();\n',
       );
 
       // The snippet must land between the `);` that closes Magic.init and
       // the runApp line, not inside the configFactories list.
       final closeInitIndex = result.indexOf('  );\n');
-      final snippetIndex = result.indexOf('MagicDuskIntegration.install();');
+      final snippetIndex = result.indexOf('MagicTapirIntegration.install();');
       final runAppIndex = result.indexOf('runApp(MyApp());');
       expect(snippetIndex, greaterThan(closeInitIndex));
       expect(snippetIndex, lessThan(runAppIndex));

@@ -6,4 +6,4 @@
 /// runtime). Runtime-only classes belong in `package:awesome_plugin/awesome_plugin.dart`.
 library;
 
-export 'src/awesome_plugin_artisan_provider.dart';
+export 'src/awesome_plugin_dowel_provider.dart';

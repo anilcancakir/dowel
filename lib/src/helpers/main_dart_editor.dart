@@ -20,13 +20,13 @@ import 'file_helper.dart';
 /// // Inject plugin-install code before Magic.init().
 /// MainDartEditor.injectBeforeMagicInit(
 ///   'lib/main.dart',
-///   '  DuskPlugin.install();\n',
+///   '  TapirPlugin.install();\n',
 /// );
 ///
 /// // Inject post-init adapters after Magic.init().
 /// MainDartEditor.injectAfterMagicInit(
 ///   'lib/main.dart',
-///   '  MagicDuskIntegration.install();\n',
+///   '  MagicTapirIntegration.install();\n',
 /// );
 ///
 /// // Wrap the runApp() call with a higher-order widget.

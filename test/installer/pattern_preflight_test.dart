@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 class _SilentPromptDriver implements PromptDriver {
@@ -47,7 +47,7 @@ class _SilentStubDriver implements StubDriver {
 /// helper writes on disk with no install record to reverse them.
 void main() {
   Directory makeProject() {
-    final tmp = Directory.systemTemp.createTempSync('artisan_preflight_');
+    final tmp = Directory.systemTemp.createTempSync('dowel_preflight_');
     addTearDown(() {
       if (tmp.existsSync()) tmp.deleteSync(recursive: true);
     });
@@ -99,7 +99,7 @@ void main() {
       expect(result, isA<Error>());
       expect((result as Error).error, contains('lib/config/app.dart'));
       expect(
-        File('${root.path}/.artisan/installed/demo.json').existsSync(),
+        File('${root.path}/.dowel/installed/demo.json').existsSync(),
         isFalse,
       );
     });

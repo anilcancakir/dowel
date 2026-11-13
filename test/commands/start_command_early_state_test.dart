@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Verifies that a `start` cut short by its CALLER still leaves a usable
@@ -15,14 +15,14 @@ import 'package:test/test.dart';
 /// had to hand-write the state file to get anything back.
 ///
 /// Measured in the field on `device=50BAD9FA-...`, `vm-service-port=8183`:
-/// "MCP server tool artisan_start timed out after 60s", then the app was found
+/// "MCP server tool dowel_start timed out after 60s", then the app was found
 /// installed and serving.
 void main() {
   group('StartCommand session record', () {
     late Directory tempHome;
 
     setUp(() {
-      tempHome = Directory.systemTemp.createTempSync('artisan_early_state_');
+      tempHome = Directory.systemTemp.createTempSync('dowel_early_state_');
       StateFile.debugHomeOverride = tempHome.path;
     });
 
@@ -101,7 +101,7 @@ void main() {
     Future<({int code, String content})> startMacos() async {
       final output = BufferedOutput();
       final code = await StartCommand().handle(
-        ArtisanContext.bare(
+        DowelContext.bare(
           MapInput(<String, dynamic>{
             'device': 'macos',
             'port': '3100',
@@ -116,7 +116,7 @@ void main() {
     }
 
     setUp(() {
-      tempHome = Directory.systemTemp.createTempSync('artisan_cold_build_');
+      tempHome = Directory.systemTemp.createTempSync('dowel_cold_build_');
       StateFile.debugHomeOverride = tempHome.path;
       StateFile.debugProjectRootOverride = Directory.current.path;
       StartCommand.cdpFifoMaker = (String path) async {
@@ -161,9 +161,9 @@ void main() {
 
       final result = await startMacos();
 
-      expect(result.code, ArtisanCommand.exitTryAgain);
+      expect(result.code, DowelCommand.exitTryAgain);
       expect(result.content, contains('still building after 90s'));
-      expect(result.content, contains('artisan status'));
+      expect(result.content, contains('dowel status'));
       expect(result.content, contains('--timeout'));
       final Map<String, dynamic>? state = await StateFile.read();
       expect(

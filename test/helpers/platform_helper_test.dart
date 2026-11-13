@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -9,7 +9,7 @@ void main() {
     late Directory projectRoot;
 
     setUp(() {
-      projectRoot = Directory.systemTemp.createTempSync('artisan_platform_');
+      projectRoot = Directory.systemTemp.createTempSync('dowel_platform_');
     });
 
     tearDown(() {

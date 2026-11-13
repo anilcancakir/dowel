@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -10,7 +10,7 @@ void main() {
     late String envPath;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_env_editor_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_env_editor_');
       envPath = p.join(tempDir.path, '.env');
     });
 

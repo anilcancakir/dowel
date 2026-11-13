@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -8,7 +8,7 @@ void main() {
     late Directory tempHome;
 
     setUp(() {
-      tempHome = Directory.systemTemp.createTempSync('artisan_stop_');
+      tempHome = Directory.systemTemp.createTempSync('dowel_stop_');
       StateFile.debugHomeOverride = tempHome.path;
       // Reset CDP test seams to known defaults before every test.
       StopCommand.stopKillFunction = _noOpKill;
@@ -41,7 +41,7 @@ void main() {
     test('returns 0 with friendly message when no state file', () async {
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -64,7 +64,7 @@ void main() {
       final BufferedOutput output = BufferedOutput();
 
       final int code = await StopCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(code, 0, reason: output.content);
@@ -84,7 +84,7 @@ void main() {
       });
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -98,7 +98,7 @@ void main() {
       await StateFile.write(<String, dynamic>{});
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -116,7 +116,7 @@ void main() {
 
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
@@ -139,7 +139,7 @@ void main() {
 
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -166,7 +166,7 @@ void main() {
 
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
@@ -197,7 +197,7 @@ void main() {
 
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
@@ -218,7 +218,7 @@ void main() {
 
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
@@ -235,7 +235,7 @@ void main() {
 
     test('tmpProfileDir does not exist on disk: cleanup is a no-op, no error',
         () async {
-      const nonExistentDir = '/tmp/artisan_test_non_existent_profile_dir_xyz';
+      const nonExistentDir = '/tmp/dowel_test_non_existent_profile_dir_xyz';
       await StateFile.write(<String, dynamic>{
         'chromePid': 33333,
         'tmpProfileDir': nonExistentDir,
@@ -243,7 +243,7 @@ void main() {
 
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       // Must not throw.
       final code = await command.handle(ctx);
@@ -272,7 +272,7 @@ void main() {
 
       final command = StopCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       await command.handle(ctx);
 
@@ -290,7 +290,7 @@ void main() {
     late List<int> portProbes;
 
     setUp(() {
-      tempHome = Directory.systemTemp.createTempSync('artisan_stop_group_');
+      tempHome = Directory.systemTemp.createTempSync('dowel_stop_group_');
       StateFile.debugHomeOverride = tempHome.path;
       StopCommand.stopGracePeriod = const Duration(milliseconds: 300);
       StopCommand.stopPortProbe = _alwaysFreePort;
@@ -329,7 +329,7 @@ void main() {
       });
       final BufferedOutput output = BufferedOutput();
       final int code = await StopCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
       return (code, output);
     }
@@ -499,7 +499,7 @@ void main() {
 
       final BufferedOutput output = BufferedOutput();
       final int code = await StopCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(code, 0, reason: output.content);
@@ -514,7 +514,7 @@ void main() {
     late List<List<String>> adbCalls;
 
     setUp(() {
-      tempHome = Directory.systemTemp.createTempSync('artisan_stop_adb_');
+      tempHome = Directory.systemTemp.createTempSync('dowel_stop_adb_');
       project = Directory('${tempHome.path}/app')..createSync();
       // An explicit session path is what lets the recorded projectRoot differ
       // from the working directory without tripping the ownership guard.
@@ -552,7 +552,7 @@ void main() {
       });
       final BufferedOutput output = BufferedOutput();
       await StopCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
       return output;
     }
@@ -583,11 +583,11 @@ android {
     });
 
     test('reads the id from a Kotlin DSL build file', () async {
-      seedGradle('build.gradle.kts', 'applicationId = "dev.fluttersdk.kts"');
+      seedGradle('build.gradle.kts', 'applicationId = "dev.example.kts"');
 
       await stopDevice('emulator-5554');
 
-      expect(adbCalls.single.last, 'dev.fluttersdk.kts');
+      expect(adbCalls.single.last, 'dev.example.kts');
     });
 
     test('warns and keeps going when adb answers non-zero', () async {

@@ -5,10 +5,6 @@ options into a single Dart string. `CommandSignature.parse`
 (`lib/src/console/command_signature.dart:57`) splits that string at
 registration time; the registry applies it to the underlying `ArgParser`.
 
----
-
-## Contents
-
 - [Overview](#overview)
 - [Grammar](#grammar)
 - [Token Types](#token-types)
@@ -18,7 +14,7 @@ registration time; the registry applies it to the underlying `ArgParser`.
 - [Name Validation](#name-validation)
 - [Error Handling](#error-handling)
 - [Examples](#examples)
-- [Related](#related)
+- [Related Documentation](#related-documentation)
 
 ---
 
@@ -33,8 +29,8 @@ The signature string is the primary way to declare a command's surface. The
 alternative is `configure(ArgParser)`, used when the DSL cannot express the
 required structure (multi-allowed options, allowed-values lists).
 
-Of the 21 built-in commands: **6** use the signature DSL, **5** use
-`configure(ArgParser)` with flags, **10** have no flag surface.
+The built-in commands use whichever fits: some declare a `signature`, some
+`configure(ArgParser)` with flags, and some have no flag surface at all.
 
 ---
 
@@ -72,7 +68,7 @@ strips the description annotation before modifier parsing in both branches.
 ## Token Types
 
 | Token form | Type | Read via |
-|---|---|---|
+|:---|:---|:---|
 | `{name}` | Positional argument | `ctx.input.argument('name')` |
 | `{--name}` | Boolean flag | `ctx.input.flag('name')` |
 | `{--name=}` | Value option, no default | `ctx.input.option('name')` |
@@ -84,7 +80,7 @@ strips the description annotation before modifier parsing in both branches.
 ## Argument Modifiers
 
 | Syntax | `isOptional` | `isVariadic` | `defaultValue` | Behaviour |
-|---|---|---|---|---|
+|:---|:---|:---|:---|:---|
 | `{name}` | false | false | null | Required positional. |
 | `{name?}` | true | false | null | Optional; `argument()` returns null when absent. |
 | `{name=default}` | true | false | `"default"` | Inline default; implies optional. |
@@ -100,7 +96,7 @@ Modifiers are parsed in declaration order (`command_signature.dart:125`):
 ## Option Modifiers
 
 | Syntax | `isFlag` | `defaultValue` | Behaviour |
-|---|---|---|---|
+|:---|:---|:---|:---|
 | `{--flag}` | true | null | Boolean switch; absent means false. |
 | `{--option=}` | false | null | Value option; `option()` returns null when absent. |
 | `{--option=value}` | false | `"value"` | Value option with inline default. |
@@ -154,13 +150,13 @@ parse time with the invalid value and expected pattern quoted in the message.
 <a name="error-handling"></a>
 ## Error Handling
 
-When a command is invoked with an option the parser does not recognize, the
+When a command is invoked with an option the parser does not recognise, the
 dispatcher fails loudly: it writes `Unknown option: <flag>` to stderr, prints
 the command help, and exits with a non-zero code. This applies to both long
 (`--unknown`) and short (`-x`) forms.
 
 ```
-$ artisan make:command Foo --bogus
+$ dowel make:command Foo --bogus
 ✗ Unknown option: --bogus
 ℹ Description:
   ...
@@ -169,7 +165,7 @@ $ artisan make:command Foo --bogus
 Every other parse failure keeps its original, specific message:
 
 | Cause | Example invocation | Message |
-|-------|--------------------|---------|
+|:---|:---|:---|
 | Unknown option | `--bogus`, `-x` | `Unknown option: <flag>` |
 | Missing option value | `--output` (value required) | `Missing argument for "--output".` |
 | Disallowed value | `--mode=zoom` (not in `allowed`) | `"zoom" is not an allowed value for option "--mode".` |
@@ -197,20 +193,19 @@ returns `null` in REPL mode and the expression string when `--eval` is set.
 
 ---
 
-### plugin:install (`lib/src/commands/plugin_install_command.dart:67`)
+### plugin:install (`lib/src/commands/plugin_install_command.dart`)
 
 ```dart
 String get signature => 'plugin:install '
     '$baseFlags'
     '{name : Plugin pubspec package name (e.g. magic_logger)} '
-    '{--provider= : Override the auto-derived provider class name} '
     '{--bootstrap-command= : Sub-command to chain after registration} '
     '{--use-yaml-only : Fail if install.yaml not found}';
 ```
 
 `CommandSignature` result: name `plugin:install`, one required positional
-argument `name`, three own options (`provider` value, `bootstrap-command`
-value, `use-yaml-only` flag), plus the options from `baseFlags` expansion.
+argument `name`, two own options (`bootstrap-command` value, `use-yaml-only`
+flag), plus the options from `baseFlags` expansion.
 
 ---
 
@@ -227,8 +222,8 @@ argument `name`, no own options beyond those from `baseFlags` expansion.
 
 ---
 
-<a name="related"></a>
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
-- [`../commands/`](../commands/): per-command reference with full signature
+- [`../commands/`](../commands/index.md): per-command reference with full signature
   listings and usage examples.

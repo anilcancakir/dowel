@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 
-/// `artisan hot-restart` — full state reset of the running flutter app.
+/// `dowel hot-restart`: full state reset of the running flutter app.
 ///
 /// Writes `R\n` to the FIFO that flutter run's stdin reads from. flutter
 /// run's own keystroke handler picks it up and reinitializes the Dart
@@ -16,8 +16,8 @@ import '../state/state_file.dart';
 /// Use `restart` instead when you want a full process restart (e.g. to
 /// pick up native plugin changes that hot restart doesn't see).
 ///
-/// Requires `artisan start` first.
-class HotRestartCommand extends ArtisanCommand {
+/// Requires `dowel start` first.
+class HotRestartCommand extends DowelCommand {
   @override
   String get name => 'hot-restart';
 
@@ -29,7 +29,7 @@ class HotRestartCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final state = await StateFile.read();
 
     // The legacy pointer describes whichever app started last, so a
@@ -48,7 +48,7 @@ class HotRestartCommand extends ArtisanCommand {
     }
     if (state == null) {
       ctx.output.error(
-        'No state file; nothing to hot-restart. Run `artisan start` first.',
+        'No state file; nothing to hot-restart. Run `dowel start` first.',
       );
       return 2;
     }
@@ -56,16 +56,16 @@ class HotRestartCommand extends ArtisanCommand {
     if (pipePath == null) {
       ctx.output.error(
         'The session has no stdinPipe entry, so there is no FIFO to send the '
-        'keystroke through. Either the app was started by an artisan that '
+        'keystroke through. Either the app was started by a dowel that '
         'pre-dates the FIFO refactor, or the state file was hand-written '
-        'without it: it holds the path `artisan start` creates for '
-        '`flutter run`\'s stdin. Run `artisan restart` to have one made.',
+        'without it: it holds the path `dowel start` creates for '
+        '`flutter run`\'s stdin. Run `dowel restart` to have one made.',
       );
       return 2;
     }
     final pipe = File(pipePath);
     if (!pipe.existsSync()) {
-      ctx.output.error('Pipe missing: $pipePath. Run `artisan restart`.');
+      ctx.output.error('Pipe missing: $pipePath. Run `dowel restart`.');
       return 2;
     }
     // Push the keystroke via shell (FIFOs reject lseek; printf via sh

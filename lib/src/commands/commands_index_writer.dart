@@ -15,7 +15,7 @@ class DiscoveredCommand {
 }
 
 /// Scans [commandsDir] for `*.dart` files (excluding `_index.g.dart` and
-/// anything else starting with `_`), extracts `ArtisanCommand` subclass
+/// anything else starting with `_`), extracts `DowelCommand` subclass
 /// names, returns one [DiscoveredCommand] per match.
 ///
 /// Multiple matching classes in the same file are returned in declaration
@@ -53,27 +53,27 @@ List<DiscoveredCommand> discoverCommandsInDir(Directory commandsDir) {
 /// Shape:
 /// ```dart
 /// // AUTO-GENERATED ...
-/// import 'package:fluttersdk_artisan/artisan.dart';
+/// import 'package:dowel/dowel.dart';
 ///
 /// import 'clean_cache.dart';
 ///
-/// List<ArtisanCommand> get commands => <ArtisanCommand>[
+/// List<DowelCommand> get commands => <DowelCommand>[
 ///   CleanCacheCommand(),
 /// ];
 /// ```
 String renderCommandsIndex(List<DiscoveredCommand> commands) {
   final buf = StringBuffer()
     ..writeln('// AUTO-GENERATED — DO NOT EDIT.')
-    ..writeln('// Regenerate via: artisan commands:refresh')
-    ..writeln('// (Also auto-updated by: artisan make:command <Name>)')
+    ..writeln('// Regenerate via: dowel commands:refresh')
+    ..writeln('// (Also auto-updated by: dowel make:command <Name>)')
     ..writeln()
-    ..writeln("import 'package:fluttersdk_artisan/artisan.dart';");
+    ..writeln("import 'package:dowel/dowel.dart';");
 
   if (commands.isEmpty) {
     buf
       ..writeln()
       ..writeln(
-        'List<ArtisanCommand> get commands => const <ArtisanCommand>[];',
+        'List<DowelCommand> get commands => const <DowelCommand>[];',
       )
       ..writeln();
     return buf.toString();
@@ -88,7 +88,7 @@ String renderCommandsIndex(List<DiscoveredCommand> commands) {
   }
   buf
     ..writeln()
-    ..writeln('List<ArtisanCommand> get commands => <ArtisanCommand>[');
+    ..writeln('List<DowelCommand> get commands => <DowelCommand>[');
   for (final c in commands) {
     buf.writeln('  ${c.className}(),');
   }
@@ -111,8 +111,8 @@ List<DiscoveredCommand> writeCommandsIndex(Directory commandsDir) {
 }
 
 /// Matches `class XxxCommand extends YyyCommand` declarations. The base
-/// class must itself end in `Command` (covers `ArtisanCommand`,
-/// `ArtisanGeneratorCommand`, and any user-defined intermediate base).
+/// class must itself end in `Command` (covers `DowelCommand`,
+/// `DowelGeneratorCommand`, and any user-defined intermediate base).
 /// Comments and string literals are NOT excluded — the convention says
 /// command class declarations live at the top level of their file.
 final RegExp _classPattern = RegExp(

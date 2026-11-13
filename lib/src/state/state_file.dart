@@ -4,24 +4,24 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 
-/// Atomic JSON read/write for the artisan state file.
+/// Atomic JSON read/write for the dowel state file.
 ///
-/// The file is PER PROJECT: `~/.artisan/sessions/<hash>/state.json`, keyed by
-/// the project root. It used to be one global `~/.artisan/state.json`, which
-/// meant a second project's `artisan start` silently took the slot and every
+/// The file is PER PROJECT: `~/.dowel/sessions/<hash>/state.json`, keyed by
+/// the project root. It used to be one global `~/.dowel/state.json`, which
+/// meant a second project's `dowel start` silently took the slot and every
 /// connected command from the first project then drove the second app,
 /// succeeding each time. The measured case had a worktree in another
 /// repository rewrite it mid-session, and two commands later produced a
 /// screenshot of an entirely different product.
 ///
-/// `~/.artisan/state.json` is still written, as a pointer to whichever
+/// `~/.dowel/state.json` is still written, as a pointer to whichever
 /// session started last. That is an interop contract rather than a shim:
-/// the documented recovery recipe when `artisan start` cannot boot an app
+/// the documented recovery recipe when `dowel start` cannot boot an app
 /// is to hand-write that file, and external tooling reads it.
 ///
-/// Written by `artisan start` after a successful `flutter run` spawn; consumed
+/// Written by `dowel start` after a successful `flutter run` spawn; consumed
 /// by `stop`, `status`, `logs`, `doctor`, `restart`, and every connected-mode
-/// command (dusk:*, telescope:*, tinker) to locate the running app's VM
+/// command (tapir:*, crumbs:*, tinker) to locate the running app's VM
 /// Service WebSocket URI.
 ///
 /// Schema:
@@ -69,7 +69,7 @@ class StateFile {
   /// The ownership check reads this rather than [pathOverride] alone. Both
   /// spellings are documented as equivalent and [path] honours both, so a
   /// guard that saw only the flag refused to drive the very session
-  /// `ARTISAN_STATE_FILE` had just pointed it at.
+  /// `DOWEL_STATE_FILE` had just pointed it at.
   static String? explicitPath() {
     final String? flag = pathOverride;
     if (flag != null && flag.isNotEmpty) return flag;
@@ -78,12 +78,12 @@ class StateFile {
   }
 
   /// The single global file every version before session isolation used.
-  static String get legacyPointerPath => '${_homePath()}/.artisan/state.json';
+  static String get legacyPointerPath => '${_homePath()}/.dowel/state.json';
 
   /// Absolute path to the state file this process reads and writes.
   ///
   /// Resolution order: the explicit [pathOverride] (`--state=<path>` or
-  /// `ARTISAN_STATE_FILE`), then the per-project session file.
+  /// `DOWEL_STATE_FILE`), then the per-project session file.
   static String get path {
     final String? override = explicitPath();
     if (override != null) return override;
@@ -111,14 +111,19 @@ class StateFile {
     final String key = _canonicalPath(projectRoot);
     final String digest =
         sha256.convert(utf8.encode(key)).toString().substring(0, 12);
-    return '${_homePath()}/.artisan/sessions/$digest';
+    return '${_homePath()}/.dowel/sessions/$digest';
   }
 
-  /// The directory every artisan artifact lives under, session or not.
-  static String get homeDir => '${_homePath()}/.artisan';
+  /// The directory every dowel artifact lives under, session or not.
+  static String get homeDir => '${_homePath()}/.dowel';
+
+  /// Test injection seam: replaces the process environment the
+  /// `DOWEL_STATE_FILE` lookup reads. Production code never sets this.
+  @visibleForTesting
+  static Map<String, String>? debugEnvironmentOverride;
 
   static String? _envPathOverride() =>
-      Platform.environment['ARTISAN_STATE_FILE'];
+      (debugEnvironmentOverride ?? Platform.environment)['DOWEL_STATE_FILE'];
 
   static String _projectRoot() =>
       projectRootFor(debugProjectRootOverride ?? Directory.current.path);
@@ -134,7 +139,7 @@ class StateFile {
   /// held for callers standing in the repo root.
   ///
   /// The walk stops at the NEAREST pubspec rather than the outermost,
-  /// because that is the unit `artisan start` boots: two packages in one
+  /// because that is the unit `dowel start` boots: two packages in one
   /// repository are two apps and want two sessions.
   ///
   /// No pubspec anywhere up the chain falls back to [from]. Climbing to the
@@ -153,7 +158,7 @@ class StateFile {
   /// Read the state for this project. Returns null when absent.
   ///
   /// Falls back to the legacy pointer when no session file exists, so an app
-  /// started by an older artisan, or a hand-written `~/.artisan/state.json`
+  /// started by an older dowel, or a hand-written `~/.dowel/state.json`
   /// from the documented recovery recipe, still resolves.
   static Future<Map<String, dynamic>?> read() async {
     return await _readFile(path) ?? await _readFile(legacyPointerPath);
@@ -255,7 +260,7 @@ class StateFile {
 ///   package subdirectory is normal.
 /// - State with no recorded `projectRoot`. Hand-written state from the
 ///   documented recovery recipe often omits it, and refusing there would
-///   break the escape hatch people reach for precisely when `artisan start`
+///   break the escape hatch people reach for precisely when `dowel start`
 ///   has already failed them.
 /// - An explicit [explicitStatePath]. The caller named the session, so they
 ///   have already answered the question this check asks.
@@ -272,9 +277,9 @@ String? sessionOwnershipError({
   if (_isWithin(workingDirectory, recorded)) return null;
 
   return 'The running app belongs to another project ($recorded), not this '
-      'one ($workingDirectory). `~/.artisan/state.json` is a shared pointer '
+      'one ($workingDirectory). `~/.dowel/state.json` is a shared pointer '
       'to whichever app started last, so driving it from here would act on '
-      'that app and report success. Run `artisan start` for this project, '
+      'that app and report success. Run `dowel start` for this project, '
       'or pass --state=<path> to name the session you mean.';
 }
 

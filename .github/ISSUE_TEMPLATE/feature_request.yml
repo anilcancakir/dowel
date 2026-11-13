@@ -1,11 +1,11 @@
 name: Feature Request
-description: Suggest a new feature or enhancement for fluttersdk_artisan
+description: Suggest a new feature or enhancement for dowel
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Have an idea for artisan? We'd love to hear it.
+        Have an idea for dowel? We'd love to hear it.
 
   - type: textarea
     id: description
@@ -22,7 +22,7 @@ body:
       label: Subsystem
       description: Which part of the framework does this relate to?
       options:
-        - Console (ArtisanApplication, ArtisanRegistry, signature DSL)
+        - Console (DowelApplication, DowelRegistry, signature DSL)
         - Commands (new builtin command)
         - Lifecycle (start / stop / status / logs / restart / reload / hot-restart)
         - Scaffolding (make:plugin / make:command / install)
@@ -47,7 +47,7 @@ body:
       description: How would the API look? Show the CLI invocation, install.yaml schema entry, or Dart code shape.
       placeholder: |
         # CLI example
-        dart run fluttersdk_artisan plugin:install <name> --transport=http
+        dart run dowel plugin:install <name> --transport=http
 
         # install.yaml example
         proxy:

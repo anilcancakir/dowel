@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../tinker/tinker.dart';
 import '../tinker/tinker_formatter.dart';
 
-/// `artisan tinker` — connected REPL into the running Flutter app.
+/// `dowel tinker`: connected REPL into the running Flutter app.
 ///
 /// Reads input lines from stdin, evaluates each as a Dart expression in the
 /// running app's root library via VM Service evaluate RPC, pretty-prints the
@@ -14,7 +14,7 @@ import '../tinker/tinker_formatter.dart';
 ///
 /// V1: basic prompt + evaluate loop. cli_repl integration + IsolateReload
 /// autocomplete cache + history persistence deferred V1.x.
-class TinkerCommand extends ArtisanCommand {
+class TinkerCommand extends DowelCommand {
   @override
   String get name => 'tinker';
 
@@ -22,7 +22,7 @@ class TinkerCommand extends ArtisanCommand {
   String get signature => 'tinker '
       '{--eval= : Evaluate a single Dart expression in the running app, '
       'print the formatted result on stdout, and exit. When set, REPL is '
-      'skipped. Pipe-friendly: `dart run artisan tinker --eval "1+1"`.}';
+      'skipped. Pipe-friendly: `dart run dowel tinker --eval "1+1"`.}';
 
   @override
   String get description =>
@@ -32,7 +32,7 @@ class TinkerCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.connected;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. One-shot eval branch ; bypass REPL when --eval is supplied. Used by
     //    scripts and pipelines that want the evaluated value without the
     //    `>>>` prompt or "Tinker connected" / "Tinker session ended" chatter.

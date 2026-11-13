@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../console/process_alive.dart';
 import '../state/state_file.dart';
 
 /// Prints JSON status of the recorded flutter app + liveness check.
-class StatusCommand extends ArtisanCommand {
+class StatusCommand extends DowelCommand {
   @override
   String get name => 'status';
 
@@ -19,7 +19,7 @@ class StatusCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final state = await StateFile.read();
     if (state == null) {
       ctx.output.writeln(jsonEncode({'running': false}));
@@ -59,7 +59,7 @@ class StatusCommand extends ArtisanCommand {
       ctx.output.warning(
         'The app is running but its start did not finish recording: no '
         'vmServiceUri yet. Connected commands recover it from the session '
-        'log on their next call, or re-run `artisan start`.',
+        'log on their next call, or re-run `dowel start`.',
       );
     }
     if (foreign != null) ctx.output.warning(foreign);

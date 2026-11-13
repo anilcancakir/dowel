@@ -1,18 +1,18 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import 'commands/install_command.dart';
 import 'commands/uninstall_command.dart';
 
-/// ArtisanServiceProvider for {{ name }} (magic mode).
+/// DowelServiceProvider for {{ name }} (magic mode).
 ///
 /// Ships with install + uninstall commands that drive `ManifestInstaller`
 /// from the bundled `install.yaml` manifest. Additional commands added via
-/// `dart run magic:artisan make:command Name` from inside the plugin
+/// `dart run magic:dowel make:command Name` from inside the plugin
 /// directory land in the [commands] list automatically (idempotent),
 /// alongside install/uninstall.
-class {{ pascalName }}ArtisanProvider extends ArtisanServiceProvider {
+class {{ pascalName }}DowelProvider extends DowelServiceProvider {
   @override
-  List<ArtisanCommand> commands() => <ArtisanCommand>[
+  List<DowelCommand> commands() => <DowelCommand>[
         InstallCommand(),
         UninstallCommand(),
       ];

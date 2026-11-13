@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Verifies that a command which ACTS on the recorded session refuses one
@@ -19,8 +19,8 @@ void main() {
     late bool Function(int, ProcessSignal) priorKill;
 
     setUp(() async {
-      tempHome = await Directory.systemTemp.createTemp('artisan_stop_own_');
-      sibling = await Directory.systemTemp.createTemp('artisan_sibling_');
+      tempHome = await Directory.systemTemp.createTemp('dowel_stop_own_');
+      sibling = await Directory.systemTemp.createTemp('dowel_sibling_');
       StateFile.debugHomeOverride = tempHome.path;
       StateFile.pathOverride = null;
       killed = <int>[];
@@ -48,7 +48,7 @@ void main() {
     });
 
     Future<void> writePointer(Map<String, dynamic> data) async {
-      final Directory dir = Directory('${tempHome.path}/.artisan');
+      final Directory dir = Directory('${tempHome.path}/.dowel');
       await dir.create(recursive: true);
       await File('${dir.path}/state.json').writeAsString(jsonEncode(data));
     }
@@ -62,7 +62,7 @@ void main() {
 
       final output = BufferedOutput();
       final int code = await StopCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(code, 1);
@@ -79,7 +79,7 @@ void main() {
 
       final output = BufferedOutput();
       final int code = await StopCommand().handle(
-        ArtisanContext.bare(MapInput(const {}), output),
+        DowelContext.bare(MapInput(const {}), output),
       );
 
       expect(code, 0);

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -8,7 +8,7 @@ void main() {
     late Directory tempHome;
 
     setUp(() {
-      tempHome = Directory.systemTemp.createTempSync('artisan_logs_');
+      tempHome = Directory.systemTemp.createTempSync('dowel_logs_');
       StateFile.debugHomeOverride = tempHome.path;
     });
 
@@ -30,7 +30,7 @@ void main() {
     test('returns 1 with warning when log file missing', () async {
       final command = LogsCommand();
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(MapInput(const {}), output);
+      final ctx = DowelContext.bare(MapInput(const {}), output);
 
       final code = await command.handle(ctx);
 
@@ -49,12 +49,12 @@ void main() {
 
     test('non-follow path returns 0 when log file present', () async {
       final command = LogsCommand();
-      final stateDir = Directory('${tempHome.path}/.artisan');
+      final stateDir = Directory('${tempHome.path}/.dowel');
       stateDir.createSync(recursive: true);
       File('${stateDir.path}/flutter-dev.log').writeAsStringSync('hello');
 
       final output = BufferedOutput();
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(const {'follow': false}),
         output,
       );

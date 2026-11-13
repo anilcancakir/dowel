@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in fluttersdk_artisan
+description: Report a bug in dowel
 labels: ["bug"]
 body:
   - type: markdown
@@ -22,8 +22,8 @@ body:
       label: Steps to Reproduce
       description: How can we reproduce this bug?
       placeholder: |
-        1. Run `dart run fluttersdk_artisan install` in a fresh Dart project
-        2. Run `dart run fluttersdk_artisan plugin:install <plugin_name>`
+        1. Run `dart run dowel install` in a fresh Dart project
+        2. Run `dart run dowel plugin:install <plugin_name>`
         3. See error
     validations:
       required: true
@@ -50,13 +50,13 @@ body:
       label: Subsystem
       description: Which part of the framework is affected?
       options:
-        - Console (ArtisanApplication, ArtisanRegistry, signature DSL)
-        - Commands (21 builtin commands)
+        - Console (DowelApplication, DowelRegistry, signature DSL)
+        - Commands (22 builtin commands)
         - Lifecycle (start / stop / status / logs / restart / reload / hot-restart)
         - Scaffolding (make:plugin / make:command / install)
         - Plugin Management (plugin:install / plugin:uninstall / plugins:refresh)
         - MCP Server (mcp:serve / mcp:install / mcp:uninstall, stdio JSON-RPC, filter)
-        - MCP Tools (substrate artisan_* or plugin-contributed tools)
+        - MCP Tools (substrate dowel_* or plugin-contributed tools)
         - install.yaml manifest / ManifestInstaller
         - PluginInstaller DSL / InstallOperation / InstallTransaction
         - Helpers (FileHelper, ConfigEditor, MainDartEditor, PlistWriter, etc.)
@@ -72,8 +72,8 @@ body:
     id: command
     attributes:
       label: Command Invocation
-      description: The exact `dart run fluttersdk_artisan ...` command (or MCP tool name + arguments) that triggered the bug.
-      placeholder: "dart run fluttersdk_artisan plugin:install awesome_plugin --dry-run"
+      description: The exact `dart run dowel ...` command (or MCP tool name + arguments) that triggered the bug.
+      placeholder: "dart run dowel plugin:install awesome_plugin --dry-run"
       render: shell
 
   - type: textarea
@@ -84,10 +84,11 @@ body:
       render: dart
 
   - type: input
-    id: artisan-version
+    id: dowel-version
     attributes:
-      label: fluttersdk_artisan Version
-      placeholder: "0.0.1"
+      label: dowel Version
+      description: Output of `dart run dowel --version`.
+      placeholder: "0.0.21"
     validations:
       required: true
 

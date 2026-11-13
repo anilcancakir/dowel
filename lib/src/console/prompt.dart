@@ -1,12 +1,12 @@
 import 'dart:io';
 
-/// Interactive stdin prompts for ArtisanCommands.
+/// Interactive stdin prompts for DowelCommands.
 ///
 /// Mirrors Laravel's [InteractsWithIO] surface but stays POSIX-friendly:
 /// reads from `stdin.readLineSync()` rather than a full readline library
 /// (no extra deps, no platform-specific quirks).
 ///
-/// Use these helpers inside [ArtisanCommand.handle] to gather missing
+/// Use these helpers inside [DowelCommand.handle] to gather missing
 /// inputs from the user. Tests inject a [Prompt.testOverride] to bypass
 /// the real stdin.
 class Prompt {

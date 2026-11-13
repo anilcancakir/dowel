@@ -1,12 +1,12 @@
 {
     "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-    "name": "io.github.fluttersdk/artisan",
-    "title": "FlutterSDK Artisan",
+    "name": "io.github.anilcancakir/dowel",
+    "title": "Dowel",
     "description": "CLI framework and stdio MCP server for Flutter: scaffolding, hot reload, REPL, codegen.",
-    "version": "0.0.20",
+    "version": "0.0.21",
     "repository": {
-        "url": "https://github.com/fluttersdk/artisan",
+        "url": "https://github.com/anilcancakir/dowel",
         "source": "github"
     },
-    "websiteUrl": "https://fluttersdk.com/artisan"
+    "websiteUrl": "https://anilcancakir.com/dowel"
 }

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -63,7 +63,7 @@ void main() {
     late String ktsPath;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_gradle_kts_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_gradle_kts_');
       ktsPath = p.join(tempDir.path, 'build.gradle.kts');
       File(ktsPath).writeAsStringSync(_ktsFixture);
     });
@@ -151,7 +151,7 @@ void main() {
     late String groovyPath;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_gradle_groovy_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_gradle_groovy_');
       groovyPath = p.join(tempDir.path, 'build.gradle');
       File(groovyPath).writeAsStringSync(_groovyFixture);
     });
@@ -228,7 +228,7 @@ void main() {
     late Directory tempDir;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_gradle_cp_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_gradle_cp_');
     });
 
     tearDown(() {
@@ -287,7 +287,7 @@ buildscript {
     late Directory tempDir;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('artisan_gradle_edge_');
+      tempDir = Directory.systemTemp.createTempSync('dowel_gradle_edge_');
     });
 
     tearDown(() {

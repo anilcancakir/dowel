@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/src/commands/helpers/bootstrap_command_runner.dart';
+import 'package:dowel/src/commands/helpers/bootstrap_command_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -31,11 +31,11 @@ class _RecordingRunner {
 
 void main() {
   group('BootstrapCommandRunner — dispatcher resolution', () {
-    test('prefers ./bin/fsa when the wrapper exists', () async {
-      final root = Directory.systemTemp.createTempSync('bootstrap_fsa_');
+    test('prefers ./bin/dowel when the wrapper exists', () async {
+      final root = Directory.systemTemp.createTempSync('bootstrap_dowel_');
       addTearDown(() => root.deleteSync(recursive: true));
       Directory(p.join(root.path, 'bin')).createSync(recursive: true);
-      File(p.join(root.path, 'bin', 'fsa')).writeAsStringSync('#!/bin/sh\n');
+      File(p.join(root.path, 'bin', 'dowel')).writeAsStringSync('#!/bin/sh\n');
 
       final runner = _RecordingRunner();
       final result =
@@ -45,7 +45,7 @@ void main() {
       );
 
       expect(result.outcome, BootstrapRunOutcome.invoked);
-      expect(runner.executable, './bin/fsa');
+      expect(runner.executable, './bin/dowel');
       expect(
         runner.arguments,
         equals(<String>['starter:install', '--non-interactive']),
@@ -54,15 +54,13 @@ void main() {
     });
 
     test(
-        'falls back to dart run <consumer>:artisan when bin/fsa is absent but '
-        'the consumer pubspec resolves a package name', () async {
+        'falls back to dart run :dispatcher when bin/dowel is absent but '
+        'bin/dispatcher.dart exists', () async {
       final root = Directory.systemTemp.createTempSync('bootstrap_dartrun_');
       addTearDown(() => root.deleteSync(recursive: true));
-      File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync(
-        'name: my_app\n'
-        'environment:\n'
-        "  sdk: '>=3.4.0 <4.0.0'\n",
-      );
+      Directory(p.join(root.path, 'bin')).createSync(recursive: true);
+      File(p.join(root.path, 'bin', 'dispatcher.dart'))
+          .writeAsStringSync('void main() {}\n');
 
       final runner = _RecordingRunner();
       final result =
@@ -77,7 +75,7 @@ void main() {
         runner.arguments,
         equals(<String>[
           'run',
-          'my_app:artisan',
+          ':dispatcher',
           'starter:install',
           '--non-interactive',
         ]),
@@ -86,11 +84,16 @@ void main() {
     });
 
     test(
-        'reports notResolvable when neither bin/fsa nor a consumer package '
-        'name is available', () async {
+        'reports notResolvable when neither bin/dowel nor bin/dispatcher.dart '
+        'exists, even with a pubspec and a bin/dowel.dart', () async {
       final root = Directory.systemTemp.createTempSync('bootstrap_unresolv_');
       addTearDown(() => root.deleteSync(recursive: true));
-      // No bin/fsa, no pubspec → nothing to dispatch through.
+      // bin/dowel.dart is dowel's own entry point, never a consumer wrapper.
+      File(p.join(root.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: my_app\n');
+      Directory(p.join(root.path, 'bin')).createSync(recursive: true);
+      File(p.join(root.path, 'bin', 'dowel.dart'))
+          .writeAsStringSync('void main() {}\n');
 
       final runner = _RecordingRunner();
       final result =
@@ -108,7 +111,7 @@ void main() {
       final root = Directory.systemTemp.createTempSync('bootstrap_fail_');
       addTearDown(() => root.deleteSync(recursive: true));
       Directory(p.join(root.path, 'bin')).createSync(recursive: true);
-      File(p.join(root.path, 'bin', 'fsa')).writeAsStringSync('#!/bin/sh\n');
+      File(p.join(root.path, 'bin', 'dowel')).writeAsStringSync('#!/bin/sh\n');
 
       final runner = _RecordingRunner()
         ..returnResult =
@@ -129,7 +132,7 @@ void main() {
       final root = Directory.systemTemp.createTempSync('bootstrap_ok_');
       addTearDown(() => root.deleteSync(recursive: true));
       Directory(p.join(root.path, 'bin')).createSync(recursive: true);
-      File(p.join(root.path, 'bin', 'fsa')).writeAsStringSync('#!/bin/sh\n');
+      File(p.join(root.path, 'bin', 'dowel')).writeAsStringSync('#!/bin/sh\n');
 
       final runner = _RecordingRunner()
         ..returnResult = ProcessResult(0, 0, '', '');
@@ -147,7 +150,7 @@ void main() {
       final root = Directory.systemTemp.createTempSync('bootstrap_noninter_');
       addTearDown(() => root.deleteSync(recursive: true));
       Directory(p.join(root.path, 'bin')).createSync(recursive: true);
-      File(p.join(root.path, 'bin', 'fsa')).writeAsStringSync('#!/bin/sh\n');
+      File(p.join(root.path, 'bin', 'dowel')).writeAsStringSync('#!/bin/sh\n');
 
       final runner = _RecordingRunner();
       await BootstrapCommandRunner(processRunner: runner.call).run(
@@ -163,14 +166,17 @@ void main() {
       // reaches Process.run has never run under test. It is the line that
       // decides whether a chained install happens at all.
       final Directory root =
-          Directory.systemTemp.createTempSync('artisan_bootstrap_real_');
+          Directory.systemTemp.createTempSync('dowel_bootstrap_real_');
       addTearDown(() => root.deleteSync(recursive: true));
       File('${root.path}/pubspec.yaml').writeAsStringSync('name: demo_app\n');
+      Directory('${root.path}/bin').createSync();
+      File('${root.path}/bin/dispatcher.dart')
+          .writeAsStringSync('void main() {}\n');
 
-      // No bin/fsa and a pubspec name, so it resolves to `dart run
-      // demo_app:artisan ...`, which fails fast in an empty directory. The
-      // assertion is that a subprocess ran and its code came back, not that
-      // the chained command succeeded.
+      // No bin/dowel but a bin/dispatcher.dart, so it resolves to `dart run
+      // :dispatcher ...`, which fails fast in a directory with no resolved
+      // package. The assertion is that a subprocess ran and its code came
+      // back, not that the chained command succeeded.
       final runner = BootstrapCommandRunner();
 
       expect(

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -9,7 +9,7 @@ void main() {
     late Directory tempHome;
 
     setUp(() async {
-      tempHome = await Directory.systemTemp.createTemp('artisan_state_test_');
+      tempHome = await Directory.systemTemp.createTemp('dowel_state_test_');
       StateFile.debugHomeOverride = tempHome.path;
     });
 
@@ -21,18 +21,18 @@ void main() {
     });
 
     test('path resolves to a per-project session file', () {
-      // One global slot let a sibling project's `artisan start` take over
+      // One global slot let a sibling project's `dowel start` take over
       // and silently repoint every connected command here.
-      expect(StateFile.path, startsWith('${tempHome.path}/.artisan/sessions/'));
+      expect(StateFile.path, startsWith('${tempHome.path}/.dowel/sessions/'));
       expect(StateFile.path, endsWith('.json'));
     });
 
     test('the legacy pointer still resolves to the well-known path', () {
       // Hand-writing this file is the documented recovery recipe when
-      // `artisan start` cannot boot an app, so the location is a contract.
+      // `dowel start` cannot boot an app, so the location is a contract.
       expect(
         StateFile.legacyPointerPath,
-        '${tempHome.path}/.artisan/state.json',
+        '${tempHome.path}/.dowel/state.json',
       );
     });
 
@@ -62,12 +62,12 @@ void main() {
     });
 
     test('write creates the parent directory when missing', () async {
-      // Fresh temp home; ~/.artisan does not exist yet.
-      expect(Directory('${tempHome.path}/.artisan').existsSync(), isFalse);
+      // Fresh temp home; ~/.dowel does not exist yet.
+      expect(Directory('${tempHome.path}/.dowel').existsSync(), isFalse);
 
       await StateFile.write({'pid': 1});
 
-      expect(Directory('${tempHome.path}/.artisan').existsSync(), isTrue);
+      expect(Directory('${tempHome.path}/.dowel').existsSync(), isTrue);
     });
 
     test('delete removes the file', () async {

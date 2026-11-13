@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 /// Helper: build a [McpToolDescriptor] with a given [name] and provider prefix.
 McpToolDescriptor _tool(String name, String extensionMethod) =>
@@ -63,8 +63,8 @@ void main() {
           'deny': ['z'],
         },
         'tools': {
-          'allow': ['dusk_snap'],
-          'deny': ['telescope_tail'],
+          'allow': ['tapir_snap'],
+          'deny': ['crumbs_tail'],
         },
       }));
 
@@ -72,8 +72,8 @@ void main() {
 
       expect(config.packagesAllow, equals({'x', 'y'}));
       expect(config.packagesDeny, equals({'z'}));
-      expect(config.toolsAllow, equals({'dusk_snap'}));
-      expect(config.toolsDeny, equals({'telescope_tail'}));
+      expect(config.toolsAllow, equals({'tapir_snap'}));
+      expect(config.toolsDeny, equals({'crumbs_tail'}));
     });
 
     test('throws FormatException for missing file', () {
@@ -99,32 +99,32 @@ void main() {
 
     test('CSV parsing: single value', () {
       final config = McpFilterConfig.fromEnv({
-        'ARTISAN_MCP_PACKAGES_ALLOW': 'fluttersdk_dusk',
+        'DOWEL_MCP_PACKAGES_ALLOW': 'tapir',
       });
 
-      expect(config.packagesAllow, equals({'fluttersdk_dusk'}));
+      expect(config.packagesAllow, equals({'tapir'}));
     });
 
     test('CSV parsing: multiple values', () {
       final config = McpFilterConfig.fromEnv({
-        'ARTISAN_MCP_PACKAGES_ALLOW': 'fluttersdk_dusk,fluttersdk_telescope',
-        'ARTISAN_MCP_PACKAGES_DENY': 'fluttersdk_tinker',
-        'ARTISAN_MCP_TOOLS_ALLOW': 'dusk_snap,dusk_tap',
-        'ARTISAN_MCP_TOOLS_DENY': 'telescope_http',
+        'DOWEL_MCP_PACKAGES_ALLOW': 'tapir,crumbs',
+        'DOWEL_MCP_PACKAGES_DENY': 'tinker_fixture',
+        'DOWEL_MCP_TOOLS_ALLOW': 'tapir_snap,tapir_tap',
+        'DOWEL_MCP_TOOLS_DENY': 'crumbs_http',
       });
 
       expect(
         config.packagesAllow,
-        equals({'fluttersdk_dusk', 'fluttersdk_telescope'}),
+        equals({'tapir', 'crumbs'}),
       );
-      expect(config.packagesDeny, equals({'fluttersdk_tinker'}));
-      expect(config.toolsAllow, equals({'dusk_snap', 'dusk_tap'}));
-      expect(config.toolsDeny, equals({'telescope_http'}));
+      expect(config.packagesDeny, equals({'tinker_fixture'}));
+      expect(config.toolsAllow, equals({'tapir_snap', 'tapir_tap'}));
+      expect(config.toolsDeny, equals({'crumbs_http'}));
     });
 
     test('CSV parsing: whitespace around commas is trimmed', () {
       final config = McpFilterConfig.fromEnv({
-        'ARTISAN_MCP_PACKAGES_ALLOW': ' pkg_a , pkg_b ',
+        'DOWEL_MCP_PACKAGES_ALLOW': ' pkg_a , pkg_b ',
       });
 
       expect(config.packagesAllow, equals({'pkg_a', 'pkg_b'}));
@@ -132,7 +132,7 @@ void main() {
 
     test('CSV parsing: empty string yields null allow-list', () {
       final config = McpFilterConfig.fromEnv({
-        'ARTISAN_MCP_PACKAGES_ALLOW': '',
+        'DOWEL_MCP_PACKAGES_ALLOW': '',
       });
 
       expect(config.packagesAllow, isNull);
@@ -140,7 +140,7 @@ void main() {
 
     test('CSV parsing: whitespace-only string yields null allow-list', () {
       final config = McpFilterConfig.fromEnv({
-        'ARTISAN_MCP_PACKAGES_ALLOW': '   ',
+        'DOWEL_MCP_PACKAGES_ALLOW': '   ',
       });
 
       expect(config.packagesAllow, isNull);
@@ -162,19 +162,19 @@ void main() {
 
     test('repeated flags accumulate into allow/deny sets', () {
       final config = McpFilterConfig.fromCli(
-        includePackage: ['fluttersdk_dusk', 'fluttersdk_telescope'],
-        excludePackage: ['fluttersdk_tinker'],
-        includeTool: ['dusk_snap'],
-        excludeTool: ['telescope_http'],
+        includePackage: ['tapir', 'crumbs'],
+        excludePackage: ['tinker_fixture'],
+        includeTool: ['tapir_snap'],
+        excludeTool: ['crumbs_http'],
       );
 
       expect(
         config.packagesAllow,
-        equals({'fluttersdk_dusk', 'fluttersdk_telescope'}),
+        equals({'tapir', 'crumbs'}),
       );
-      expect(config.packagesDeny, equals({'fluttersdk_tinker'}));
-      expect(config.toolsAllow, equals({'dusk_snap'}));
-      expect(config.toolsDeny, equals({'telescope_http'}));
+      expect(config.packagesDeny, equals({'tinker_fixture'}));
+      expect(config.toolsAllow, equals({'tapir_snap'}));
+      expect(config.toolsDeny, equals({'crumbs_http'}));
     });
 
     test('empty list args produce null allow-list', () {
@@ -388,16 +388,16 @@ void main() {
   // ---------------------------------------------------------------------------
   group('McpFilterConfig.apply', () {
     final allTools = [
-      _tool('dusk_snap', 'ext.dusk.snap'),
-      _tool('dusk_tap', 'ext.dusk.tap'),
-      _tool('telescope_http', 'ext.telescope.http'),
-      _tool('telescope_exceptions', 'ext.telescope.exceptions'),
+      _tool('tapir_snap', 'ext.tapir.snap'),
+      _tool('tapir_tap', 'ext.tapir.tap'),
+      _tool('crumbs_http', 'ext.crumbs.http'),
+      _tool('crumbs_exceptions', 'ext.crumbs.exceptions'),
       _tool('tinker_evaluate', 'ext.tinker.evaluate'),
     ];
 
     String packageOf(McpToolDescriptor t) {
-      if (t.name.startsWith('dusk_')) return 'fluttersdk_dusk';
-      if (t.name.startsWith('telescope_')) return 'fluttersdk_telescope';
+      if (t.name.startsWith('tapir_')) return 'tapir';
+      if (t.name.startsWith('crumbs_')) return 'crumbs';
       return 'magic_tinker';
     }
 
@@ -409,32 +409,32 @@ void main() {
           result.map((t) => t.name), containsAll(allTools.map((t) => t.name)));
     });
 
-    test('packagesDeny=[fluttersdk_telescope] removes all telescope tools', () {
+    test('packagesDeny=[crumbs] removes all crumbs tools', () {
       final config = McpFilterConfig(
         packagesAllow: null,
-        packagesDeny: const {'fluttersdk_telescope'},
+        packagesDeny: const {'crumbs'},
         toolsAllow: null,
         toolsDeny: const {},
       );
 
       final result = config.apply(allTools, packageOf);
 
-      expect(result.any((t) => t.name.startsWith('telescope_')), isFalse);
-      expect(result, hasLength(3)); // dusk x2 + tinker x1
+      expect(result.any((t) => t.name.startsWith('crumbs_')), isFalse);
+      expect(result, hasLength(3)); // tapir x2 + tinker x1
     });
 
-    test('toolsAllow=[dusk_snap] keeps only that one tool', () {
+    test('toolsAllow=[tapir_snap] keeps only that one tool', () {
       final config = McpFilterConfig(
         packagesAllow: null,
         packagesDeny: const {},
-        toolsAllow: const {'dusk_snap'},
+        toolsAllow: const {'tapir_snap'},
         toolsDeny: const {},
       );
 
       final result = config.apply(allTools, packageOf);
 
       expect(result, hasLength(1));
-      expect(result.first.name, 'dusk_snap');
+      expect(result.first.name, 'tapir_snap');
     });
 
     test('toolsDeny removes specific tools regardless of package allow', () {
@@ -442,12 +442,12 @@ void main() {
         packagesAllow: null,
         packagesDeny: const {},
         toolsAllow: null,
-        toolsDeny: const {'dusk_tap', 'tinker_evaluate'},
+        toolsDeny: const {'tapir_tap', 'tinker_evaluate'},
       );
 
       final result = config.apply(allTools, packageOf);
 
-      expect(result.map((t) => t.name), isNot(contains('dusk_tap')));
+      expect(result.map((t) => t.name), isNot(contains('tapir_tap')));
       expect(result.map((t) => t.name), isNot(contains('tinker_evaluate')));
       expect(result, hasLength(3));
     });
@@ -456,7 +456,7 @@ void main() {
         'packagesAllow restricts to named packages; tools from others excluded',
         () {
       final config = McpFilterConfig(
-        packagesAllow: const {'fluttersdk_dusk'},
+        packagesAllow: const {'tapir'},
         packagesDeny: const {},
         toolsAllow: null,
         toolsDeny: const {},
@@ -464,7 +464,7 @@ void main() {
 
       final result = config.apply(allTools, packageOf);
 
-      expect(result.every((t) => t.name.startsWith('dusk_')), isTrue);
+      expect(result.every((t) => t.name.startsWith('tapir_')), isTrue);
       expect(result, hasLength(2));
     });
 
@@ -472,8 +472,8 @@ void main() {
       final config = McpFilterConfig(
         packagesAllow: null,
         packagesDeny: const {},
-        toolsAllow: const {'dusk_snap'},
-        toolsDeny: const {'dusk_snap'},
+        toolsAllow: const {'tapir_snap'},
+        toolsDeny: const {'tapir_snap'},
       );
 
       final result = config.apply(allTools, packageOf);
@@ -485,26 +485,26 @@ void main() {
     test('packagesDeny wins over packagesAllow when same package is in both',
         () {
       final config = McpFilterConfig(
-        packagesAllow: const {'fluttersdk_dusk'},
-        packagesDeny: const {'fluttersdk_dusk'},
+        packagesAllow: const {'tapir'},
+        packagesDeny: const {'tapir'},
         toolsAllow: null,
         toolsDeny: const {},
       );
 
       final result = config.apply(allTools, packageOf);
 
-      expect(result.any((t) => t.name.startsWith('dusk_')), isFalse);
+      expect(result.any((t) => t.name.startsWith('tapir_')), isFalse);
     });
 
     test('name matching is case-sensitive', () {
       final config = McpFilterConfig(
         packagesAllow: null,
         packagesDeny: const {},
-        toolsAllow: const {'Dusk_Snap'}, // wrong case
+        toolsAllow: const {'Tapir_Snap'}, // wrong case
         toolsDeny: const {},
       );
 
-      // No tool named 'Dusk_Snap' exists; result is empty.
+      // No tool named 'Tapir_Snap' exists; result is empty.
       final result = config.apply(allTools, packageOf);
 
       expect(result, isEmpty);

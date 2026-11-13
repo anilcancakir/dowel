@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:fluttersdk_artisan/src/commands/make_fast_cli_command.dart';
+import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/make_fast_cli_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -70,20 +70,20 @@ void _seedConsumerProject(
     ..createSync(recursive: true);
   File(p.join(binDir.path, 'dispatcher.dart')).writeAsStringSync(
     wrapper ??
-        "import 'package:fluttersdk_artisan/artisan.dart';\n\n"
+        "import 'package:dowel/dowel.dart';\n\n"
             "Future<void> main(List<String> args) async {\n"
-            "  final registry = ArtisanRegistry();\n"
+            "  final registry = DowelRegistry();\n"
             "  final auto = await loadAutoIndex();\n"
             "  registry.registerAll(auto.commands, providerName: 'app');\n"
-            "  final app = ArtisanApplication(registry);\n"
+            "  final app = DowelApplication(registry);\n"
             "  await app.run(args);\n"
             "}\n",
   );
 }
 
-/// Builds an [ArtisanContext] backed by a [BufferedOutput] for output assertions.
-ArtisanContext _ctx() {
-  return ArtisanContext.bare(
+/// Builds an [DowelContext] backed by a [BufferedOutput] for output assertions.
+DowelContext _ctx() {
+  return DowelContext.bare(
     MapInput(const <String, dynamic>{}),
     BufferedOutput(),
   );
@@ -92,10 +92,10 @@ ArtisanContext _ctx() {
 /// Builds scripted results for the happy path: chmod succeeds, dart --version
 /// returns a semver, dart build cli succeeds.
 Map<String, ProcessResult> _happyScripted(String root) => {
-      'chmod +x ${p.join(root, 'bin', 'fsa')}': ProcessResult(0, 0, '', ''),
+      'chmod +x ${p.join(root, 'bin', 'dowel')}': ProcessResult(0, 0, '', ''),
       'dart --version':
           ProcessResult(0, 0, '', 'Dart SDK version: 3.8.0 (stable) ...'),
-      'dart build cli -t bin/dispatcher.dart -o .artisan/cli-bundle':
+      'dart build cli -t bin/dispatcher.dart -o .dowel/cli-bundle':
           ProcessResult(0, 0, 'Build complete.', ''),
     };
 
@@ -127,9 +127,9 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 2 — writes bin/fsa with correct content
+  // Test 2: writes bin/dowel with correct content
   // -------------------------------------------------------------------------
-  test('writes bin/fsa with correct shell script content', () async {
+  test('writes bin/dowel with correct shell script content', () async {
     final ctx = _ctx();
     final result = await MakeFastCliCommand.scaffoldInto(
       root: tempDir.path,
@@ -139,10 +139,10 @@ void main() {
 
     expect(result, 0);
 
-    final fsaFile = File(p.join(tempDir.path, 'bin', 'fsa'));
-    expect(fsaFile.existsSync(), isTrue);
+    final dowelFile = File(p.join(tempDir.path, 'bin', 'dowel'));
+    expect(dowelFile.existsSync(), isTrue);
 
-    final content = fsaFile.readAsStringSync();
+    final content = dowelFile.readAsStringSync();
     expect(content, contains('follow_links'));
     expect(content, contains('dart build cli'));
     expect(content, contains('mkdir'));
@@ -150,26 +150,26 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 3 — chmod called on bin/fsa
+  // Test 3: chmod called on bin/dowel
   // -------------------------------------------------------------------------
-  test('chmod +x is called on bin/fsa', () async {
+  test('chmod +x is called on bin/dowel', () async {
     await MakeFastCliCommand.scaffoldInto(
       root: tempDir.path,
       force: false,
       ctx: _ctx(),
     );
 
-    final binFsaPath = p.join(tempDir.path, 'bin', 'fsa');
+    final binDowelPath = p.join(tempDir.path, 'bin', 'dowel');
     expect(
       runner.calls,
-      anyElement(equals(['chmod', '+x', binFsaPath])),
+      anyElement(equals(['chmod', '+x', binDowelPath])),
     );
   });
 
   // -------------------------------------------------------------------------
-  // Test 4 — .gitignore patched (idempotent: exactly ONE .artisan/ line)
+  // Test 4: .gitignore patched (idempotent: exactly ONE .dowel/ line)
   // -------------------------------------------------------------------------
-  test('.gitignore is patched with .artisan/ exactly once (idempotent)',
+  test('.gitignore is patched with .dowel/ exactly once (idempotent)',
       () async {
     // First run.
     await MakeFastCliCommand.scaffoldInto(
@@ -192,8 +192,8 @@ void main() {
     expect(gitignore.existsSync(), isTrue);
 
     final content = gitignore.readAsStringSync();
-    expect(content, contains('.artisan/'));
-    expect(RegExp('.artisan/').allMatches(content).length, 1);
+    expect(content, contains('.dowel/'));
+    expect(RegExp('.dowel/').allMatches(content).length, 1);
   });
 
   // -------------------------------------------------------------------------
@@ -216,7 +216,7 @@ void main() {
           '-t',
           'bin/dispatcher.dart',
           '-o',
-          '.artisan/cli-bundle',
+          '.dowel/cli-bundle',
         ]),
       ),
     );
@@ -232,7 +232,7 @@ void main() {
       ctx: _ctx(),
     );
 
-    final stamp = File(p.join(tempDir.path, '.artisan', 'build.stamp'));
+    final stamp = File(p.join(tempDir.path, '.dowel', 'build.stamp'));
     expect(stamp.existsSync(), isTrue);
 
     final content = stamp.readAsStringSync().trim();
@@ -241,11 +241,12 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 7 — idempotency: second run with force=false skips bin/fsa
+  // Test 7: idempotency: second run with force=false skips bin/dowel
   // -------------------------------------------------------------------------
-  test('second run with force=false skips bin/fsa and does not re-invoke build',
+  test(
+      'second run with force=false skips bin/dowel and does not re-invoke build',
       () async {
-    // First run: creates bin/fsa.
+    // First run: creates bin/dowel.
     await MakeFastCliCommand.scaffoldInto(
       root: tempDir.path,
       force: false,
@@ -256,7 +257,7 @@ void main() {
     final runner2 = _RecordingRunner(_happyScripted(tempDir.path));
     MakeFastCliCommand.processRunner = runner2.call;
     final output2 = BufferedOutput();
-    final ctx2 = ArtisanContext.bare(MapInput(const {}), output2);
+    final ctx2 = DowelContext.bare(MapInput(const {}), output2);
 
     final result2 = await MakeFastCliCommand.scaffoldInto(
       root: tempDir.path,
@@ -267,7 +268,7 @@ void main() {
     expect(result2, 0);
     expect(output2.content, contains('Skipped'));
 
-    // chmod should NOT be called again (bin/fsa was not rewritten).
+    // chmod should NOT be called again (bin/dowel was not rewritten).
     final chmodCalls = runner2.calls.where((c) => c.first == 'chmod').toList();
     expect(chmodCalls, isEmpty);
 
@@ -279,9 +280,9 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 8 — force: second run with force=true rewrites bin/fsa + re-chmods
+  // Test 8: force: second run with force=true rewrites bin/dowel + re-chmods
   // -------------------------------------------------------------------------
-  test('second run with force=true rewrites bin/fsa and calls chmod again',
+  test('second run with force=true rewrites bin/dowel and calls chmod again',
       () async {
     // First run.
     await MakeFastCliCommand.scaffoldInto(
@@ -302,8 +303,8 @@ void main() {
 
     expect(result2, 0);
 
-    // chmod must be called again because bin/fsa was rewritten.
-    final binFsaPath = p.join(tempDir.path, 'bin', 'fsa');
-    expect(runner2.calls, anyElement(equals(['chmod', '+x', binFsaPath])));
+    // chmod must be called again because bin/dowel was rewritten.
+    final binDowelPath = p.join(tempDir.path, 'bin', 'dowel');
+    expect(runner2.calls, anyElement(equals(['chmod', '+x', binDowelPath])));
   });
 }

@@ -1,7 +1,7 @@
 import 'package:args/args.dart';
 
-import '../console/artisan_command.dart';
-import '../console/artisan_context.dart';
+import '../console/dowel_command.dart';
+import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 import 'start_command.dart';
@@ -23,7 +23,7 @@ import 'stop_command.dart';
 /// `Address already in use` while naming a port the caller never typed. A
 /// restart onto the default web-server device is quieter and worse: nothing
 /// renders, and every screenshot after it comes back byte-identical.
-class RestartCommand extends ArtisanCommand {
+class RestartCommand extends DowelCommand {
   @override
   String get name => 'restart';
 
@@ -123,7 +123,7 @@ class RestartCommand extends ArtisanCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Read the prior state BEFORE stop deletes it, so every setting the
     //    session was started with can be carried over rather than silently
     //    reverting to a default.

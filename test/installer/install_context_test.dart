@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Fake [PromptDriver] that records every method invocation but returns
@@ -138,7 +138,7 @@ void main() {
     });
 
     test(
-        'constructs a bare ArtisanContext with MapInput + BufferedOutput when input/output not supplied',
+        'constructs a bare DowelContext with MapInput + BufferedOutput when input/output not supplied',
         () {
       final ctx = InstallContext.test(
         fs: InMemoryFs(),
@@ -146,10 +146,10 @@ void main() {
         stubs: _RecordingStubDriver(const {}),
       );
 
-      expect(ctx.artisanContext, isA<ArtisanContext>());
-      expect(ctx.artisanContext.input, isA<MapInput>());
-      expect(ctx.artisanContext.output, isA<BufferedOutput>());
-      expect(ctx.artisanContext.vmClient, isNull);
+      expect(ctx.dowelContext, isA<DowelContext>());
+      expect(ctx.dowelContext.input, isA<MapInput>());
+      expect(ctx.dowelContext.output, isA<BufferedOutput>());
+      expect(ctx.dowelContext.vmClient, isNull);
     });
 
     test('honours injected input + output when supplied', () {
@@ -164,8 +164,8 @@ void main() {
         output: output,
       );
 
-      expect(identical(ctx.artisanContext.input, input), isTrue);
-      expect(identical(ctx.artisanContext.output, output), isTrue);
+      expect(identical(ctx.dowelContext.input, input), isTrue);
+      expect(identical(ctx.dowelContext.output, output), isTrue);
     });
 
     test('exposes the injected driver instances unchanged (no wrapping)', () {
@@ -190,13 +190,13 @@ void main() {
     test(
         'wires production drivers (RealFs / RealPromptDriver / RealStubDriver)',
         () {
-      final artisanCtx = ArtisanContext.bare(
+      final dowelCtx = DowelContext.bare(
         MapInput(const <String, dynamic>{}),
         BufferedOutput(),
       );
 
       final ctx = InstallContext.real(
-        artisanCtx,
+        dowelCtx,
         projectRoot: '/explicit/root',
       );
 
@@ -204,17 +204,17 @@ void main() {
       expect(ctx.prompt, isA<RealPromptDriver>());
       expect(ctx.stubs, isA<RealStubDriver>());
       expect(ctx.projectRoot, '/explicit/root');
-      expect(identical(ctx.artisanContext, artisanCtx), isTrue);
+      expect(identical(ctx.dowelContext, dowelCtx), isTrue);
     });
 
     test('uses DateTime.now as the default clock', () {
-      final artisanCtx = ArtisanContext.bare(
+      final dowelCtx = DowelContext.bare(
         MapInput(const <String, dynamic>{}),
         BufferedOutput(),
       );
 
       final ctx = InstallContext.real(
-        artisanCtx,
+        dowelCtx,
         projectRoot: '/explicit/root',
       );
 
@@ -237,12 +237,12 @@ void main() {
         () {
       // The dart test runner cwd is the package root which DOES contain a
       // pubspec.yaml, so FileHelper.findProjectRoot() returns a valid path.
-      final artisanCtx = ArtisanContext.bare(
+      final dowelCtx = DowelContext.bare(
         MapInput(const <String, dynamic>{}),
         BufferedOutput(),
       );
 
-      final ctx = InstallContext.real(artisanCtx);
+      final ctx = InstallContext.real(dowelCtx);
 
       expect(ctx.projectRoot, FileHelper.findProjectRoot());
     });
@@ -251,7 +251,7 @@ void main() {
   group('field contract parity', () {
     test('both factories produce instances exposing the same six fields', () {
       final real = InstallContext.real(
-        ArtisanContext.bare(
+        DowelContext.bare(
           MapInput(const <String, dynamic>{}),
           BufferedOutput(),
         ),
@@ -272,7 +272,7 @@ void main() {
         expect(ctx.stubs, isA<StubDriver>());
         expect(ctx.clock(), isA<DateTime>());
         expect(ctx.projectRoot, isNotEmpty);
-        expect(ctx.artisanContext, isA<ArtisanContext>());
+        expect(ctx.dowelContext, isA<DowelContext>());
       }
     });
   });

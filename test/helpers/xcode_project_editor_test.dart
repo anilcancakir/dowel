@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:fluttersdk_artisan/src/helpers/xcode_project_editor.dart';
+import 'package:dowel/src/helpers/xcode_project_editor.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -54,7 +54,7 @@ void main() {
   late String pbxprojPath;
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('artisan_xcodeproj_');
+    tempDir = Directory.systemTemp.createTempSync('dowel_xcodeproj_');
     pbxprojPath =
         p.join(tempDir.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj');
     File(pbxprojPath)

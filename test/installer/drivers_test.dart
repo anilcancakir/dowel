@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 // ---------------------------------------------------------------------------
@@ -233,9 +233,9 @@ void main() {
     test('FakeStubDriver.make loads and replaces in one call', () {
       final driver = FakeStubDriver({'greeting': 'Hello, {{ name }}!'});
 
-      final result = driver.make('greeting', {'name': 'Artisan'});
+      final result = driver.make('greeting', {'name': 'Dowel'});
 
-      expect(result, 'Hello, Artisan!');
+      expect(result, 'Hello, Dowel!');
     });
 
     test('FakeStubDriver.make throws ArgumentError for unknown stub', () {

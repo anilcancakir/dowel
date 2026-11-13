@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:fluttersdk_artisan/src/commands/helpers/bootstrap_command_runner.dart';
+import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/helpers/bootstrap_command_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -10,19 +10,19 @@ import 'package:test/test.dart';
 // Test fixtures
 // ---------------------------------------------------------------------------
 
-/// Builds a fake consumer project tree under [root] with the four files
+/// Builds a fake consumer project tree under [root] with the files
 /// `plugin:install` validates before doing any work: pubspec.yaml listing the
-/// plugin as a dep, .dart_tool/package_config.json resolving the plugin name,
-/// and bin/artisan.dart wrapper.
+/// plugin as a dep and .dart_tool/package_config.json resolving the plugin
+/// name. With [scaffold] it also writes the `lib/app/_plugins.g.dart` barrel
+/// that `dowel install` leaves behind.
 ///
 /// @param root       The temp project root.
 /// @param pluginName The plugin name to wire into both files.
-/// @param wrapper    The initial bin/artisan.dart content; defaults to the
-///                   canonical 6-line wrapper with the auto.commands anchor.
+/// @param scaffold   Whether to seed the `dowel install` scaffold barrel.
 void _seedConsumerProject(
   Directory root, {
   required String pluginName,
-  String? wrapper,
+  bool scaffold = false,
 }) {
   // 1. pubspec.yaml — plugin listed under dependencies.
   File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync(
@@ -38,20 +38,12 @@ void _seedConsumerProject(
     '{"packages":[{"name": "$pluginName"}]}\n',
   );
 
-  // 3. bin/artisan.dart — canonical wrapper with auto.commands anchor.
-  final binDir = Directory(p.join(root.path, 'bin'))
-    ..createSync(recursive: true);
-  File(p.join(binDir.path, 'artisan.dart')).writeAsStringSync(
-    wrapper ??
-        "import 'package:fluttersdk_artisan/artisan.dart';\n\n"
-            "Future<void> main(List<String> args) async {\n"
-            "  final registry = ArtisanRegistry();\n"
-            "  final auto = await loadAutoIndex();\n"
-            "  registry.registerAll(auto.commands, providerName: 'app');\n"
-            "  final app = ArtisanApplication(registry);\n"
-            "  await app.run(args);\n"
-            "}\n",
-  );
+  // 3. lib/app/_plugins.g.dart: the barrel `dowel install` scaffolds.
+  if (scaffold) {
+    Directory(p.join(root.path, 'lib', 'app')).createSync(recursive: true);
+    File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+        .writeAsStringSync('// GENERATED\nfinal providers = <Object>[];\n');
+  }
 }
 
 /// Writes an `install.yaml` manifest at [path] with the supplied
@@ -60,20 +52,20 @@ void _writeInstallYaml(String path, String pluginName) {
   File(path).writeAsStringSync('plugin_name: $pluginName\n');
 }
 
-/// Builds an [ArtisanContext] backed by a [MapInput] carrying the supplied
+/// Builds an [DowelContext] backed by a [MapInput] carrying the supplied
 /// option / argument values + a [BufferedOutput] for output assertions.
 ///
 /// @param options     Map of option-name → value.
 /// @param positional  Positional arguments in declaration order.
 /// @param signature   Optional [CommandSignature] for name-based positional
 ///                    lookup via `ctx.input.argument('name')`.
-/// @return A bare [ArtisanContext] suitable for direct `handle()` invocation.
-ArtisanContext _ctxWith(
+/// @return A bare [DowelContext] suitable for direct `handle()` invocation.
+DowelContext _ctxWith(
   Map<String, dynamic> options, {
   List<String> positional = const [],
   CommandSignature? signature,
 }) {
-  return ArtisanContext.bare(
+  return DowelContext.bare(
     MapInput(options, positional: positional, signature: signature),
     BufferedOutput(),
   );
@@ -123,7 +115,7 @@ class _TestablePluginInstallCommand extends PluginInstallCommand {
   final String fakeProjectRoot;
 
   /// Optional install.yaml path the resolver returns. When `null`, the
-  /// resolver reports "no manifest found" so the legacy branch fires.
+  /// resolver reports "no manifest found" so the direct registration fires.
   final String? fakeInstallYamlPath;
 
   /// Optional bootstrap runner override so auto-run tests can record the
@@ -145,7 +137,7 @@ class _TestablePluginInstallCommand extends PluginInstallCommand {
 
 void main() {
   group('PluginInstallCommand — signature DSL', () {
-    test('inherits the 4 base flags via ArtisanInstallCommand.baseFlags', () {
+    test('inherits the 4 base flags via DowelInstallCommand.baseFlags', () {
       final cmd = PluginInstallCommand();
       final parsed = cmd.parsedSignature!;
       final optionNames = parsed.options.map((o) => o.name).toSet();
@@ -169,13 +161,14 @@ void main() {
 
       expect(
         optionNames,
-        containsAll(<String>['provider', 'bootstrap-command', 'use-yaml-only']),
+        containsAll(<String>['bootstrap-command', 'use-yaml-only']),
       );
+      expect(optionNames, isNot(contains('provider')));
     });
 
-    test('extends ArtisanInstallCommand (CommandBoot.none)', () {
+    test('extends DowelInstallCommand (CommandBoot.none)', () {
       final cmd = PluginInstallCommand();
-      expect(cmd, isA<ArtisanInstallCommand>());
+      expect(cmd, isA<DowelInstallCommand>());
       expect(cmd.boot, CommandBoot.none);
     });
 
@@ -191,12 +184,12 @@ void main() {
     });
   });
 
-  group('PluginInstallCommand — legacy injection (no install.yaml)', () {
-    test('appends import + registerProvider line to bin/artisan.dart',
+  group('PluginInstallCommand: direct registration (no install.yaml)', () {
+    test('records the plugin in plugins.json and regenerates _plugins.g.dart',
         () async {
-      final root = Directory.systemTemp.createTempSync('plinst_legacy_');
+      final root = Directory.systemTemp.createTempSync('plinst_direct_');
       addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
 
       final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
       final ctx = _ctxWith(
@@ -207,96 +200,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
-        },
-        positional: const ['magic_logger'],
-        signature: cmd.parsedSignature,
-      );
-
-      final exit = await cmd.handle(ctx);
-      expect(exit, 0);
-
-      final wrapper =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
-      expect(wrapper, contains("import 'package:magic_logger/cli.dart';"));
-      expect(wrapper,
-          contains('registry.registerProvider(MagicLoggerArtisanProvider());'));
-    });
-
-    test('idempotent re-run leaves the wrapper unchanged when not --force',
-        () async {
-      final root = Directory.systemTemp.createTempSync('plinst_idem_');
-      addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
-
-      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
-      final opts = <String, dynamic>{
-        'force': false,
-        'no-bootstrap': false,
-        'dry-run': false,
-        'non-interactive': false,
-        'use-yaml-only': false,
-        'bootstrap-command': null,
-        'provider': null,
-      };
-
-      await cmd.handle(_ctxWith(opts,
-          positional: const ['magic_logger'], signature: cmd.parsedSignature));
-      final firstSnapshot =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
-
-      await cmd.handle(_ctxWith(opts,
-          positional: const ['magic_logger'], signature: cmd.parsedSignature));
-      final secondSnapshot =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
-
-      expect(secondSnapshot, equals(firstSnapshot),
-          reason: 'Second run must be a no-op when force is false.');
-    });
-
-    test('--provider override controls the registered class name', () async {
-      final root = Directory.systemTemp.createTempSync('plinst_provider_');
-      addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
-
-      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
-      final ctx = _ctxWith(
-        const <String, dynamic>{
-          'force': false,
-          'no-bootstrap': false,
-          'dry-run': false,
-          'non-interactive': false,
-          'use-yaml-only': false,
-          'bootstrap-command': null,
-          'provider': 'CustomLoggerProvider',
-        },
-        positional: const ['magic_logger'],
-        signature: cmd.parsedSignature,
-      );
-
-      await cmd.handle(ctx);
-
-      final wrapper =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
-      expect(wrapper,
-          contains('registry.registerProvider(CustomLoggerProvider());'));
-    });
-
-    test('--no-bootstrap skips the bootstrap hint line', () async {
-      final root = Directory.systemTemp.createTempSync('plinst_nobootstrap_');
-      addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
-
-      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
-      final ctx = _ctxWith(
-        const <String, dynamic>{
-          'force': false,
-          'no-bootstrap': true,
-          'dry-run': false,
-          'non-interactive': false,
-          'use-yaml-only': false,
-          'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -306,26 +209,76 @@ void main() {
       expect(exit, 0);
 
       final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('Skipping plugin bootstrap'));
-      expect(out, isNot(contains('Bootstrap with: artisan')));
+      expect(out, contains('via the dowel scaffold'));
+
+      final registry = jsonDecode(
+        File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync(),
+      ) as Map<String, dynamic>;
+      final plugins = registry['plugins'] as List<dynamic>;
+      expect(plugins, hasLength(1));
+      expect(
+        (plugins.single as Map<String, dynamic>)['providerClass'],
+        'MagicLoggerDowelProvider',
+      );
+
+      final barrel = File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+          .readAsStringSync();
+      expect(barrel, contains('MagicLoggerDowelProvider'));
+    });
+
+    test('a second run keeps exactly one plugins.json entry', () async {
+      final root = Directory.systemTemp.createTempSync('plinst_idem_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+
+      const opts = <String, dynamic>{
+        'force': false,
+        'no-bootstrap': false,
+        'dry-run': false,
+        'non-interactive': false,
+        'use-yaml-only': false,
+        'bootstrap-command': null,
+      };
+
+      // A fresh command per run: the second install must be idempotent on
+      // disk, not because the first instance remembered anything.
+      Future<void> runInstall() {
+        final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
+        return cmd.handle(_ctxWith(opts,
+            positional: const ['magic_logger'],
+            signature: cmd.parsedSignature));
+      }
+
+      await runInstall();
+      await runInstall();
+
+      final registry = jsonDecode(
+        File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync(),
+      ) as Map<String, dynamic>;
+      expect(registry['plugins'] as List<dynamic>, hasLength(1));
+
+      final barrel = File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+          .readAsStringSync();
+      expect('MagicLoggerDowelProvider('.allMatches(barrel), hasLength(1));
+      expect("import 'package:magic_logger/".allMatches(barrel), hasLength(1));
     });
 
     test(
-        'install purges .artisan/cli-bundle and .artisan/build.stamp '
+        'install purges .dowel/cli-bundle and .dowel/build.stamp '
         'after successful registration', () async {
       // Issue #9 GAP A: after `plugin:install` regenerates lib/app/_plugins.g.dart
-      // (or the legacy bin/artisan.dart wrapper) the next `./bin/fsa` invocation
-      // must rebuild the AOT bundle. Purging .artisan/cli-bundle/ and
-      // .artisan/build.stamp forces the staleness check to rebuild.
+      // the next `./bin/dowel` invocation must rebuild the AOT bundle. Purging
+      // .dowel/cli-bundle/ and .dowel/build.stamp forces the staleness check
+      // to rebuild.
       final root = Directory.systemTemp.createTempSync('plinst_cachepurge_');
       addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
 
       // 1. Pre-create the cache artefacts that the post-install hook must purge.
-      final cacheDir = Directory(p.join(root.path, '.artisan', 'cli-bundle'))
+      final cacheDir = Directory(p.join(root.path, '.dowel', 'cli-bundle'))
         ..createSync(recursive: true);
       File(p.join(cacheDir.path, 'sentinel')).writeAsStringSync('');
-      File(p.join(root.path, '.artisan', 'build.stamp'))
+      File(p.join(root.path, '.dowel', 'build.stamp'))
           .writeAsStringSync('deadbeef:3.4.0');
 
       final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
@@ -337,7 +290,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -348,16 +300,16 @@ void main() {
 
       // 2. Both cache artefacts must be gone after a successful install.
       expect(
-        Directory(p.join(root.path, '.artisan', 'cli-bundle')).existsSync(),
+        Directory(p.join(root.path, '.dowel', 'cli-bundle')).existsSync(),
         isFalse,
         reason:
-            'install must purge .artisan/cli-bundle/ so the next ./bin/fsa rebuilds',
+            'install must purge .dowel/cli-bundle/ so the next ./bin/dowel rebuilds',
       );
       expect(
-        File(p.join(root.path, '.artisan', 'build.stamp')).existsSync(),
+        File(p.join(root.path, '.dowel', 'build.stamp')).existsSync(),
         isFalse,
         reason:
-            'install must purge .artisan/build.stamp so needs_build() trips on next call',
+            'install must purge .dowel/build.stamp so needs_build() trips on next call',
       );
     });
 
@@ -376,7 +328,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -389,72 +340,46 @@ void main() {
       expect(out, contains('not listed in pubspec.yaml'));
     });
 
-    test(
-        'canonical-scaffold projects (lib/app/_plugins.g.dart present, no '
-        'bin/artisan.dart) register via plugins.json without tripping the '
-        'legacy wrapper preflight', () async {
-      final root =
-          Directory.systemTemp.createTempSync('plinst_canonical_no_wrapper_');
+    test('--dry-run previews the registration and writes nothing', () async {
+      final root = Directory.systemTemp.createTempSync('plinst_direct_dry_');
       addTearDown(() => root.deleteSync(recursive: true));
-
-      // Seed pubspec + package_config (preflight rows 1 + 2), the canonical
-      // scaffold barrel, and explicitly OMIT bin/artisan.dart. Pre-fix this
-      // setup returned exit 1 from the legacy-wrapper preflight gate.
-      File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync(
-        'name: consumer\n'
-        'dependencies:\n'
-        '  magic_logger: ^1.0.0\n',
-      );
-      Directory(p.join(root.path, '.dart_tool')).createSync(recursive: true);
-      File(p.join(root.path, '.dart_tool', 'package_config.json'))
-          .writeAsStringSync('{"packages":[{"name": "magic_logger"}]}\n');
-      Directory(p.join(root.path, 'lib', 'app')).createSync(recursive: true);
-      File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
-          .writeAsStringSync(
-        '// GENERATED\nfinal providers = <Object>[];\n',
-      );
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+      final barrel = File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'));
+      final before = barrel.readAsStringSync();
 
       final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
       final ctx = _ctxWith(
         const <String, dynamic>{
           'force': false,
           'no-bootstrap': false,
-          'dry-run': false,
+          'dry-run': true,
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
       );
 
       final exit = await cmd.handle(ctx);
+
       expect(exit, 0);
-      final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('canonical scaffold'));
-      expect(File(p.join(root.path, '.artisan', 'plugins.json')).existsSync(),
-          isTrue);
+      expect((ctx.output as BufferedOutput).content, contains('Dry run'));
+      expect(
+        File(p.join(root.path, '.dowel', 'plugins.json')).existsSync(),
+        isFalse,
+      );
+      expect(barrel.readAsStringSync(), before);
     });
 
-    test(
-        'legacy injection rejects projects with no bin/artisan.dart AND no '
-        'canonical scaffold (preflight moved into the legacy branch only)',
+    test('a failed registration exits non-zero instead of reporting success',
         () async {
-      final root =
-          Directory.systemTemp.createTempSync('plinst_no_wrapper_legacy_');
+      final root = Directory.systemTemp.createTempSync('plinst_direct_fail_');
       addTearDown(() => root.deleteSync(recursive: true));
-
-      // Seed only the preflight prerequisites; no canonical scaffold, no
-      // bin/artisan.dart. Only the legacy flow runs, and it must error.
-      File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync(
-        'name: consumer\n'
-        'dependencies:\n'
-        '  magic_logger: ^1.0.0\n',
-      );
-      Directory(p.join(root.path, '.dart_tool')).createSync(recursive: true);
-      File(p.join(root.path, '.dart_tool', 'package_config.json'))
-          .writeAsStringSync('{"packages":[{"name": "magic_logger"}]}\n');
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+      // A directory where the registry file belongs makes the write fail.
+      Directory(p.join(root.path, '.dowel', 'plugins.json'))
+          .createSync(recursive: true);
 
       final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
       final ctx = _ctxWith(
@@ -465,7 +390,106 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
+        },
+        positional: const ['magic_logger'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 1);
+      expect(
+        (ctx.output as BufferedOutput).content,
+        isNot(contains('Registered "magic_logger"')),
+      );
+    });
+
+    test('--bootstrap-command chains the command after a direct registration',
+        () async {
+      final root = Directory.systemTemp.createTempSync('plinst_direct_boot_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+
+      final runner = _RecordingBootstrapRunner();
+      final cmd = _TestablePluginInstallCommand(
+        fakeProjectRoot: root.path,
+        fakeBootstrapRunner: runner,
+      );
+      final ctx = _ctxWith(
+        const <String, dynamic>{
+          'force': false,
+          'no-bootstrap': false,
+          'dry-run': false,
+          'non-interactive': false,
+          'use-yaml-only': false,
+          'bootstrap-command': 'logger:install',
+        },
+        positional: const ['magic_logger'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 0);
+      expect(runner.callCount, 1);
+      expect(runner.bootstrapCommand, 'logger:install');
+    });
+
+    test(
+        '--no-bootstrap keeps the chained command out of a direct registration',
+        () async {
+      final root = Directory.systemTemp.createTempSync('plinst_direct_nob_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+
+      final runner = _RecordingBootstrapRunner();
+      final cmd = _TestablePluginInstallCommand(
+        fakeProjectRoot: root.path,
+        fakeBootstrapRunner: runner,
+      );
+      final ctx = _ctxWith(
+        const <String, dynamic>{
+          'force': false,
+          'no-bootstrap': true,
+          'dry-run': false,
+          'non-interactive': false,
+          'use-yaml-only': false,
+          'bootstrap-command': 'logger:install',
+        },
+        positional: const ['magic_logger'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 0);
+      expect(runner.callCount, 0);
+      expect(
+        (ctx.output as BufferedOutput).content,
+        contains('Bootstrap with: dowel logger:install'),
+      );
+    });
+
+    test('errors toward `dowel install` when there is no scaffold', () async {
+      final root = Directory.systemTemp.createTempSync('plinst_no_scaffold_');
+      addTearDown(() => root.deleteSync(recursive: true));
+
+      // Only the preflight prerequisites: no lib/app/_plugins.g.dart, and a
+      // bin/dowel.dart that must NOT be mistaken for a consumer wrapper.
+      _seedConsumerProject(root, pluginName: 'magic_logger');
+      Directory(p.join(root.path, 'bin')).createSync(recursive: true);
+      File(p.join(root.path, 'bin', 'dowel.dart'))
+          .writeAsStringSync('void main() {}\n');
+
+      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
+      final ctx = _ctxWith(
+        const <String, dynamic>{
+          'force': false,
+          'no-bootstrap': false,
+          'dry-run': false,
+          'non-interactive': false,
+          'use-yaml-only': false,
+          'bootstrap-command': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -474,8 +498,12 @@ void main() {
       final exit = await cmd.handle(ctx);
       expect(exit, 1);
       final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('No consumer wrapper found'));
-      expect(out, contains('install'));
+      expect(out, contains('No dowel scaffold found'));
+      expect(out, contains('dowel install'));
+      expect(
+        File(p.join(root.path, '.dowel', 'plugins.json')).existsSync(),
+        isFalse,
+      );
     });
   });
 
@@ -502,7 +530,6 @@ void main() {
           'non-interactive': true,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['demo_plugin'],
         signature: cmd.parsedSignature,
@@ -513,14 +540,10 @@ void main() {
       // Minimal manifest has no ops to apply; commit returns Success(0).
       expect(exit, 0);
       final out = (ctx.output as BufferedOutput).content;
-      // Reaching this point proves the manifest branch fired (the legacy
-      // branch would have appended to bin/artisan.dart; verify it did not).
-      final wrapper =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
-      expect(wrapper, isNot(contains("import 'package:demo_plugin/cli.dart';")),
-          reason: 'install.yaml branch must NOT do the legacy injection.');
-      expect(out, isNot(contains('Skipping plugin bootstrap')),
-          reason: 'Legacy bootstrap hint must NOT fire on the manifest path.');
+      // Reaching this point proves the manifest branch fired: the direct
+      // registration prints its own "via the dowel scaffold" line.
+      expect(out, isNot(contains('via the dowel scaffold')),
+          reason: 'install.yaml branch must NOT do the direct registration.');
     });
 
     test('--dry-run flows through to ManifestInstaller without disk writes',
@@ -544,7 +567,6 @@ void main() {
           'non-interactive': true,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['demo_plugin'],
         signature: cmd.parsedSignature,
@@ -555,7 +577,7 @@ void main() {
 
       // Dry-run never writes the install record.
       final recordPath =
-          p.join(root.path, '.artisan', 'installed', 'demo_plugin.json');
+          p.join(root.path, '.dowel', 'installed', 'demo_plugin.json');
       expect(File(recordPath).existsSync(), isFalse);
     });
 
@@ -576,7 +598,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': true,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -589,15 +610,15 @@ void main() {
       expect(out, contains('install.yaml'));
     });
 
-    test('falls back to legacy injection when install.yaml is not found',
+    test('registers the plugin directly when install.yaml is not found',
         () async {
       final root = Directory.systemTemp.createTempSync('plinst_fallback_');
       addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
 
       final cmd = _TestablePluginInstallCommand(
         fakeProjectRoot: root.path,
-        // No install.yaml → resolver returns null → legacy branch fires.
+        // No install.yaml → resolver returns null → direct registration.
         fakeInstallYamlPath: null,
       );
       final ctx = _ctxWith(
@@ -608,7 +629,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -617,12 +637,10 @@ void main() {
       final exit = await cmd.handle(ctx);
       expect(exit, 0);
 
-      // Legacy fallback ran → wrapper got the injection.
-      final wrapper =
-          File(p.join(root.path, 'bin', 'artisan.dart')).readAsStringSync();
-      expect(wrapper, contains("import 'package:magic_logger/cli.dart';"));
-      expect(wrapper,
-          contains('registry.registerProvider(MagicLoggerArtisanProvider());'));
+      // Direct registration ran → the plugin is in plugins.json.
+      final registry =
+          File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync();
+      expect(registry, contains('MagicLoggerDowelProvider'));
     });
   });
 
@@ -652,7 +670,6 @@ void main() {
         'non-interactive': true,
         'use-yaml-only': false,
         'bootstrap-command': null,
-        'provider': null,
       };
     }
 
@@ -664,7 +681,7 @@ void main() {
       seedLibApp(root);
 
       // Minimal manifest: no ops, commit returns Success(0), then the Change F
-      // _registerArtisanProvider step fires.
+      // _registerDowelProvider step fires.
       final manifestPath = p.join(root.path, 'install.yaml');
       _writeInstallYaml(manifestPath, 'magic_logger');
 
@@ -682,19 +699,19 @@ void main() {
       expect(exit, 0);
 
       // 1. Registry file landed on disk via PluginsRegistryFile.write.
-      final registryPath = p.join(root.path, '.artisan', 'plugins.json');
+      final registryPath = p.join(root.path, '.dowel', 'plugins.json');
       expect(File(registryPath).existsSync(), isTrue,
           reason:
-              '_registerArtisanProvider must persist plugins.json on Success');
+              '_registerDowelProvider must persist plugins.json on Success');
 
-      // 2. Entry shape matches the convention encoded in _registerArtisanProvider.
+      // 2. Entry shape matches the convention encoded in _registerDowelProvider.
       final registry =
           await PluginsRegistryFile(const RealFs(), root.path).read();
       expect(registry.plugins, hasLength(1));
       final entry = registry.plugins.single;
       expect(entry.name, 'magic_logger');
       expect(entry.providerImport, 'package:magic_logger/cli.dart');
-      expect(entry.providerClass, 'MagicLoggerArtisanProvider');
+      expect(entry.providerClass, 'MagicLoggerDowelProvider');
       expect(DateTime.tryParse(entry.registeredAt), isNotNull,
           reason: 'registeredAt must be parseable ISO-8601');
     });
@@ -731,12 +748,12 @@ void main() {
       expect(
         generated,
         contains(
-          "import 'package:magic_logger/cli.dart' show MagicLoggerArtisanProvider;",
+          "import 'package:magic_logger/cli.dart' show MagicLoggerDowelProvider;",
         ),
       );
-      expect(generated, contains('MagicLoggerArtisanProvider(),'));
+      expect(generated, contains('MagicLoggerDowelProvider(),'));
       expect(generated,
-          contains('List<ArtisanServiceProvider> autoDiscoveredProviders()'));
+          contains('List<DowelServiceProvider> autoDiscoveredProviders()'));
     });
 
     test('dry-run skips plugin registration entirely', () async {
@@ -763,9 +780,9 @@ void main() {
       expect(exit, 0);
 
       // The dry-run guard inside _runManifestFlow short-circuits
-      // _registerArtisanProvider, so neither plugins.json nor _plugins.g.dart
+      // _registerDowelProvider, so neither plugins.json nor _plugins.g.dart
       // should appear.
-      final registryPath = p.join(root.path, '.artisan', 'plugins.json');
+      final registryPath = p.join(root.path, '.dowel', 'plugins.json');
       expect(File(registryPath).existsSync(), isFalse,
           reason: '--dry-run must NOT write the plugins registry');
       final generatedPath = p.join(root.path, 'lib', 'app', '_plugins.g.dart');
@@ -824,12 +841,12 @@ void main() {
         '_plugins.g.dart',
       )).readAsStringSync();
       final importMatches = RegExp(
-        "import 'package:magic_logger/cli.dart' show MagicLoggerArtisanProvider;",
+        "import 'package:magic_logger/cli.dart' show MagicLoggerDowelProvider;",
       ).allMatches(generated);
       expect(importMatches, hasLength(1),
           reason: 'codegen must emit a single import per plugin');
       final ctorMatches =
-          RegExp(r'MagicLoggerArtisanProvider\(\),').allMatches(generated);
+          RegExp(r'MagicLoggerDowelProvider\(\),').allMatches(generated);
       expect(ctorMatches, hasLength(1),
           reason: 'codegen must emit a single constructor call per plugin');
     });
@@ -842,11 +859,11 @@ void main() {
       _seedConsumerProject(root, pluginName: 'magic_logger');
       seedLibApp(root);
 
-      // 1. Pre-create .artisan/plugins.json AS A DIRECTORY so the atomic
+      // 1. Pre-create .dowel/plugins.json AS A DIRECTORY so the atomic
       //    `_fs.rename(tmpPath, registryPath)` inside PluginsRegistryFile.write
       //    fails with FileSystemException ("Cannot rename file ... is a
       //    directory"). Portable across POSIX (Linux/macOS) without chmod.
-      Directory(p.join(root.path, '.artisan', 'plugins.json'))
+      Directory(p.join(root.path, '.dowel', 'plugins.json'))
           .createSync(recursive: true);
 
       final manifestPath = p.join(root.path, 'install.yaml');
@@ -865,7 +882,7 @@ void main() {
       final exit = await cmd.handle(ctx);
 
       // 2. Manifest install itself succeeded, so handle() still returns 0 —
-      //    the try-catch inside _registerArtisanProvider must swallow the
+      //    the try-catch inside _registerDowelProvider must swallow the
       //    rename failure into a warning, never an error.
       expect(exit, 0,
           reason: 'auto-registration failure must NOT fail the install');
@@ -901,13 +918,13 @@ void main() {
       //    (MyTestLogger, not My_test_logger).
       final registryJson = jsonDecode(File(p.join(
         root.path,
-        '.artisan',
+        '.dowel',
         'plugins.json',
       )).readAsStringSync()) as Map<String, dynamic>;
       final entries = registryJson['plugins'] as List<dynamic>;
       expect(entries, hasLength(1));
       expect((entries.single as Map<String, dynamic>)['providerClass'],
-          'MyTestLoggerArtisanProvider');
+          'MyTestLoggerDowelProvider');
 
       // 2. Generated codegen surfaces the same PascalCase identifier so the
       //    emitted Dart file actually compiles.
@@ -917,8 +934,8 @@ void main() {
         'app',
         '_plugins.g.dart',
       )).readAsStringSync();
-      expect(generated, contains('MyTestLoggerArtisanProvider'));
-      expect(generated, isNot(contains('My_test_loggerArtisanProvider')),
+      expect(generated, contains('MyTestLoggerDowelProvider'));
+      expect(generated, isNot(contains('My_test_loggerDowelProvider')),
           reason: 'PascalCase derivation must collapse all snake_case parts');
     });
   });
@@ -948,7 +965,6 @@ void main() {
         'non-interactive': true,
         'use-yaml-only': false,
         'bootstrap-command': null,
-        'provider': null,
       };
     }
 
@@ -984,7 +1000,7 @@ void main() {
 
       // The hint-only message must NOT fire when the command auto-ran.
       final out = (ctx.output as BufferedOutput).content;
-      expect(out, isNot(contains('Bootstrap with: artisan')));
+      expect(out, isNot(contains('Bootstrap with: dowel')));
     });
 
     test('(b) --no-bootstrap suppresses the auto-run entirely', () async {
@@ -1105,7 +1121,7 @@ void main() {
       expect(runner.callCount, 1,
           reason: 'the runner is consulted before falling back to the hint');
       final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('Bootstrap with: artisan starter:install'),
+      expect(out, contains('Bootstrap with: dowel starter:install'),
           reason: 'when the runner cannot resolve a dispatcher, emit the hint');
     });
 
@@ -1138,7 +1154,7 @@ void main() {
       expect(runner.callCount, 1);
       final out = (ctx.output as BufferedOutput).content;
       expect(out, contains('Could not auto-run the bootstrap command'));
-      expect(out, contains('Bootstrap with: artisan starter:install'),
+      expect(out, contains('Bootstrap with: dowel starter:install'),
           reason: 'falls back to the manual hint after a runner failure');
     });
 
@@ -1177,7 +1193,7 @@ void main() {
           reason: 'a non-zero bootstrap exit must be surfaced, not hidden');
       expect(out, contains('Unknown command: starter:install'),
           reason: 'the captured stderr explains the failure');
-      expect(out, contains('Bootstrap with: artisan starter:install'),
+      expect(out, contains('Bootstrap with: dowel starter:install'),
           reason: 'falls back to the manual hint so the operator can recover');
     });
   });

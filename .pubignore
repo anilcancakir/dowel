@@ -91,11 +91,20 @@ migrate_working_dir/
 .DS_Store
 
 # ---------------------------------------------------------------------------
-# Local state (artisan runtime + AI coding tooling)
+# Local state (dowel runtime + AI coding tooling)
 # ---------------------------------------------------------------------------
-.artisan/
+.dowel/
 .ac/
 .claude/
 .mcp.json
 CLAUDE.md
 CLAUDE.local.md
+
+# ---------------------------------------------------------------------------
+# Repository tooling and the agent skill: installed with
+# `npx skills add anilcancakir/dowel`, not through pub.
+# ---------------------------------------------------------------------------
+skills/
+tool/
+.github/
+.lycheeignore

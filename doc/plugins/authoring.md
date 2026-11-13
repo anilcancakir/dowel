@@ -1,22 +1,29 @@
 # Plugin Authoring Guide
 
-## Overview
-
-A plugin is a Dart package that ships an `ArtisanServiceProvider` subclass. The
+A plugin is a Dart package that ships a `DowelServiceProvider` subclass. The
 subclass declares the CLI commands and MCP tool descriptors the plugin contributes.
-When a consumer calls `plugin:install <name>`, artisan registers the provider in
+When a consumer calls `plugin:install <name>`, dowel registers the provider in
 `lib/app/_plugins.g.dart`, which is loaded at startup and merged into the
-`ArtisanRegistry`. Commands appear in `artisan list`; MCP tool descriptors surface
+`DowelRegistry`. Commands appear in `dowel list`; MCP tool descriptors surface
 through the stdio JSON-RPC server so LLM agents can invoke them by name.
+
+- [Getting Started](#getting-started)
+- [DowelServiceProvider Contract](#dowelserviceprovider-contract)
+- [Writing Commands](#writing-commands)
+- [Adding MCP Tools](#adding-mcp-tools)
+- [Publishing](#publishing)
+- [Linking from a Consumer](#linking-from-consumer)
+- [Related Documentation](#related-documentation)
 
 ---
 
+<a name="getting-started"></a>
 ## Getting Started
 
 Scaffold the plugin skeleton with the `make:plugin` command:
 
 ```bash
-dart run fluttersdk_artisan make:plugin awesome_plugin
+dart run dowel make:plugin awesome_plugin
 ```
 
 The generator creates the following tree inside `awesome_plugin/`:
@@ -26,31 +33,32 @@ awesome_plugin/
   lib/
     awesome_plugin.dart          # barrel export
     src/
-      awesome_artisan_provider.dart   # ArtisanServiceProvider subclass
-      commands/                       # one file per ArtisanCommand
-  pubspec.yaml                   # declares fluttersdk_artisan dependency
+      awesome_plugin_dowel_provider.dart   # DowelServiceProvider subclass
+      commands/                              # one file per DowelCommand
+  pubspec.yaml                   # declares dowel dependency
   CHANGELOG.md
   README.md
 ```
 
 The generated provider is immediately wirable: `plugin:install awesome_plugin`
-injects `AwesomeArtisanProvider.new` into the consumer's `_plugins.g.dart`.
+injects `AwesomePluginDowelProvider.new` into the consumer's `_plugins.g.dart`.
 
 ---
 
-## ArtisanServiceProvider Contract
+<a name="dowelserviceprovider-contract"></a>
+## DowelServiceProvider Contract
 
-Every plugin must extend `ArtisanServiceProvider`
-(`lib/src/console/artisan_service_provider.dart:11-25`):
+Every plugin must extend `DowelServiceProvider`
+(`lib/src/console/dowel_service_provider.dart:11-25`):
 
 ```dart
-abstract class ArtisanServiceProvider {
+abstract class DowelServiceProvider {
   /// Human-readable provider name used in collision error messages.
   /// Defaults to the runtime class name.
   String get providerName => runtimeType.toString();
 
   /// Returns the commands this provider contributes to the application.
-  List<ArtisanCommand> commands();
+  List<DowelCommand> commands();
 
   /// Returns the MCP tool descriptors this provider contributes.
   ///
@@ -63,24 +71,24 @@ abstract class ArtisanServiceProvider {
 
 Key points:
 
-- `commands()` is **abstract**: return every `ArtisanCommand` subclass your
-  plugin ships. Duplicate command names throw `ArtisanCommandCollisionException`.
+- `commands()` is **abstract**: return every `DowelCommand` subclass your
+  plugin ships. Duplicate command names throw `DowelCommandCollisionException`.
 - `mcpTools()` defaults to an empty list. Override it to expose VM Service
   extension tools to the MCP server.
 - `providerName` defaults to `runtimeType.toString()`. Override it with a
-  stable identifier (e.g. `'fluttersdk_dusk'`) so collision messages survive
+  stable identifier (e.g. `'tapir'`) so collision messages survive
   class renames.
-- There is no `register()` lifecycle hook on `ArtisanServiceProvider`.
-  Initialization belongs in command constructors or the host app's boot phase.
+- There is no `register()` lifecycle hook on `DowelServiceProvider`.
+  Initialisation belongs in command constructors or the host app's boot phase.
 
 Minimal scaffold provider (`assets/stubs/make_plugin/generic/provider.dart.stub`):
 
 ```dart
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
-final class AwesomeArtisanProvider extends ArtisanServiceProvider {
+final class AwesomePluginDowelProvider extends DowelServiceProvider {
   @override
-  List<ArtisanCommand> commands() => <ArtisanCommand>[
+  List<DowelCommand> commands() => <DowelCommand>[
         // Commands added via `make:command` land here automatically.
       ];
   // To expose MCP tools, override mcpTools() returning your descriptor list.
@@ -89,9 +97,10 @@ final class AwesomeArtisanProvider extends ArtisanServiceProvider {
 
 ---
 
+<a name="writing-commands"></a>
 ## Writing Commands
 
-Each entry in `commands()` is an `ArtisanCommand` subclass. Declare the command
+Each entry in `commands()` is a `DowelCommand` subclass. Declare the command
 surface via the Signature DSL or `configure(ArgParser)`:
 
 - **Signature DSL** (preferred): `String get signature => 'cmd:name {arg} {--flag}'`.
@@ -102,7 +111,7 @@ surface via the Signature DSL or `configure(ArgParser)`:
 Scaffold a new command inside the plugin directory:
 
 ```bash
-dart run fluttersdk_artisan make:command MyVerb
+dart run dowel make:command MyVerb
 ```
 
 The generator writes `lib/src/commands/my_verb_command.dart` and auto-registers
@@ -111,6 +120,7 @@ it in the provider's `commands()` list. See
 
 ---
 
+<a name="adding-mcp-tools"></a>
 ## Adding MCP Tools
 
 Override `mcpTools()` and return a `List<McpToolDescriptor>`. Each descriptor
@@ -118,7 +128,7 @@ Override `mcpTools()` and return a `List<McpToolDescriptor>`. Each descriptor
 with four required fields:
 
 | Field | Type | Purpose |
-|---|---|---|
+|:---|:---|:---|
 | `name` | `String` | Snake-case, service-prefixed tool name (e.g. `awesome_start`). Must be globally unique across all loaded providers. |
 | `description` | `String` | Action-oriented, LLM-targeted description. Imperative opening sentence, usage bullets, constraint-forward language. |
 | `inputSchema` | `Map<String, dynamic>` | JSON Schema draft-7 object describing accepted input. Pass `{'type': 'object', 'properties': {}}` when the tool takes no arguments. |
@@ -127,11 +137,45 @@ with four required fields:
 Example provider with commands and MCP tools:
 
 ```dart
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
-final class AwesomePluginArtisanProvider extends ArtisanServiceProvider {
+final class AwesomeStartCommand extends DowelCommand {
   @override
-  List<ArtisanCommand> commands() => [
+  String get signature => 'awesome:start';
+
+  @override
+  String get description => 'Start the awesome service.';
+
+  @override
+  CommandBoot get boot => CommandBoot.connected;
+
+  @override
+  Future<int> handle(DowelContext context) async {
+    context.output.success('Awesome service started.');
+    return 0;
+  }
+}
+
+final class AwesomeStopCommand extends DowelCommand {
+  @override
+  String get signature => 'awesome:stop';
+
+  @override
+  String get description => 'Stop the awesome service.';
+
+  @override
+  CommandBoot get boot => CommandBoot.connected;
+
+  @override
+  Future<int> handle(DowelContext context) async {
+    context.output.success('Awesome service stopped.');
+    return 0;
+  }
+}
+
+final class AwesomePluginDowelProvider extends DowelServiceProvider {
+  @override
+  List<DowelCommand> commands() => [
         AwesomeStartCommand(),
         AwesomeStopCommand(),
       ];
@@ -142,37 +186,38 @@ final class AwesomePluginArtisanProvider extends ArtisanServiceProvider {
           name: 'awesome_start',
           description: 'Start the awesome service',
           inputSchema: {'type': 'object', 'properties': {}},
+          extensionMethod: 'ext.awesome.start',
         ),
       ];
 }
 ```
 
-The example above omits `extensionMethod` for brevity. In production all four
-fields are required; `extensionMethod` must match the `registerExtension` call
-in the running Flutter isolate (e.g. `'ext.awesome.start'`).
+`extensionMethod` must match the `registerExtension` call in the running Flutter
+isolate; the descriptor is not callable without it.
 
 The MCP server collects descriptors from all loaded providers when
-`runArtisan(collectMcpTools: true)` fires (`bin/mcp.dart` sets this
+`runDowel(collectMcpTools: true)` fires (`bin/mcp.dart` sets this
 automatically). Tool names must be unique; a collision throws
-`ArtisanMcpToolCollisionException` at startup.
+`DowelMcpToolCollisionException` at startup.
 
 Naming convention: prefix every tool name with a short service identifier
 followed by an underscore (for example `my_plugin_greet`). The prefix should
-match the package's `providerName` (or a recognizable abbreviation thereof).
+match the package's `providerName` (or a recognisable abbreviation thereof).
 
 ---
 
+<a name="publishing"></a>
 ## Publishing
 
 1. Bump the version in `pubspec.yaml` following SemVer (patch for fixes, minor
    for new commands/tools, major for breaking provider API changes).
 
-2. Declare the dependency on `fluttersdk_artisan` with a caret constraint, not
+2. Declare the dependency on `dowel` with a caret constraint, not
    `path:`:
 
    ```yaml
    dependencies:
-     fluttersdk_artisan: ^0.0.20
+     dowel: ^0.0.20
    ```
 
 3. Validate the archive before tagging:
@@ -189,22 +234,24 @@ match the package's `providerName` (or a recognizable abbreviation thereof).
 
 ---
 
+<a name="linking-from-consumer"></a>
 ## Linking from Consumer
 
 The consumer installs the plugin with:
 
 ```bash
-dart run fluttersdk_artisan plugin:install awesome_plugin
+dart run dowel plugin:install awesome_plugin
 ```
 
-This registers `AwesomeArtisanProvider.new` in `lib/app/_plugins.g.dart` and
-re-generates the barrel; the provider is discovered at the next `artisan start`.
-See [plugin:install](../commands/plugin-install.md) for the three routing modes
-(manifest, canonical scaffold, legacy).
+This registers `AwesomePluginDowelProvider.new` in `lib/app/_plugins.g.dart` and
+re-generates the barrel; the provider is discovered at the next `dowel start`.
+See [plugin:install](../commands/plugin-install.md) for the two routing modes
+(manifest, direct registration).
 
 ---
 
-## Related
+<a name="related-documentation"></a>
+## Related Documentation
 
 - [install-yaml.md](install-yaml.md) - `install.yaml` manifest schema for
   declaring install steps declaratively.
