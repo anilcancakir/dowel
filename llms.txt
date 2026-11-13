@@ -2,7 +2,7 @@
 
 > One binary for your Flutter dev loop and your AI agent: start, hot reload and inspect a running app, scaffold code, install plugins transactionally, and expose the same commands through a built-in stdio MCP server.
 
-**Stack**: Dart >=3.4 (pure Dart; the app you drive needs Flutter). Dependencies: `args`, `dart_mcp`, `vm_service`, `yaml`, `yaml_edit`, `xml`, `crypto`, `path`, `meta`, `stream_channel`.
+**Stack**: Dart >=3.4. dowel is pure Dart; the app you drive needs Flutter.
 
 **Setup**:
 
@@ -35,12 +35,23 @@ final class GreetCommand extends DowelCommand {
 
 ## API
 
-- `runDowel(args, baseProviders:, autoProviders:)`: the shared entry; delegates to `bin/dispatcher.dart` when the project has one.
-- `DowelCommand`: `signature` (`'cmd:name {arg} {--flag}'`) or `configure(ArgParser)`, `handle(DowelContext)` returns the exit code.
+- `runDowel(args, baseProviders:, autoProviders:)`: the shared entry; delegates to the project's `bin/dispatcher.dart` when it has one.
+- `DowelCommand`: `signature` (`'cmd:name {arg} {--flag}'`) or `configure(ArgParser)`; `handle(DowelContext)` returns the exit code.
 - `DowelServiceProvider`: `commands()` and `mcpTools()`; a plugin exports one from `package:<name>/cli.dart`.
-- `DowelInstallCommand` and `PluginInstaller`: staged, atomic, reversible install operations; `install.yaml` is the declarative form.
-- 22 built-in commands: `start`, `stop`, `status`, `logs`, `restart`, `reload`, `hot-restart`, `install`, `make:plugin`, `make:command`, `make:fast-cli`, `plugin:install`, `plugin:uninstall`, `plugins:refresh`, `mcp:serve`, `mcp:install`, `mcp:uninstall`, `help`, `list`, `doctor`, `tinker`, `commands:refresh`.
-- 10 MCP substrate tools: `dowel_start`, `dowel_stop`, `dowel_status`, `dowel_logs`, `dowel_restart`, `dowel_reload`, `dowel_hot_restart`, `dowel_doctor`, `dowel_list`, `dowel_tinker`.
+- `DowelInstallCommand` and `PluginInstaller`: staged install operations (file writes swap in through `.tmp` files, but helper edits write directly and neither they nor a failure during the swap are rolled back) that `plugin:uninstall` can reverse; `install.yaml` is the declarative form.
+
+## Built-in commands
+
+22 commands, run as `dart run dowel <cmd>` (or `./bin/dowel <cmd>` once `install` built it).
+
+- Run the app (also MCP tools): `start`, `stop`, `status`, `logs`, `restart`, `reload`, `hot-restart`, `tinker`.
+- Inspect (also MCP tools): `doctor`, `list`.
+- Scaffold: `install`, `make:plugin`, `make:command`, `make:fast-cli`.
+- Plugins: `plugin:install`, `plugin:uninstall`, `plugins:refresh`, `commands:refresh`.
+- MCP wiring: `mcp:serve`, `mcp:install`, `mcp:uninstall`.
+- `help`.
+
+The 10 marked ones are the MCP substrate tools, named `dowel_<command>` with `:` and `-` turned into `_` (`dowel_hot_restart`). The rest write source, prompt or recurse into the server, so they are CLI-only.
 
 ## Platforms
 
@@ -48,14 +59,14 @@ The lifecycle commands (`start`, `stop`, `reload`, `hot-restart`) use a POSIX FI
 
 ## Rules for agents
 
-- Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml`; it registers into `lib/app/_plugins.g.dart`.
-- Preview with `plugin:install <name> --dry-run`; every operation is staged and nothing writes before the commit.
-- Do not edit `*.g.dart` barrels; regenerate them with `commands:refresh` and `plugins:refresh`.
 - Start the app with `dowel start`, not `flutter run`: reload, restart, logs and tinker find it through the session recorded under `~/.dowel/sessions/<hash>/`.
-- Reconnect the MCP client after `mcp:install` or a change to `.dowel/mcp.json`.
+- Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml`; it creates the scaffold the plugin is registered into (`lib/app/_plugins.g.dart`).
+- Preview with `plugin:install <name> --dry-run`; it writes nothing. A real run can leave helper edits behind if it fails, so check `git status` after a failure.
+- Do not edit `*.g.dart` barrels; regenerate them with `commands:refresh` and `plugins:refresh`.
 - Plugin MCP tools need `./bin/dowel mcp:serve` or `dart run :dispatcher mcp:serve`; `dart run dowel:mcp` serves the substrate tools only.
+- Reconnect the MCP client after `mcp:install` or a change to `.dowel/mcp.json`; stdio servers are not reloaded on their own.
 - Exit code `75` means "not ready, retry" (the app is still building); any other non-zero code is a failure.
-- `bin/dowel.dart` is this package's own entry point, never a project wrapper; the wrapper is `bin/dispatcher.dart`.
+- The only project wrapper is `bin/dispatcher.dart`; `bin/dowel.dart` is this package's own entry point and is ignored as one.
 
 ## Docs
 

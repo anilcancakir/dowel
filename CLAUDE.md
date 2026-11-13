@@ -6,15 +6,16 @@ Guidance for Claude Code (claude.ai/code) in this repository.
 
 ## Stack
 
-Pure Dart 3.4+ CLI framework and stdio MCP server; the app it drives needs Flutter, the framework itself does not. Consumed with `dart run dowel <cmd>`. Dependencies: `args`, `vm_service` (DDS-aware), `dart_mcp`, `stream_channel`, `xml`, `yaml`, `yaml_edit`, `crypto`, `meta`, `path`.
+Pure Dart 3.4+ CLI framework and stdio MCP server; the app it drives needs Flutter, the framework itself does not. Consumed with `dart run dowel <cmd>`. `example/` is a Flutter app, so resolve it with `flutter pub get`.
 
 ## Commands
 
 | Command | When |
 |---|---|
 | `dart test --timeout=30s --reporter=failures-only < /dev/null` | All tests. The redirect and reporter are not optional outside a TTY: the default reporter redraws a terminal and the `prompt` suite reads stdin. |
+| `dart test --tags=integration` | Tests that spawn `flutter create` and `dart pub get` (minutes, needs network). CI excludes them; run them before tagging a release. |
 | `dart test --coverage=coverage && dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --packages=.dart_tool/package_config.json --report-on=lib` | Coverage for the 80% floor. Without `--report-on=lib` the report counts dependencies and tests and reads about 48%, which looks like a regression. |
-| `dart format lib/ test/ bin/` | Format; no diff allowed. |
+| `dart format lib/ test/ bin/ example/lib/main.dart` | Format; no diff allowed. The rest of `example/` is generated or Flutter scaffold and stays out. |
 | `dart analyze lib/ test/ bin/` | Zero issues. |
 | `python3 tool/check-docs.py` | Docs gate: page shape, relative links, fragments, ToC reachability. 0 issues. |
 | `dart pub publish --dry-run` | Archive check; 0 warnings on a clean tree (the only expected one before a release is the missing CHANGELOG section for the new version). |
@@ -31,28 +32,27 @@ Red, green, refactor: the failing test comes first, and reverting the implementa
 ## Testing
 
 - Tests mirror `lib/src/` one to one (`lib/src/installer/plugin_installer.dart` is tested by `test/installer/plugin_installer_test.dart`); import from the barrel or `package:dowel/src/...`.
-- No mocking library: hand-written `_Fake*`, `_Recording*` and `_Testable*` subclasses, kept file-private; `InMemoryFs` for operation staging, a real `Directory.systemTemp` project for content assertions.
-- An idempotency test runs the operation twice with separate instances and asserts one entry on disk.
-- Coverage stays at or above 80% of `lib/`.
+- No mocking library: hand-written `_Fake*`, `_Recording*` and `_Testable*` subclasses, kept file-private.
+- A test that spawns a real toolchain carries the `integration` tag (`dart_test.yaml`).
 
 ## Architecture
 
-One barrel, `package:dowel/dowel.dart`. Two binaries: `bin/dowel.dart` (the CLI, and this package's own entry point, never a consumer wrapper) and `bin/mcp.dart` (MCP entry: forces `collectMcpTools: true` and `delegateToConsumer: false`). A consumer project's wrapper is `bin/dispatcher.dart`.
+One barrel, `package:dowel/dowel.dart`. Two binaries: `bin/dowel.dart` (the CLI, and this package's own entry point, never a consumer wrapper) and `bin/mcp.dart` (MCP entry: forces `collectMcpTools: true` and `delegateToConsumer: false`). A consumer project's wrapper is `bin/dispatcher.dart`, which `dowel install` renders from `assets/stubs/dispatcher.dart.stub`.
 
 | Path under `lib/src/` | Purpose |
 |---|---|
 | `console/` | `DowelApplication`, `DowelRegistry`, `CommandSignature` (signature DSL), `DowelContext`, input and output, `runDowel`, `dowelVersion` |
 | `commands/` | The 22 builtin commands, `<Verb>Command extends DowelCommand` |
-| `installer/` | `PluginInstaller` DSL, `ManifestInstaller`, `InstallTransaction`, `PluginsRegistryFile`, sealed `InstallOperation`; see `.claude/rules/installer.md` |
-| `mcp/` | `McpServer`, `McpToolDescriptor`, `McpFilterConfig` (file, env, CLI layers). The 10 substrate tools are the allowlist `_safeDowelCommandNames` in `mcp_server.dart` |
-| `helpers/`, `stubs/` | File and config editors; `StubLoader` resolving `assets/stubs/` |
-| `state/`, `vm/`, `tinker/` | One session directory per project under `~/.dowel/sessions/<hash>/`, `VmServiceClient`, the REPL |
+| `installer/` | `PluginInstaller` DSL, `ManifestInstaller`, `InstallTransaction`, `PluginsRegistryFile`, sealed `InstallOperation` |
+| `mcp/` | `McpServer`, `McpToolDescriptor`, `McpFilterConfig` (file, env, CLI layers; env is `DOWEL_MCP_TOOLS_ALLOW`/`_DENY` and `DOWEL_MCP_PACKAGES_ALLOW`/`_DENY`). The 10 substrate tools are the allowlist `_safeDowelCommandNames` in `mcp_server.dart` |
+| `helpers/`, `stubs/` | File and config editors; `StubLoader` resolving `assets/stubs/` (override with `DOWEL_STUBS_DIR`) |
+| `state/`, `vm/`, `tinker/` | One session directory per project under `~/.dowel/sessions/<hash>/` (`DOWEL_STATE_FILE` names another state file), `VmServiceClient`, the REPL |
 
 ## Key Gotchas
 
 | Mistake | Fix |
 |---|---|
-| Editing `lib/app/_plugins.g.dart` or `commands/_index.g.dart` | Generated; run `commands:refresh` or `plugins:refresh` |
+| Editing `lib/app/_plugins.g.dart` or `lib/app/commands/_index.g.dart` (this repo's copies live in `example/`) | Generated; run `commands:refresh` or `plugins:refresh` |
 | Treating `bin/dowel.dart` as a consumer wrapper | Only `bin/dispatcher.dart` is; `defaultConsumerWrapperName` ignores the other, or `dowel` delegates to itself |
 | Committing `.dowel/` | The suite writes install records into it in the repo root; it is gitignored, never force-add it |
 | A second hand-edited version literal | `dowelVersion` is the one; `dowel_version_test.dart` keeps it equal to `pubspec.yaml` |
@@ -74,9 +74,12 @@ One barrel, `package:dowel/dowel.dart`. Two binaries: `bin/dowel.dart` (the CLI,
 2. Stamps: `pubspec.yaml`, `lib/src/console/dowel_version.dart` (guarded by `dowel_version_test.dart` and `mcp_server_version_test.dart`), `example/pubspec.yaml` and `example/packages/awesome_plugin/pubspec.yaml` (`flutter pub get` fails when they drift), `server.json` (guarded by `server_json_version_test.dart`; the MCP registry never rewrites a published version). `publish.yml` checks the tag against `pubspec.yaml` and `server.json`. The skill keeps its own `version:` in `skills/dowel/SKILL.md`. Docs that quote the caret constraint track the released version.
 3. After it merges, tag the merge commit with the bare version: `git tag X.Y.Z && git push origin X.Y.Z`. `publish.yml` requires the tag on `master`, checks the stamps, analyzes, tests, dry-runs, requires 160/160 pana points, extracts the CHANGELOG section, publishes through OIDC and creates the GitHub Release.
 4. A recovery after a failed `Validate` is forward: delete the tag, fix on a PR, tag the new merge commit.
+
 ## CI
 
-- `ci.yml` (`Lint & Test`): push and PR, format, analyze, tests with coverage and the 80% floor, Codecov upload.
+`master` is protected; the required checks are `Lint & Test`, `Changelog` and `Internal Links`.
+
+- `ci.yml` (`Lint & Test`): push and PR, format, analyze, tests with coverage (integration tag excluded) and the 80% floor, Codecov upload.
 - `changelog.yml` (`Changelog`): a PR that changes `lib/`, `bin/` or `assets/` must change `CHANGELOG.md`; Dependabot, `release:` PRs and the `skip-changelog` label are exempt.
 - `docs-link-check.yml` (`Internal Links`): `python3 tool/check-docs.py` plus an offline lychee pass on every PR; `External Links` on Mondays.
-- `publish.yml`: tag on master, stamps, analyze, format, test, dry-run, pana 160/160, CHANGELOG section, OIDC publish, GitHub Release, skill mirror to the registry.
+- `publish.yml`: tag on master, stamps, analyze, format, test, dry-run, pana 160/160, CHANGELOG section, OIDC publish, GitHub Release, skill mirror to the registry (`dispatch-to-registry.yml`).

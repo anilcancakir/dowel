@@ -193,8 +193,9 @@ exact count in your consumer.
 
 ## Diagnosing missing plugin tools
 
-Symptoms: `dowel_list` does NOT show `tapir:` or `crumbs:` namespace,
-or MCP `tools/list` shows only `dowel_*` entries.
+Symptoms: MCP `tools/list` shows only `dowel_*` entries and no `tapir_*` or
+`crumbs_*` tools. (`dowel_list` shows command namespaces; a plugin can expose
+tools through `mcpTools()` without one, so it does not prove their absence.)
 
 Decision tree:
 
@@ -454,8 +455,8 @@ Cause: dart_mcp's native error envelope. Either the tool was denied by
 the filter, or the plugin provider was not loaded.
 
 ```
-1. Call dowel_list, confirm the tool's namespace is missing.
-2. If namespace missing: follow "Diagnosing missing plugin tools" above.
+1. Check the client's tools/list for the plugin's tools.
+2. If they are missing: follow "Diagnosing missing plugin tools" above.
 3. If namespace present: check .dowel/mcp.json + env vars + CLI flags
    on `mcp:serve`. The filter is denying the specific tool.
 4. Reconnect the MCP client after fixing.
