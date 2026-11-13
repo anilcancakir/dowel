@@ -168,6 +168,7 @@ See [make:fast-cli](make-fast-cli.md) for the full performance profile, cache-hi
 ```bash
 flutter create my_app
 cd my_app
+dart pub add dowel
 dart run dowel install
 ```
 

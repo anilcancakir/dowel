@@ -106,7 +106,7 @@ dart run dowel plugin:install awesome_plugin --dry-run   # preview every operati
 dart run dowel plugin:install awesome_plugin
 ```
 
-A plugin describes its install footprint in an `install.yaml` manifest, or in code with the `PluginInstaller` DSL when it needs branching. Either way the installer stages every operation and writes nothing until the commit, writes through a `.tmp` file and a rename, skips what is already in place, and records each applied operation under `.dowel/installed/<plugin>.json`, so `plugin:uninstall` can reverse it.
+A plugin describes its install footprint in an `install.yaml` manifest, or in code with the `PluginInstaller` DSL when it needs branching. Either way the installer stages every operation and writes nothing until the commit, writes through a `.tmp` file and a rename, skips what is already in place, and records each applied operation under `.dowel/installed/<plugin>.json`, so `plugin:uninstall` can reverse it. The reversal removes the files an install wrote and the plugin's registry entry; edits injected into existing files (`InjectImport`, `InjectAfterPattern`) are logged as skipped, so remove those by hand.
 
 | Piece | Where it lives |
 |---|---|

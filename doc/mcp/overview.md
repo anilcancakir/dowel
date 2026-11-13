@@ -106,7 +106,7 @@ The two sibling packages that ship production plugin tools are:
 | `crumbs` | [anilcancakir.com/crumbs/docs/mcp/tool-reference](https://anilcancakir.com/crumbs/docs/mcp/tool-reference) |
 
 Each package's provider is wired by the consumer (`TapirDowelProvider`, `CrumbsDowelProvider`)
-registered in the wrapper's `dowelProviders` list. See the per-package CLAUDE.md for registration
+registered in the wrapper's `baseProviders` list. See the per-package CLAUDE.md for registration
 details and each plugin's tool reference site for the current tool catalog. `magic_tinker` remains
 the CLI REPL host for `dart run dowel tinker`, but its MCP surface is now the substrate's
 `dowel_tinker`.

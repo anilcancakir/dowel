@@ -33,15 +33,15 @@ awesome_plugin/
   lib/
     awesome_plugin.dart          # barrel export
     src/
-      awesome_dowel_provider.dart   # DowelServiceProvider subclass
-      commands/                       # one file per DowelCommand
+      awesome_plugin_dowel_provider.dart   # DowelServiceProvider subclass
+      commands/                              # one file per DowelCommand
   pubspec.yaml                   # declares dowel dependency
   CHANGELOG.md
   README.md
 ```
 
 The generated provider is immediately wirable: `plugin:install awesome_plugin`
-injects `AwesomeDowelProvider.new` into the consumer's `_plugins.g.dart`.
+injects `AwesomePluginDowelProvider.new` into the consumer's `_plugins.g.dart`.
 
 ---
 
@@ -86,7 +86,7 @@ Minimal scaffold provider (`assets/stubs/make_plugin/generic/provider.dart.stub`
 ```dart
 import 'package:dowel/dowel.dart';
 
-final class AwesomeDowelProvider extends DowelServiceProvider {
+final class AwesomePluginDowelProvider extends DowelServiceProvider {
   @override
   List<DowelCommand> commands() => <DowelCommand>[
         // Commands added via `make:command` land here automatically.
@@ -209,7 +209,7 @@ The consumer installs the plugin with:
 dart run dowel plugin:install awesome_plugin
 ```
 
-This registers `AwesomeDowelProvider.new` in `lib/app/_plugins.g.dart` and
+This registers `AwesomePluginDowelProvider.new` in `lib/app/_plugins.g.dart` and
 re-generates the barrel; the provider is discovered at the next `dowel start`.
 See [plugin:install](../commands/plugin-install.md) for the two routing modes
 (manifest, direct registration).

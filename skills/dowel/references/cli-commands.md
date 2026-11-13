@@ -39,13 +39,13 @@ USE: ./bin/dowel <cmd>
 WHEN: inside a consumer with `./bin/dowel` present (the canonical scaffold after `install`).
 WHY: about 100 ms warm startup (native AOT).
 
-USE: dart run dowel <cmd>
+USE: dart run :dispatcher <cmd>
 WHEN: ./bin/dowel is unavailable (Windows, fresh clone, broken AOT cache).
-WHY: ~3s startup; runs through bin/dispatcher.dart so plugin commands are loaded.
+WHY: ~3s startup; runs bin/dispatcher.dart directly so plugin commands are loaded.
 
 USE: dart run dowel <cmd>
-WHEN: debugging the dowel substrate itself, or before `install` has run.
-WHY: ~3s startup; substrate-only, plugin providers NOT loaded.
+WHEN: before `install` has run, or to debug the dowel substrate itself.
+WHY: ~3s startup; delegates to bin/dispatcher.dart when the project has one (plugins load), otherwise runs the builtins only.
 ```
 
 `./bin/dowel` rebuilds the AOT bundle (~5s, `dart build cli`) on staleness

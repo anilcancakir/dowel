@@ -246,19 +246,20 @@ Add to your OpenCode configuration file (`~/.config/opencode/opencode.json` or p
 ```json
 {
   "mcp": {
-    "dowel": {
-      "type": "local",
-      "command": ["./bin/dowel"],
-      "args": ["mcp:serve"],
-      "enabled": true
+    "servers": {
+      "dowel": {
+        "type": "local",
+        "command": ["./bin/dowel", "mcp:serve"],
+        "cwd": "."
+      }
     }
   }
 }
 ```
 
-When `bin/dowel` is absent or on Windows, `mcp:install` writes `["dart", "run", ":dispatcher", "mcp:serve"]` instead.
+OpenCode takes the executable and its arguments from the one `command` array. When `bin/dowel` is absent or on Windows, use `["dart", "run", ":dispatcher", "mcp:serve"]` instead; that is the entry `mcp:install` writes for the other clients.
 
-The `local` transport spawns the process directly; OpenCode inherits the working directory from where it was launched.
+The `local` transport spawns the process directly; `cwd` pins the project root.
 
 ---
 
@@ -409,10 +410,10 @@ The dowel CLI ships a built-in command that writes the canonical `.mcp.json` ent
 dart run dowel mcp:install
 ```
 
-The command is idempotent: pre-existing `mcpServers` keys are preserved, and running it twice replaces the `dowel` key in-place without creating duplicates. By default it writes to `.mcp.json` in the current working directory; override the path via `--path`:
+The command is idempotent: pre-existing `mcpServers` keys are preserved, and running it twice replaces the `dowel` key in-place without creating duplicates. By default it writes to `.mcp.json` in the current working directory; override the path via `--path`. The command always writes the `mcpServers` shape, which fits clients that read that key (Claude Code, Cursor, Windsurf); VS Code reads `servers`, so write its file by hand as shown above:
 
 ```bash
-dart run dowel mcp:install --path .vscode/mcp.json
+dart run dowel mcp:install --path ./config/mcp.json
 ```
 
 To remove the entry later:

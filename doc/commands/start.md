@@ -158,7 +158,7 @@ Allows up to 180 seconds for the VM Service URI to appear in the log. Use this w
 
 **Port already in use (`--port` collision).** If another process holds the web port, `flutter run` exits immediately and the log file shows `Error: Address already in use`. Pick a free port with `--port=<n>` or stop the occupying process with `lsof -ti:<port> | xargs kill`.
 
-**`mkfifo` permission denied.** `start` creates the FIFO at `~/.dowel/sessions/<hash>/flutter-dev.fifo`. If `~/.dowel/` was created by a previous run with different ownership or mode bits, `mkfifo` fails. Fix with `rm -rf ~/.dowel && dart run dowel start`. Note: `start` is POSIX-only (macOS/Linux). It will not work on Windows.
+**`mkfifo` permission denied.** `start` creates the FIFO at `~/.dowel/sessions/<hash>/flutter-dev.fifo`. If `~/.dowel/` was created by a previous run with different ownership or mode bits, `mkfifo` fails. Fix the owner or mode of that session directory (`chmod -R u+rwx ~/.dowel/sessions/<hash>`), or remove only that project's directory (`rm -rf ~/.dowel/sessions/<hash>`) and run `dart run dowel start` again; the sessions of your other projects stay untouched. Note: `start` is POSIX-only (macOS/Linux). It will not work on Windows.
 
 **VM Service URI never appears (timeout).** When `--timeout` runs out before the URI shows up in the log, `start` checks whether `flutter run` is still alive.
 
