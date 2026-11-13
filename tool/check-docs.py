@@ -116,8 +116,12 @@ def blank_code(text: str) -> str:
     validated. Blanking instead of deleting keeps reported line numbers
     pointing at the real source line.
     """
+    # A code span opens with a run of backticks and closes with a run of the
+    # same length, so ``[a](b.md)`` is one span, not two empty ones.
+    span = re.compile(r'(?<!`)(`+)(?!`).+?(?<!`)\1(?!`)')
+
     return '\n'.join(
-        re.sub(r'`[^`\n]*`', lambda match: ' ' * len(match.group(0)), line)
+        span.sub(lambda match: ' ' * len(match.group(0)), line)
         for line in blank_fences(text).splitlines()
     )
 
