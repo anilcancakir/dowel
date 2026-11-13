@@ -111,3 +111,7 @@ Connected tools soft-fail with `isError: true` text. Branch on the substring:
 | `Chrome failed to open debug port <port>` | `--cdp-port` in use, or Chrome missing | Pass a free `--cdp-port=<N>` |
 
 State schema, FIFO model, AOT staleness and every failure: `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md`.
+
+## Testing
+
+A command is tested without a process, a VM or a terminal: a `DowelContext.bare` over a `MapInput` and a `BufferedOutput`, then `handle` and an assertion on the exit code and the captured output; an installer runs against `InstallContext.test` with an `InMemoryFs`. The runnable sample is in `${CLAUDE_SKILL_DIR}/references/testing-commands.md`; read it before writing the test.

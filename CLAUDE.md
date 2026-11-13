@@ -6,7 +6,7 @@ Guidance for Claude Code (claude.ai/code) in this repository.
 
 ## Stack
 
-Pure Dart 3.4+ CLI framework and stdio MCP server; the app it drives needs Flutter, the framework itself does not. Consumed with `dart run dowel <cmd>`. `example/` is a Flutter app, so dependencies resolve with `flutter pub get`, not `dart pub get`.
+Pure Dart 3.4+ CLI framework and stdio MCP server; the app it drives needs Flutter, the framework itself does not. Consumed with `dart run dowel <cmd>`. `example/` is a Flutter app, so resolve it with `flutter pub get`.
 
 ## Commands
 
