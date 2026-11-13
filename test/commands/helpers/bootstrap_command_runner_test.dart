@@ -54,15 +54,13 @@ void main() {
     });
 
     test(
-        'falls back to dart run <consumer>:dowel when bin/dowel is absent but '
-        'the consumer pubspec resolves a package name', () async {
+        'falls back to dart run :dispatcher when bin/dowel is absent but '
+        'bin/dispatcher.dart exists', () async {
       final root = Directory.systemTemp.createTempSync('bootstrap_dartrun_');
       addTearDown(() => root.deleteSync(recursive: true));
-      File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync(
-        'name: my_app\n'
-        'environment:\n'
-        "  sdk: '>=3.4.0 <4.0.0'\n",
-      );
+      Directory(p.join(root.path, 'bin')).createSync(recursive: true);
+      File(p.join(root.path, 'bin', 'dispatcher.dart'))
+          .writeAsStringSync('void main() {}\n');
 
       final runner = _RecordingRunner();
       final result =
@@ -77,7 +75,7 @@ void main() {
         runner.arguments,
         equals(<String>[
           'run',
-          'my_app:dowel',
+          ':dispatcher',
           'starter:install',
           '--non-interactive',
         ]),
@@ -86,11 +84,16 @@ void main() {
     });
 
     test(
-        'reports notResolvable when neither bin/dowel nor a consumer package '
-        'name is available', () async {
+        'reports notResolvable when neither bin/dowel nor bin/dispatcher.dart '
+        'exists, even with a pubspec and a bin/dowel.dart', () async {
       final root = Directory.systemTemp.createTempSync('bootstrap_unresolv_');
       addTearDown(() => root.deleteSync(recursive: true));
-      // No bin/dowel, no pubspec → nothing to dispatch through.
+      // bin/dowel.dart is dowel's own entry point, never a consumer wrapper.
+      File(p.join(root.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: my_app\n');
+      Directory(p.join(root.path, 'bin')).createSync(recursive: true);
+      File(p.join(root.path, 'bin', 'dowel.dart'))
+          .writeAsStringSync('void main() {}\n');
 
       final runner = _RecordingRunner();
       final result =
@@ -166,11 +169,14 @@ void main() {
           Directory.systemTemp.createTempSync('dowel_bootstrap_real_');
       addTearDown(() => root.deleteSync(recursive: true));
       File('${root.path}/pubspec.yaml').writeAsStringSync('name: demo_app\n');
+      Directory('${root.path}/bin').createSync();
+      File('${root.path}/bin/dispatcher.dart')
+          .writeAsStringSync('void main() {}\n');
 
-      // No bin/dowel and a pubspec name, so it resolves to `dart run
-      // demo_app:dowel ...`, which fails fast in an empty directory. The
-      // assertion is that a subprocess ran and its code came back, not that
-      // the chained command succeeded.
+      // No bin/dowel but a bin/dispatcher.dart, so it resolves to `dart run
+      // :dispatcher ...`, which fails fast in a directory with no resolved
+      // package. The assertion is that a subprocess ran and its code came
+      // back, not that the chained command succeeded.
       final runner = BootstrapCommandRunner();
 
       expect(

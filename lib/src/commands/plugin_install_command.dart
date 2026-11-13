@@ -268,13 +268,13 @@ class PluginInstallCommand extends DowelInstallCommand {
   /// The bootstrap command is a PLUGIN command that was only just written to
   /// `lib/app/_plugins.g.dart` during this same install run, so it is NOT
   /// loaded in the current process. [BootstrapCommandRunner] reaches it by
-  /// spawning a fresh `./bin/dowel` (or `dart run <consumer>:dowel`)
+  /// spawning a fresh `./bin/dowel` (or `dart run :dispatcher`)
   /// invocation, always forwarding `--non-interactive` so an interactive
   /// chained install cannot hang.
   ///
   /// Falls back to the one-line bootstrap hint when the operator passed
   /// `--no-bootstrap`, when no command is declared, or when no dispatcher is
-  /// resolvable (e.g. neither `bin/dowel` nor a consumer pubspec name exists).
+  /// resolvable (neither `bin/dowel` nor `bin/dispatcher.dart` exists).
   Future<void> _runBootstrapCommand(
     DowelContext ctx, {
     required InstallManifest manifest,
