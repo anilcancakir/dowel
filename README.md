@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/anilcancakir/dowel/master/.github/dowel-logo.svg" width="120" alt="Dowel logo" />
+</p>
+
 <h1 align="center">Dowel</h1>
 
 <p align="center">
