@@ -39,7 +39,7 @@ dart pub add dowel
 dart run dowel install
 ```
 
-`install` writes `bin/dispatcher.dart` (the entry that calls `runDowel`), the codegen barrels `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, and builds the fast wrapper `bin/dowel` (about 50 ms to start, against about 3 s for `dart run`). Run it again and nothing changes; `--force` overwrites.
+`install` writes `bin/dispatcher.dart` (the entry that calls `runDowel`), the codegen barrels `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, and builds the fast wrapper `bin/dowel` (about 100 ms to start, against about 3 s for `dart run`). Run it again and nothing changes; `--force` overwrites.
 
 ```bash
 dart run dowel list      # every registered command, grouped by namespace
@@ -65,7 +65,7 @@ dart run dowel stop
 | `status`, `logs` | Print the recorded session as JSON; print or follow the captured log |
 | `tinker` | A REPL (or `--eval`) that evaluates Dart in the running app over the VM Service |
 
-A command that needs the app (`reload`, `tinker`) exits `75` while the app is still building, so a script can retry; any other non-zero code is a real failure.
+A command that dials the running app (`tinker` among them) exits `75` while the app is still building, so a script can retry; any other non-zero code is a real failure.
 
 ## Add a command
 

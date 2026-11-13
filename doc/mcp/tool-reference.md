@@ -7,12 +7,6 @@ each plugin's own documentation site (see [Plugin Tools](#plugin-tools) below).
 
 - [Tool Naming Convention](#tool-naming-convention)
 - [Substrate Tools](#substrate-tools)
-- [Plugin Tools](#plugin-tools)
-- [Filter Configuration](#filter-configuration)
-- [Related Documentation](#related-documentation)
-
-- [Tool Naming Convention](#tool-naming-convention)
-- [Substrate Tools](#substrate-tools)
   - [dowel_start](#dowel_start)
   - [dowel_stop](#dowel_stop)
   - [dowel_status](#dowel_status)

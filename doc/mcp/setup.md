@@ -9,6 +9,7 @@ The dowel CLI ships with a built-in [Model Context Protocol (MCP)](https://model
 - [Add a Rule](#add-a-rule)
 - [Automated Install](#automated-install)
 - [Available Tools](#available-tools)
+- [Related Documentation](#related-documentation)
 
 This page documents the per-client install matrix: the exact configuration snippet each MCP-compatible client needs to spawn `./bin/dowel mcp:serve` (or `dart run :dispatcher mcp:serve` as a fallback) against your project. The dowel MCP server is stdio-only in V1 (no remote HTTP endpoint); every client below launches the CLI locally with the project directory as the working directory.
 
@@ -445,3 +446,10 @@ Tool visibility is filtered in three layers (file `.dowel/mcp.json` lowest prior
 ```
 
 After editing `.dowel/mcp.json` or env vars, run `/mcp reconnect dowel` inside Claude Code (or the equivalent reconnect action in your client); the server does NOT auto-reload in V1.
+
+<a name="related-documentation"></a>
+## Related Documentation
+
+- [MCP Overview](overview.md): the substrate and plugin tool layers.
+- [MCP Tool Reference](tool-reference.md): every substrate tool and its input.
+- [mcp:serve](../commands/mcp-serve.md): the server command and its filter flags.

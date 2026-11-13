@@ -5,21 +5,6 @@ Canonical schema for the declarative `install.yaml` manifest consumed by `plugin
 - [Overview](#overview)
 - [Top-Level Fields](#top-level-fields)
 - [plugin_name](#plugin_name)
-- [dependencies](#dependencies)
-- [publish](#publish)
-- [json_merge](#json_merge)
-- [magic](#magic)
-- [native](#native)
-- [env](#env)
-- [prompts](#prompts)
-- [placeholders](#placeholders)
-- [post_install](#post_install)
-- [bootstrap_command](#bootstrap_command)
-- [Complete Example](#complete-example)
-
-- [Overview](#overview)
-- [Top-Level Fields](#top-level-fields)
-- [plugin_name](#plugin_name)
 - [pubspec / dev_pubspec / pubspec_assets (dependencies:)](#dependencies)
 - [publish](#publish)
 - [json_merge](#json_merge)
@@ -35,6 +20,7 @@ Canonical schema for the declarative `install.yaml` manifest consumed by `plugin
 - [post_install](#post_install)
 - [bootstrap_command](#bootstrap_command)
 - [Complete Example](#complete-example)
+- [Related Documentation](#related-documentation)
 
 <a name="overview"></a>
 ## Overview
@@ -349,7 +335,7 @@ Optional plugin-specific bootstrap command name AUTO-RUN after a Success result.
 Dispatcher resolution:
 
 1. `./bin/dowel <name> --non-interactive` when a `bin/dowel` wrapper exists at the consumer project root (the AOT fast-CLI path).
-2. Otherwise `dart run <consumer>:dowel <name> --non-interactive`, deriving the consumer package name from the project's `pubspec.yaml` `name:` field.
+2. Otherwise `dart run :dispatcher <name> --non-interactive` when `bin/dispatcher.dart` exists (Windows, or a failed fast-CLI build).
 3. When neither resolves, `plugin:install` prints the one-line bootstrap hint (`Bootstrap with: dowel <name>`) instead, so the operator can run it manually.
 
 `--non-interactive` is ALWAYS forwarded to the chained command so an interactive bootstrap (e.g. `starter:install`) cannot hang waiting on stdin.
@@ -473,3 +459,10 @@ post_install:
 
 bootstrap_command: example:install
 ```
+
+<a name="related-documentation"></a>
+## Related Documentation
+
+- [Plugin Authoring](authoring.md): the whole flow of writing a plugin.
+- [Installer DSL](installer-dsl.md): the procedural escape hatch for what a manifest cannot express.
+- [plugin:install](../commands/plugin-install.md): how a manifest is applied.

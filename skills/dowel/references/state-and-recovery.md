@@ -66,7 +66,7 @@ and the recovery loop for every common failure substring.
 | `startedAt` | string | `start` | ISO 8601 timestamp |
 | `profile` | string | `start` | `debug` or `static` (set when `--profile-static`) |
 | `projectRoot` | string | `start` | absolute path to the Flutter project that ran `start` |
-| `stdinPipe` | string | `start` | FIFO path (`~/.dowel/flutter-dev.fifo`) |
+| `stdinPipe` | string | `start` | FIFO path (`~/.dowel/sessions/<hash>/flutter-dev.fifo`) |
 | `stdinHolderPid` | int | `start` | the `tail -f /dev/null > fifo` holder pid (kept alive so writer-side EOF does not propagate) |
 | `chromePid` | int / null | `start --cdp-port` | Chrome subprocess pid; null on non-CDP runs |
 | `tmpProfileDir` | string / null | `start --cdp-port` | Chrome temp profile dir; null otherwise |
@@ -82,7 +82,7 @@ The agent reads state.json via `dowel_status`. Direct file reads via
 
 ## FIFO pipe model
 
-- **Path**: `~/.dowel/flutter-dev.fifo`
+- **Path**: `~/.dowel/sessions/<hash>/flutter-dev.fifo`
 - **Created**: by `dowel_start` via shell `mkfifo` (skipped on Windows;
   start raises `StateError('mkfifo failed (Windows not yet supported;
   V1 is POSIX-only): ...')` on Windows).
@@ -296,7 +296,7 @@ If it never clears, the app is a release build or the plugin is not
 installed in it. Plugin code can catch `ExtensionNotRegisteredException`
 from `ctx.callExtension` to wait instead of failing.
 
-### `state.json missing vmServiceUri`
+### `state.json missing or has no vmServiceUri`
 
 Cause: a state file that records no URI and carries no `booting` marker, so
 it was not an interrupted start: flutter run crashed during boot before the

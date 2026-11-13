@@ -29,8 +29,8 @@ The signature string is the primary way to declare a command's surface. The
 alternative is `configure(ArgParser)`, used when the DSL cannot express the
 required structure (multi-allowed options, allowed-values lists).
 
-Of the 21 built-in commands: **6** use the signature DSL, **5** use
-`configure(ArgParser)` with flags, **10** have no flag surface.
+The built-in commands use whichever fits: some declare a `signature`, some
+`configure(ArgParser)` with flags, and some have no flag surface at all.
 
 ---
 
@@ -193,7 +193,7 @@ returns `null` in REPL mode and the expression string when `--eval` is set.
 
 ---
 
-### plugin:install (`lib/src/commands/plugin_install_command.dart:67`)
+### plugin:install (`lib/src/commands/plugin_install_command.dart`)
 
 ```dart
 String get signature => 'plugin:install '
@@ -204,8 +204,8 @@ String get signature => 'plugin:install '
 ```
 
 `CommandSignature` result: name `plugin:install`, one required positional
-argument `name`, three own options (`provider` value, `bootstrap-command`
-value, `use-yaml-only` flag), plus the options from `baseFlags` expansion.
+argument `name`, two own options (`bootstrap-command` value, `use-yaml-only`
+flag), plus the options from `baseFlags` expansion.
 
 ---
 

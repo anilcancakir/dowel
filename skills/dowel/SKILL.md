@@ -1,7 +1,7 @@
 ---
 name: dowel
 description: "Start, hot reload and inspect a running Flutter app from an agent with dowel's `dowel_*` MCP tools and `./bin/dowel` CLI."
-version: 0.0.21
+version: 0.0.9
 when_to_use: "Use when driving a Flutter app through dowel, installing a dowel plugin, or fixing dowel MCP wiring or session errors."
 ---
 
@@ -31,8 +31,8 @@ Reconnect the MCP client afterwards (Claude Code: `/mcp reconnect dowel`); stdio
 3. **"Start, then tinker" needs no reconnect.** The server re-reads the session on the next connected call and opens the VM Service once, however many calls arrive together.
 4. **Reload keeps the isolate, restart replaces it.** `dowel_reload` (`r`) keeps Dart state; `dowel_hot_restart` (`R`) drops it and mints a new isolate id. The client re-resolves a stale id by itself, so call `dowel_tinker` again without reconnecting.
 5. **`dowel_tinker` takes one expression.** The VM Service compiles a single expression in the root library: a trailing `;`, several statements, `import` or a declaration fail with `RPCError(code: 113)`. A bare `await` is allowed because dowel wraps the source in `(() async => <expr>)()`. End a non-primitive result with `.toString()` inside the expression, or it prints as `<ClassName#id>`.
-6. **Only 10 of the 22 commands are MCP tools.** The CLI-only rest (`help`, `install`, `make:*`, `commands:refresh`, `plugins:refresh`, `plugin:install`, `plugin:uninstall`, `mcp:*`) write source, prompt, or recurse into the server. Run them from Bash: `./bin/dowel <cmd>` (native, about 110 ms warm) or `dart run dowel <cmd>` (about 3 s).
-7. **Reload and hot restart are POSIX only.** `start` creates a FIFO (`~/.dowel/flutter-dev.fifo`) and `dowel_reload` or `dowel_hot_restart` write `r` or `R` into it. On Windows `mkfifo` fails with "V1 is POSIX-only"; stop and tell the user.
+6. **Only 10 of the 22 commands are MCP tools.** The CLI-only rest (`help`, `install`, `make:*`, `commands:refresh`, `plugins:refresh`, `plugin:install`, `plugin:uninstall`, `mcp:*`) write source, prompt, or recurse into the server. Run them from Bash: `./bin/dowel <cmd>` (native, about 100 ms warm) or `dart run dowel <cmd>` (about 3 s).
+7. **Reload and hot restart are POSIX only.** `start` creates a FIFO (`~/.dowel/sessions/<hash>/flutter-dev.fifo`) and `dowel_reload` or `dowel_hot_restart` write `r` or `R` into it. On Windows `mkfifo` fails with "V1 is POSIX-only"; stop and tell the user.
 8. **`./bin/dowel` is an AOT cache.** It rebuilds (about 5 s) when the bundle or `.dowel/build.stamp` is missing, the stamp's lockfile hash or Dart version differs, or `pubspec.yaml` is newer than `pubspec.lock`. A wrapper stuck on `waiting for another dowel invocation` is a stale lock: `make:fast-cli --force`, or remove `.dowel/.dowel.lock`.
 9. **Exit `75` means retry.** `dowel start --timeout=N` and connected commands return it while the app is still building; every other non-zero code is a failure.
 10. **Nothing writes before the commit.** `plugin:install <name> --dry-run` previews every operation; the real run is atomic and recorded under `.dowel/installed/<plugin>.json`, so `plugin:uninstall` can reverse it. A plugin without an `install.yaml` is registered straight into `.dowel/plugins.json` and needs the scaffold from `dowel install`.
@@ -83,7 +83,7 @@ dowel_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
 dowel_tinker { eval: "await SharedPreferences.getInstance().then((p) => p.getKeys().toList())" }
 ```
 
-`device` defaults to the first entry of `flutter devices`; use `chrome` for web (port 3100), `macos` for desktop or an adb serial for Android.
+`device` defaults to `chrome` (web, port 3100); pass `macos` for desktop or an adb serial for Android.
 
 Hot reload after an edit: `dowel_reload`, then `dowel_logs { follow: false }` for the expected line, then `dowel_tinker` to confirm. If reload fails (a const constructor change, a build error during reassemble) use `dowel_hot_restart`; if that fails, `dowel_restart`.
 
@@ -103,7 +103,7 @@ Connected tools soft-fail with `isError: true` text. Branch on the substring:
 | Substring | Cause | Next move |
 |---|---|---|
 | `No Flutter app detected` / ``Run `dowel start` first`` | No session for this project | `dowel_start { device: ... }`, retry |
-| `state.json missing vmServiceUri` | `flutter run` crashed during boot | `dowel_restart` |
+| `state.json missing or has no vmServiceUri` | `flutter run` crashed during boot | `dowel_restart` |
 | session shows `booting: true` | `start` was cut short by its caller; the app is running | Call any connected tool, it recovers the URI from the session log. Do not re-run start or hand-write the file |
 | ``Pipe missing: <path>. Run `dowel restart` `` | The FIFO was deleted while the session recorded it | `dowel_restart` |
 | `The session has no stdinPipe entry` | The session predates the FIFO or was hand-written | `dowel_restart` |

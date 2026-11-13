@@ -52,9 +52,9 @@ dart run dowel start [--device=<target>] [--port=<n>] [--vm-service-port=<n>]
 <a name="behavior"></a>
 ## Behavior
 
-**FIFO stdin channel.** Before launching Flutter, `start` calls `mkfifo` to create a named pipe at `~/.dowel/flutter-dev.fifo`. A background `tail -f /dev/null` process holds the write end of the FIFO open permanently, preventing `flutter run`'s stdin from receiving EOF when no keystroke sender is active. `flutter run` is then launched with the FIFO as its stdin, so the `reload` and `hot-restart` commands can send `r` or `R` into the pipe and trigger flutter_tools' own handler. This approach works on every device target (web, desktop, mobile) because it routes through `flutter_tools` rather than raw VM Service RPCs, which the Chrome `dwds` bridge rejects.
+**FIFO stdin channel.** Before launching Flutter, `start` calls `mkfifo` to create a named pipe at `~/.dowel/sessions/<hash>/flutter-dev.fifo`. A background `tail -f /dev/null` process holds the write end of the FIFO open permanently, preventing `flutter run`'s stdin from receiving EOF when no keystroke sender is active. `flutter run` is then launched with the FIFO as its stdin, so the `reload` and `hot-restart` commands can send `r` or `R` into the pipe and trigger flutter_tools' own handler. This approach works on every device target (web, desktop, mobile) because it routes through `flutter_tools` rather than raw VM Service RPCs, which the Chrome `dwds` bridge rejects.
 
-**Detached spawn and URI scrape.** The shell one-liner run by `start` launches both background processes (`tail` holder and `flutter run`) and echoes their PIDs in `HOLDER=<n>` / `FLUTTER=<n>` format. `start` captures those PIDs from the wrapper's stdout, then polls the log file at `~/.dowel/flutter-dev.log` every 250 ms until it finds a line matching either the web format (`Debug service listening on ws://...`) or the desktop/mobile format (`Dart VM Service on <Platform> is available at: http://...`). `http://` and `https://` URIs are normalized to their `ws://` and `wss://` equivalents and a `/ws` suffix is appended when missing.
+**Detached spawn and URI scrape.** The shell one-liner run by `start` launches both background processes (`tail` holder and `flutter run`) and echoes their PIDs in `HOLDER=<n>` / `FLUTTER=<n>` format. `start` captures those PIDs from the wrapper's stdout, then polls the log file at `~/.dowel/sessions/<hash>/flutter-dev.log` every 250 ms until it finds a line matching either the web format (`Debug service listening on ws://...`) or the desktop/mobile format (`Dart VM Service on <Platform> is available at: http://...`). `http://` and `https://` URIs are normalized to their `ws://` and `wss://` equivalents and a `/ws` suffix is appended when missing.
 
 **State file write.** After the URI is confirmed, `start` writes this project's session state atomically (`.tmp` + rename) with the full process inventory: PIDs, FIFO path, VM Service URI, web port, device target, profile mode, project root, and a UTC `startedAt` timestamp. The MCP server (`mcp:serve`) reads this file at startup to discover the running app; `stop` reads it to find the app to stop; `status` reads it to report the live process.
 
@@ -76,7 +76,7 @@ The command returns as soon as all of it is gone (about 15 seconds at worst per 
 ```json
 {
   "pid": 12345,
-  "stdinPipe": "/Users/you/.dowel/flutter-dev.fifo",
+  "stdinPipe": "/Users/you/.dowel/sessions/3f9a1c5e7b20/flutter-dev.fifo",
   "stdinHolderPid": 12344,
   "vmServiceUri": "ws://127.0.0.1:8181/AbCdEfGhIjK=/ws",
   "webPort": 3100,
@@ -158,12 +158,12 @@ Allows up to 180 seconds for the VM Service URI to appear in the log. Use this w
 
 **Port already in use (`--port` collision).** If another process holds the web port, `flutter run` exits immediately and the log file shows `Error: Address already in use`. Pick a free port with `--port=<n>` or stop the occupying process with `lsof -ti:<port> | xargs kill`.
 
-**`mkfifo` permission denied.** `start` creates the FIFO at `~/.dowel/flutter-dev.fifo`. If `~/.dowel/` was created by a previous run with different ownership or mode bits, `mkfifo` fails. Fix with `rm -rf ~/.dowel && dart run dowel start`. Note: `start` is POSIX-only (macOS/Linux). It will not work on Windows.
+**`mkfifo` permission denied.** `start` creates the FIFO at `~/.dowel/sessions/<hash>/flutter-dev.fifo`. If `~/.dowel/` was created by a previous run with different ownership or mode bits, `mkfifo` fails. Fix with `rm -rf ~/.dowel && dart run dowel start`. Note: `start` is POSIX-only (macOS/Linux). It will not work on Windows.
 
 **VM Service URI never appears (timeout).** When `--timeout` runs out before the URI shows up in the log, `start` checks whether `flutter run` is still alive.
 
 - **Still running (exit 75).** A first native build (CocoaPods, SwiftPM, Gradle) routinely takes longer than 90 seconds, and the app keeps building after `start` returns. `start` prints `flutter run (pid <n>) is still building after <n>s ...` and exits `75` (`EX_TEMPFAIL`, `DowelCommand.exitTryAgain`), so a script can tell "not ready yet" from a failure. The session stays recorded with `booting: true`; `status` shows it, and the next connected command reads the URI from the log once the build finishes. A connected command run before that point also exits `75` while the recorded `flutter run` is alive, so a script can retry on the one code until it succeeds. Pass `--timeout=600` to make `start` itself wait for a cold build.
-- **Exited (exit 1).** `flutter run` died before announcing a URI, almost always a build or launch error. `start` prints `flutter run (pid <n>) exited before announcing a VM Service URI` with the log path, stops the FIFO holder and removes the session (the log stays), so `status` does not report a dead app as booting. Common causes in `~/.dowel/flutter-dev.log`: a wrong `--device` value, a missing `CHROME_EXECUTABLE` env var in headless environments, or a compile error in the app's entry point.
+- **Exited (exit 1).** `flutter run` died before announcing a URI, almost always a build or launch error. `start` prints `flutter run (pid <n>) exited before announcing a VM Service URI` with the log path, stops the FIFO holder and removes the session (the log stays), so `status` does not report a dead app as booting. Common causes in `~/.dowel/sessions/<hash>/flutter-dev.log`: a wrong `--device` value, a missing `CHROME_EXECUTABLE` env var in headless environments, or a compile error in the app's entry point.
 
 On the `--cdp-port` branch a timeout still fails the start with exit 1 and reaps Chrome and the flutter tool, since a web build has no long native phase to wait out.
 

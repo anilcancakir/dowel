@@ -339,7 +339,7 @@ No state file; nothing to stop.
 
 ```
 # `dowel logs` exit 0
-[contents of ~/.dowel/flutter-dev.log]
+[contents of ~/.dowel/sessions/<hash>/flutter-dev.log]
 ```
 
 **Returns on error (no log file)**:
@@ -347,7 +347,7 @@ No state file; nothing to stop.
 ```
 # `dowel logs` exit 1
 ### Error
-Log file not found at ~/.dowel/flutter-dev.log. Run `dowel start` first.
+Log file not found at ~/.dowel/sessions/<hash>/flutter-dev.log. Run `dowel start` first.
 ```
 
 **Notes**:
@@ -447,7 +447,7 @@ No state file; nothing to reload. Run `dowel start` first.
 ```
 # `dowel reload` exit 2
 ### Error
-Pipe missing: ~/.dowel/flutter-dev.fifo. Run `dowel restart`.
+Pipe missing: ~/.dowel/sessions/<hash>/flutter-dev.fifo. Run `dowel restart`.
 ```
 
 **Returns on error (older dowel state)**:

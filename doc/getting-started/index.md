@@ -5,7 +5,7 @@ the MCP server into your AI client.
 
 - [Pick your path](#pick-your-path)
 - [What is dowel?](#what-is-dowel)
-- [Next steps](#next-steps)
+- [Related Documentation](#related-documentation)
 
 <a name="pick-your-path"></a>
 ## Pick your path
@@ -25,7 +25,7 @@ lifecycle of a Flutter project from initial scaffold through live inspection by 
 stitching together a collection of separate tools.
 
 Built on pure Dart 3.4+ with no Flutter runtime dependency, `dowel` runs as a plain VM
-process and ships 21 built-in commands across six groups: consumer setup, plugin lifecycle, code
+process and ships 22 built-in commands across six groups: consumer setup, plugin lifecycle, code
 generators, dev-loop orchestration, inspection, and MCP server management. The plugin system extends
 this catalog via `DowelServiceProvider` subclasses, so teams can bundle project-specific commands
 alongside the built-ins and install them into any consumer project with a single `plugin:install`
@@ -40,8 +40,8 @@ Service hooks for hot reload, hot restart, and connected REPL evaluation against
 app. No orchestration layer is needed between them; they share the same registry, the same provider
 contract, and the same binary entry point.
 
-<a name="next-steps"></a>
-## Next steps
+<a name="related-documentation"></a>
+## Related Documentation
 
 - New here? Start with [Installation](installation.md).
 - Already installed? Run the [Quickstart](quickstart.md).

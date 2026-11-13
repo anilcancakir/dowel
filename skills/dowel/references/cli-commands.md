@@ -37,7 +37,7 @@ The allowlist excludes a command for one of five reasons:
 ```
 USE: ./bin/dowel <cmd>
 WHEN: inside a consumer with `./bin/dowel` present (the canonical scaffold after `install`).
-WHY: ~110ms warm startup (native AOT).
+WHY: about 100 ms warm startup (native AOT).
 
 USE: dart run dowel <cmd>
 WHEN: ./bin/dowel is unavailable (Windows, fresh clone, broken AOT cache).
@@ -267,7 +267,7 @@ Install a plugin. Dispatches in two routing modes
    regen `lib/app/_plugins.g.dart`. When the manifest declares a
    `bootstrap_command`, it AUTO-RUNS after registration as a fresh dispatcher
    subprocess (`./bin/dowel <cmd> --non-interactive`, or `dart run
-   <consumer>:dowel <cmd> --non-interactive` when no `bin/dowel`). `--no-bootstrap`
+   :dispatcher <cmd> --non-interactive` when no `bin/dowel`). `--no-bootstrap`
    skips the auto-run (falls back to a hint); `--bootstrap-command=<cmd>`
    overrides the manifest value.
 2. **Direct registration**: no manifest, but `lib/app/_plugins.g.dart`

@@ -16,6 +16,7 @@ Need a quick reminder of what a command does without leaving the terminal? Run `
 - [Code generation](#code-generation)
 - [Featured deep-dives](#featured-deep-dives)
 - [Boot mode at a glance](#boot-mode-at-a-glance)
+- [Related Documentation](#related-documentation)
 
 <a name="how-to-read-this-page"></a>
 ## How to read this page
@@ -63,7 +64,7 @@ Four commands that write source files into the consumer project. They are delibe
 |---------|-------------|-----------|----------|
 | `make:plugin` | Scaffold a new dowel plugin skeleton. | none | no |
 | `make:command` | Scaffold a new DowelCommand subclass under `lib/app/commands/` (or `lib/src/commands/` when run inside a plugin). | none | no |
-| `make:fast-cli` | Scaffold the POSIX `bin/dowel` wrapper and pre-compile the AOT cache under `.dowel/cli-bundle/` for ~50ms startup. | none | no |
+| `make:fast-cli` | Scaffold the POSIX `bin/dowel` wrapper and pre-compile the AOT cache under `.dowel/cli-bundle/` for about 100 ms startup. | none | no |
 | `install` | Scaffold the canonical native Flutter consumer wrapper (`bin/dispatcher.dart` plus `lib/app/_plugins.g.dart` plus `lib/app/commands/_index.g.dart`) and chain `make:fast-cli` in-process. | none | no |
 
 <a name="plugin-management"></a>
@@ -131,3 +132,10 @@ Six commands earn their own pages because their flags, modes, or composition rul
 - [tinker](tinker.md)
 
 Slug rule: the deep-dive URL drops the `:` separator in favor of `-`, so `plugin:install` lives at `commands/plugin-install/` and `mcp:serve` at `commands/mcp-serve/`. The remaining fifteen commands share this index page; reach for `dart run dowel help <name>` for their full flag surface.
+
+<a name="related-documentation"></a>
+## Related Documentation
+
+- [Getting Started](../getting-started/index.md): what dowel is and how the pieces fit.
+- [MCP Tool Reference](../mcp/tool-reference.md): the ten substrate tools these commands map to.
+- [Signature DSL](../reference/signature-dsl.md): how a command declares its arguments and flags.

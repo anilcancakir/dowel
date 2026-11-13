@@ -3,14 +3,21 @@
 A 5-step walkthrough taking a fresh Dart or Flutter project from zero to a working
 dowel setup with a plugin installed and a custom command registered.
 
+- [1. Install and scaffold](#1-install-and-scaffold)
+- [2. Add a custom command](#2-add-a-custom-command)
+- [3. Install a plugin](#3-install-a-plugin)
+- [4. Start a Flutter app (optional)](#4-start-a-flutter-app-optional)
+- [5. List everything wired](#5-list-everything-wired)
 - [What's next?](#whats-next)
+- [Related Documentation](#related-documentation)
 
 Prerequisites: Dart 3.4+ SDK, a Flutter project with a valid `pubspec.yaml`, and
 `flutter pub get` already run so `.dart_tool/package_config.json` is present.
 
 ---
 
-### 1. Install and scaffold
+<a name="1-install-and-scaffold"></a>
+## 1. Install and scaffold
 
 Add `dowel` to your project dependencies, then run `install`
 to write the canonical wrapper files. The scaffold is idempotent: re-running it when
@@ -31,12 +38,14 @@ The scaffold writes three files:
   under `lib/app/commands/` so `dart run dowel list` picks them up without
   manual registration.
 
-After scaffolding, all subsequent commands run via `dart run dowel` (the consumer
-wrapper), not via `dart run dowel` directly.
+After scaffolding, run commands with `./bin/dowel` or `dart run dowel`; both
+delegate to the consumer wrapper `bin/dispatcher.dart`, which loads your
+commands and plugins.
 
 ---
 
-### 2. Add a custom command
+<a name="2-add-a-custom-command"></a>
+## 2. Add a custom command
 
 Generate a command scaffold under `lib/app/commands/`. The name argument is
 normalized: `HelloWorld` becomes class `HelloWorldCommand` with signature
@@ -57,7 +66,8 @@ the import and registration line into the provider file automatically.
 
 ---
 
-### 3. Install a plugin
+<a name="3-install-a-plugin"></a>
+## 3. Install a plugin
 
 Add the plugin package to your `pubspec.yaml` and resolve it, then register it with
 the consumer wrapper via `plugin:install`. The command runs a two-stage resolution:
@@ -83,7 +93,8 @@ commits. Pass `--use-yaml-only` to error out instead of falling back when no
 
 ---
 
-### 4. Start a Flutter app (optional)
+<a name="4-start-a-flutter-app-optional"></a>
+## 4. Start a Flutter app (optional)
 
 If your project ships a Flutter app, `start` boots `flutter run` in a detached
 process and writes a per-project session with the VM Service URI. The session file
@@ -107,7 +118,8 @@ resolve the running process automatically from the file without extra flags.
 
 ---
 
-### 5. List everything wired
+<a name="5-list-everything-wired"></a>
+## 5. List everything wired
 
 Verify the full command registry by running `list`. The output is grouped by `:`
 namespace so built-in commands, your custom commands, and plugin-contributed commands
@@ -117,7 +129,7 @@ each appear in their own section.
 dart run dowel list
 ```
 
-A clean setup shows the 21 built-in commands (under namespaces `consumer`, `make`,
+A clean setup shows the 22 built-in commands (under namespaces `consumer`, `make`,
 `plugin`, `plugins`, `commands`, `mcp`, and a few root-level commands including
 `start`, `stop`, `status`, `logs`, `restart`, `reload`, `hot-restart`, `doctor`,
 `list`) plus your `hello-world` command under the root namespace (or under
@@ -138,3 +150,9 @@ All five commands shown above are part of the `dowel` built-in command
 set and require no additional packages beyond the initial `dart pub add` in step 1.
 Plugin commands contributed by third-party packages appear in `dowel list` under
 their own namespace after `plugin:install` completes.
+
+<a name="related-documentation"></a>
+## Related Documentation
+
+- [Installation](installation.md): requirements and the project scaffold.
+- [Plugin Authoring](../plugins/authoring.md): write a plugin of your own.

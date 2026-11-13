@@ -39,7 +39,7 @@ tells you to run `install` first.
 ## Synopsis
 
 Full signature as declared in
-`lib/src/commands/plugin_install_command.dart:67`:
+`lib/src/commands/plugin_install_command.dart`:
 
 ```
 plugin:install
@@ -77,7 +77,7 @@ scaffold barrel from `dart run dowel install`.
 
 **Condition**: `resolveInstallYaml(name)` returns a non-null path. The resolver
 checks `<plugin_root>/install.yaml` first, then `<plugin_root>/assets/install.yaml`
-(`lib/src/commands/plugin_install_command.dart:110-127`).
+(`resolveInstallYaml` in `lib/src/commands/plugin_install_command.dart`).
 
 `ManifestParser.parseFile` parses the YAML into an `InstallManifest`.
 `ManifestInstaller` stages `InstallOperation` objects on an `InstallTransaction`.
@@ -129,7 +129,7 @@ dart run dowel plugin:install awesome_plugin
 
 Output:
 ```
-Registered "awesome_plugin" via canonical scaffold (no install.yaml needed).
+Registered "awesome_plugin" via the dowel scaffold (no install.yaml needed).
 ```
 
 ### 3. Dry-run preview

@@ -6,6 +6,7 @@ Getting started with dowel requires a few steps to wire the CLI binary and codeg
 - [Installation](#installation-step)
 - [Basic Setup](#basic-setup)
 - [Verify Installation](#verify-installation)
+- [Related Documentation](#related-documentation)
 
 <a name="requirements"></a>
 ## Requirements
@@ -82,7 +83,7 @@ Run the built-in `list` command to confirm the scaffold is wired correctly:
 dart run dowel list
 ```
 
-The output lists all registered commands grouped by namespace. A fresh scaffold with no additional plugins shows 21 built-in commands organized across these namespaces:
+The output lists all registered commands grouped by namespace. A fresh scaffold with no additional plugins shows 22 built-in commands organized across these namespaces:
 
 | Namespace | Commands |
 |:----------|:---------|
@@ -97,3 +98,10 @@ The output lists all registered commands grouped by namespace. A fresh scaffold 
 | `tinker` | `tinker` |
 
 If the list prints without errors, the installation is complete.
+
+<a name="related-documentation"></a>
+## Related Documentation
+
+- [Quickstart](quickstart.md): a first command, a plugin and the MCP server.
+- [Commands](../commands/index.md): what each built-in command does.
+- [MCP Setup](../mcp/setup.md): wire the server into an AI client.
