@@ -548,7 +548,7 @@ Sent `R` (hot-restart) to flutter run stdin.
   ✓ dart --version
   ✓ port 3100 free
   ✓ flutter sdk >= 3.30.0 (for --cdp-port)
-WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the removed fluttersdk_mcp package. Run: ./bin/dowel mcp:install (or: dart run dowel mcp:install) to refresh the entry.
+WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the removed fluttersdk_mcp package. Delete the "fluttersdk" entry from .mcp.json, then run: ./bin/dowel mcp:install (or: dart run dowel mcp:install).
 ```
 
 **Returns on error (any hard check fails)**:

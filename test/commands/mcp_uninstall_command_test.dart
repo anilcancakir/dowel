@@ -40,8 +40,9 @@ void main() {
   });
 
   group(
-      'McpUninstallCommand handle: post-fix entry shapes (./bin/dowel mcp:serve, '
-      'dart run :dispatcher mcp:serve) and pre-fix fluttersdk_artisan:mcp', () {
+      'McpUninstallCommand handle: entry shapes (./bin/dowel mcp:serve, '
+      'dart run :dispatcher mcp:serve) and the old fluttersdk_artisan:mcp args',
+      () {
     test(
         'removes dowel entry that uses the post-fix dowel shape (./bin/dowel mcp:serve)',
         () async {
@@ -149,12 +150,11 @@ void main() {
     });
   });
 
-  group(
-      'McpUninstallCommand handle — legacy entry shape (fluttersdk_mcp:server)',
+  group('McpUninstallCommand handle — old args shape (fluttersdk_mcp:server)',
       () {
-    test('removes dowel entry that uses the legacy mcp args shape', () async {
+    test('removes a dowel entry that uses the old mcp args shape', () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed legacy-shape entry.
+      // 1. Seed an entry with the old args shape.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
           'dowel': {

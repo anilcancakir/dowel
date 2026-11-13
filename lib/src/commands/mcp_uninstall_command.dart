@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:dowel/dowel.dart';
 
 /// `dowel mcp:uninstall` — remove the `dowel` MCP server entry from
-/// `.mcp.json`. Handles both the legacy `fluttersdk_mcp:server` args shape and
-/// the new `fluttersdk_artisan:mcp` args shape; the key name is `dowel`
-/// in both cases. Preserves all other entries. Idempotent.
+/// `.mcp.json`, whatever its args shape. Entries written by earlier releases
+/// live under the `fluttersdk` key and are not touched: delete them by hand.
+/// Preserves all other entries. Idempotent.
 class McpUninstallCommand extends DowelCommand {
   @override
   String get name => 'mcp:uninstall';

@@ -7,8 +7,9 @@ import 'package:test/test.dart';
 /// Constant warning message emitted when a stale `.mcp.json` entry is found.
 const _staleMcpWarning =
     'WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the '
-    'removed fluttersdk_mcp package. Run: ./bin/dowel mcp:install (or: '
-    'dart run dowel mcp:install) to refresh the entry.';
+    'removed fluttersdk_mcp package. Delete the "fluttersdk" entry from '
+    '.mcp.json, then run: ./bin/dowel mcp:install (or: '
+    'dart run dowel mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
 /// `fluttersdk_artisan:mcp` args shape. Mirrors the production constant in
@@ -16,8 +17,8 @@ const _staleMcpWarning =
 const _preFixMcpWarning =
     'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
     'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Run: ./bin/dowel mcp:install (or: dart run dowel mcp:install) '
-    'to upgrade to the correct entry shape.';
+    'Delete the "fluttersdk" entry from .mcp.json, then run: '
+    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
 
 void main() {
   group('DoctorCommand', () {
@@ -92,7 +93,7 @@ void main() {
         await mcpJson.writeAsString('''
 {
   "mcpServers": {
-    "dowel": {
+    "fluttersdk": {
       "command": "dart",
       "args": ["run", "fluttersdk_mcp:server"]
     }
@@ -119,7 +120,7 @@ void main() {
         await mcpJson.writeAsString('''
 {
   "mcpServers": {
-    "dowel": {
+    "fluttersdk": {
       "command": "dart",
       "args": ["run", "fluttersdk_artisan:mcp"]
     }
@@ -157,7 +158,7 @@ void main() {
         await mcpJson.writeAsString('''
 {
   "mcpServers": {
-    "dowel": {
+    "fluttersdk": {
       "command": "dart",
       "args": ["run", "fluttersdk_mcp:server"]
     }
@@ -191,7 +192,7 @@ void main() {
         await mcpJson.writeAsString('''
 {
   "mcpServers": {
-    "dowel": {
+    "fluttersdk": {
       "command": "dart",
       "args": ["run", "fluttersdk_artisan:mcp"]
     }

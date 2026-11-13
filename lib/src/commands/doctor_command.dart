@@ -8,21 +8,25 @@ import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 
 /// Advisory warning emitted when `.mcp.json` still references the removed
-/// `fluttersdk_mcp` package. Instructs the user to run `mcp:install` to fix.
+/// `fluttersdk_mcp` package. Those entries live under the `fluttersdk` key,
+/// which `mcp:install` no longer writes, so the user deletes the old entry
+/// first.
 const _staleMcpWarning =
     'WARN: Stale MCP entry detected. Pre-upgrade .mcp.json points at the '
-    'removed fluttersdk_mcp package. Run: ./bin/dowel mcp:install (or: '
-    'dart run dowel mcp:install) to refresh the entry.';
+    'removed fluttersdk_mcp package. Delete the "fluttersdk" entry from '
+    '.mcp.json, then run: ./bin/dowel mcp:install (or: '
+    'dart run dowel mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
 /// `fluttersdk_artisan:mcp` args shape. That shape routes through the substrate
-/// standalone, which never loads consumer plugin providers. Instructs the user
-/// to re-run `mcp:install` to upgrade to the branched entry shape.
+/// standalone, which never loads consumer plugin providers. It lives under the
+/// `fluttersdk` key as well, so the user deletes it before `mcp:install`
+/// writes the branched entry shape under `dowel`.
 const _preFixMcpWarning =
     'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
     'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Run: ./bin/dowel mcp:install (or: dart run dowel mcp:install) '
-    'to upgrade to the correct entry shape.';
+    'Delete the "fluttersdk" entry from .mcp.json, then run: '
+    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
 
 /// Minimum Flutter SDK version required for the WebSocket hot reload fix that
 /// enables CDP commands (flutter/flutter#170612).

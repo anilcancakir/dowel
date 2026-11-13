@@ -132,10 +132,10 @@ void main() {
     });
 
     test(
-        'pre-existing fluttersdk_mcp:server entry is replaced by new dowel shape with no duplicate',
+        'a dowel entry with the old fluttersdk_mcp:server args is replaced in place with no duplicate',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed the OLD entry shape.
+      // 1. Seed the OLD args shape under the current key.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
           'dowel': {
