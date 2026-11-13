@@ -20,10 +20,9 @@ typedef RunDowelFn = Future<int> Function(
 /// provider's MCP tool descriptors are collected into the [DowelRegistry]
 /// before the server starts, and forces `delegateToConsumer: false` so the
 /// substrate's complete builtin list (including `mcp:serve`) owns dispatch:
-/// the MCP entry NEVER delegates to a stale consumer wrapper (whether
-/// `bin/dispatcher.dart` or the legacy `bin/dowel.dart`) that may be
-/// missing `mcp:*` commands. The MCP server is the source of truth for its
-/// own dispatch surface.
+/// the MCP entry NEVER delegates to a stale consumer wrapper
+/// (`bin/dispatcher.dart`) that may be missing `mcp:*` commands. The MCP
+/// server is the source of truth for its own dispatch surface.
 ///
 /// [runDowel] is the injectable seam; production callers omit it and get
 /// the real [runDowel] bootstrap from `package:dowel/dowel.dart`.

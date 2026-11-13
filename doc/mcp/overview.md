@@ -94,9 +94,9 @@ first and the very next plugin tool call picks up the new app automatically.
 provider in the `baseProviders` list it passes to `runDowel(...)` (auto-discovery via
 `lib/app/_plugins.g.dart` handles this for `plugin:install`-registered packages). Consumers
 invoke `./bin/dowel mcp:serve` (post-install via `mcp:install`) or `dart run :dispatcher mcp:serve`
-(Windows / no-dowel fallback) to start the MCP server with plugins collected. The legacy
-`bin/mcp.dart` entry point is preserved for backward compatibility and loads only the substrate
-commands without plugin tools.
+(Windows / no `bin/dowel` fallback) to start the MCP server with plugins collected. The
+`bin/mcp.dart` entry point (`dart run dowel:mcp`) loads only the substrate commands without
+plugin tools.
 
 The two sibling packages that ship production plugin tools are:
 
@@ -199,6 +199,6 @@ Fields (from `lib/src/state/state_file.dart`):
 ## Related
 
 - [Setup guide](setup.md): install the MCP server, configure `.dowel/mcp.json`, and wire provider
-  registration in `bin/dowel.dart`.
+  registration in `bin/dispatcher.dart`.
 - [Tool reference](tool-reference.md): per-tool input schema, example calls, and error codes for all
   ten substrate tools, plus links to each plugin's own MCP tool reference site.

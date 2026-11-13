@@ -47,11 +47,10 @@ Concurrent readers (open editors, lint daemons) never observe partial state. Tes
 
 `InstallTransaction` records every op to `.dowel/installed/<plugin>.json` (op type, target path, content hash). `plugin:uninstall` reverses `WriteFile` (delete + stub-hash tamper check) and logs `[skipped]` for `InjectImport` / `InjectAfterPattern` (V1 limitation; reverse pending anchor-bracketed inject markers in V1.1).
 
-## Plugin:install three routing modes
+## Plugin:install two routing modes
 
 `PluginInstallCommand.handle` dispatches in this order:
 1. `install.yaml` resolvable (`resolveInstallYaml(name)` returns non-null) → `_runManifestFlow` → `ManifestInstaller` + Change F `_registerDowelProvider` (writes `plugins.json` + spawns `PluginsRefreshCommand`).
-2. No manifest + `lib/app/_plugins.g.dart` exists (canonical scaffold from `install` or `magic:install`) → skip manifest, run `_registerDowelProvider` directly. Magic-free fast path.
-3. Neither → `_runLegacyFlow` (`registry.registerProvider(...)` injection anchored to `auto.commands` line in `bin/dowel.dart`).
+2. No manifest + `lib/app/_plugins.g.dart` exists (scaffold from `install` or `magic:install`) → skip manifest, run `_registerDowelProvider` directly. Without the scaffold the command errors toward `dowel install`; there is no wrapper-injection fallback, and `bin/dowel.dart` is this package's own entry point, never a consumer wrapper.
 
-Never bypass this routing by adding a fourth branch; route via the existing fan-out points.
+Never bypass this routing by adding a third branch; route via the existing fan-out points.

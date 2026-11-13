@@ -3,7 +3,7 @@
 Register a third-party dowel plugin into the consumer project. After adding a
 package to `pubspec.yaml` and running `flutter pub get`, `plugin:install` wires
 the plugin's `DowelServiceProvider` without requiring manual edits to
-`bin/dowel.dart` or `lib/app/_plugins.g.dart`.
+`bin/dispatcher.dart` or `lib/app/_plugins.g.dart`.
 
 ---
 
@@ -18,10 +18,12 @@ dart run dowel plugin:install <name>
 package must be listed in `pubspec.yaml` and resolved via `flutter pub get`
 before this command runs.
 
-Pre-flight checks (`lib/src/commands/plugin_install_command.dart:197-241`):
-`bin/dowel.dart` must exist, the package must appear in `pubspec.yaml`, and
+Pre-flight checks: the package must appear in `pubspec.yaml`, and
 `.dart_tool/package_config.json` must contain the package name. Any failure
-exits with code `1` before any write is attempted.
+exits with code `1` before any write is attempted. A plugin without an
+`install.yaml` also needs the scaffold from `dart run dowel install`
+(`lib/app/_plugins.g.dart`); without it the command exits with code `1` and
+tells you to run `install` first.
 
 ---
 
@@ -34,9 +36,8 @@ Full signature as declared in
 ```
 plugin:install
   {name                  : Plugin pubspec package name (e.g. magic_logger)}
-  {--provider=           : Override the auto-derived provider class name}
   {--bootstrap-command=  : Plugin install sub-command to chain after registration}
-  {--use-yaml-only       : Fail if install.yaml not found instead of falling back to legacy injection}
+  {--use-yaml-only       : Fail if install.yaml not found instead of registering the plugin directly}
   {--force               : Bypass conflict detection (inherited from DowelInstallCommand)}
   {--dry-run             : Print staged ops without writing (inherited)}
   {--non-interactive     : Skip prompts, use defaults (inherited)}
@@ -48,9 +49,8 @@ available on every install command, not only `plugin:install`.
 
 | Flag | Effect |
 |---|---|
-| `--provider=ClassName` | Overrides `<PascalCaseName>DowelProvider` convention (Mode 3 only). |
 | `--bootstrap-command=cmd` | Overrides the post-registration bootstrap hint (e.g. `logger:install`). |
-| `--use-yaml-only` | Error out when no `install.yaml` found; no Mode 2 or Mode 3 fallback. |
+| `--use-yaml-only` | Error out when no `install.yaml` found; no direct registration (Mode 2). |
 | `--force` | Bypass conflict detection; overwrite user-modified files. |
 | `--dry-run` | Print every staged op without touching disk. |
 | `--non-interactive` | Skip interactive prompts; use defaults. Required in non-TTY environments. |
@@ -58,14 +58,12 @@ available on every install command, not only `plugin:install`.
 
 ---
 
-<a name="three-routing-modes"></a>
-## Three Routing Modes
+<a name="two-routing-modes"></a>
+## Two Routing Modes
 
-The core of `handle` dispatches through three distinct code paths
-(`lib/src/commands/plugin_install_command.dart:130-181`). The selection logic
-runs in strict priority order: Mode 1 wins when an `install.yaml` manifest is
-present; Mode 2 wins when the canonical scaffold barrel exists; Mode 3 is the
-final fallback.
+The core of `handle` dispatches through two code paths. Mode 1 wins when an
+`install.yaml` manifest is present; Mode 2 runs otherwise, and needs the
+scaffold barrel from `dart run dowel install`.
 
 ### Mode 1: install.yaml Manifest Flow
 
@@ -84,32 +82,17 @@ entry is written to `.dowel/plugins.json` and `PluginsRefreshCommand` regenerate
 Preferred authoring path: declarative, conflict-checked, dry-run-capable, and
 partially reversible via `plugin:uninstall` (V1 limitations; see Reversibility).
 
-### Mode 2: Canonical Scaffold Fast Path
+### Mode 2: Direct Registration
 
 **Condition**: No `install.yaml` found AND `lib/app/_plugins.g.dart` exists at
-the project root (`lib/src/commands/plugin_install_command.dart:172-178`).
+the project root. Without that barrel the command exits with code `1` and asks
+you to run `dart run dowel install` first.
 
 `_registerDowelProvider` runs directly: writes a `PluginEntry` to
-`.dowel/plugins.json` and regenerates `_plugins.g.dart`. No `bin/dowel.dart`
-edit occurs. Covers plugins without a manifest whose consumers used
-`install`. Naming convention: `my_plugin` maps to
-`package:my_plugin/cli.dart` and class `MyPluginDowelProvider`.
-
-### Mode 3: Legacy bin/dowel.dart Injection
-
-**Condition**: No `install.yaml` found AND `lib/app/_plugins.g.dart` does not
-exist (`lib/src/commands/plugin_install_command.dart:180`).
-
-1. `import 'package:<name>/cli.dart';` is appended to `bin/dowel.dart` via
-   `ConfigEditor.addImportToFile` (idempotent; skips when already present).
-2. `registry.registerProvider(<ProviderClass>());` is inserted after the
-   `registry.registerAll(auto.commands, ...)` anchor, or before the
-   `DowelApplication` construction line when the anchor is absent.
-3. Provider class defaults to `<PascalCaseName>DowelProvider`; override with
-   `--provider=ClassName`.
-
-Retained for backward compatibility with plugins predating the `install.yaml`
-schema. Pass `--use-yaml-only` to error out instead of reaching this fallback.
+`.dowel/plugins.json` and regenerates `_plugins.g.dart`. No wrapper edit
+occurs. Covers plugins without a manifest. Naming convention: `my_plugin` maps
+to `package:my_plugin/cli.dart` and class `MyPluginDowelProvider`. Pass
+`--use-yaml-only` to error out instead of reaching this path.
 
 ---
 
@@ -161,12 +144,11 @@ DryRun: previewed 4 ops; no changes written
 <a name="idempotency"></a>
 ## Idempotency
 
-Re-running `plugin:install` for the same plugin is safe in all three modes.
+Re-running `plugin:install` for the same plugin is safe in both modes.
 `PluginsRegistryFile.addPlugin` replaces by name so `.dowel/plugins.json`
 always contains exactly one entry per plugin. `ConfigEditor.addImportToFile`
 and `insertCodeAfterPattern` skip injection when the target content is already
-present. Mode 3's `registerProvider` line is also checked before insertion
-(unless `--force` is passed).
+present.
 
 All `InstallTransaction` file writes use `.tmp` + atomic rename: concurrent
 readers never observe partial state. A mid-commit `.tmp` write failure deletes
@@ -182,8 +164,8 @@ manifest commit writes `.dowel/installed/<name>.json` listing every op and
 content hash. V1 reversibility is partial: `WriteFile` ops are fully reversed
 (tamper-check then delete); `InjectImport`, `InjectBeforePattern`, and
 `InjectAfterPattern` ops are logged as `[skipped]` (no anchor-bracketed markers
-in V1; operator must reverse by hand). Mode 2 and Mode 3 installs write no
-record, so `plugin:uninstall` cannot auto-reverse them. Full bidirectional
+in V1; operator must reverse by hand). Mode 2 installs write no record, so
+`plugin:uninstall` cannot auto-reverse them. Full bidirectional
 reversibility is planned for V1.1.
 
 ---

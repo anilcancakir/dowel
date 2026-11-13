@@ -10,19 +10,19 @@ import 'package:test/test.dart';
 // Test fixtures
 // ---------------------------------------------------------------------------
 
-/// Builds a fake consumer project tree under [root] with the four files
+/// Builds a fake consumer project tree under [root] with the files
 /// `plugin:install` validates before doing any work: pubspec.yaml listing the
-/// plugin as a dep, .dart_tool/package_config.json resolving the plugin name,
-/// and bin/dowel.dart wrapper.
+/// plugin as a dep and .dart_tool/package_config.json resolving the plugin
+/// name. With [scaffold] it also writes the `lib/app/_plugins.g.dart` barrel
+/// that `dowel install` leaves behind.
 ///
 /// @param root       The temp project root.
 /// @param pluginName The plugin name to wire into both files.
-/// @param wrapper    The initial bin/dowel.dart content; defaults to the
-///                   canonical 6-line wrapper with the auto.commands anchor.
+/// @param scaffold   Whether to seed the `dowel install` scaffold barrel.
 void _seedConsumerProject(
   Directory root, {
   required String pluginName,
-  String? wrapper,
+  bool scaffold = false,
 }) {
   // 1. pubspec.yaml — plugin listed under dependencies.
   File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync(
@@ -38,20 +38,12 @@ void _seedConsumerProject(
     '{"packages":[{"name": "$pluginName"}]}\n',
   );
 
-  // 3. bin/dowel.dart — canonical wrapper with auto.commands anchor.
-  final binDir = Directory(p.join(root.path, 'bin'))
-    ..createSync(recursive: true);
-  File(p.join(binDir.path, 'dowel.dart')).writeAsStringSync(
-    wrapper ??
-        "import 'package:dowel/dowel.dart';\n\n"
-            "Future<void> main(List<String> args) async {\n"
-            "  final registry = DowelRegistry();\n"
-            "  final auto = await loadAutoIndex();\n"
-            "  registry.registerAll(auto.commands, providerName: 'app');\n"
-            "  final app = DowelApplication(registry);\n"
-            "  await app.run(args);\n"
-            "}\n",
-  );
+  // 3. lib/app/_plugins.g.dart — the barrel `dowel install` scaffolds.
+  if (scaffold) {
+    Directory(p.join(root.path, 'lib', 'app')).createSync(recursive: true);
+    File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+        .writeAsStringSync('// GENERATED\nfinal providers = <Object>[];\n');
+  }
 }
 
 /// Writes an `install.yaml` manifest at [path] with the supplied
@@ -123,7 +115,7 @@ class _TestablePluginInstallCommand extends PluginInstallCommand {
   final String fakeProjectRoot;
 
   /// Optional install.yaml path the resolver returns. When `null`, the
-  /// resolver reports "no manifest found" so the legacy branch fires.
+  /// resolver reports "no manifest found" so the direct registration fires.
   final String? fakeInstallYamlPath;
 
   /// Optional bootstrap runner override so auto-run tests can record the
@@ -169,8 +161,9 @@ void main() {
 
       expect(
         optionNames,
-        containsAll(<String>['provider', 'bootstrap-command', 'use-yaml-only']),
+        containsAll(<String>['bootstrap-command', 'use-yaml-only']),
       );
+      expect(optionNames, isNot(contains('provider')));
     });
 
     test('extends DowelInstallCommand (CommandBoot.none)', () {
@@ -191,72 +184,12 @@ void main() {
     });
   });
 
-  group('PluginInstallCommand — legacy injection (no install.yaml)', () {
-    test('appends import + registerProvider line to bin/dowel.dart', () async {
-      final root = Directory.systemTemp.createTempSync('plinst_legacy_');
-      addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
-
-      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
-      final ctx = _ctxWith(
-        const <String, dynamic>{
-          'force': false,
-          'no-bootstrap': false,
-          'dry-run': false,
-          'non-interactive': false,
-          'use-yaml-only': false,
-          'bootstrap-command': null,
-          'provider': null,
-        },
-        positional: const ['magic_logger'],
-        signature: cmd.parsedSignature,
-      );
-
-      final exit = await cmd.handle(ctx);
-      expect(exit, 0);
-
-      final wrapper =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-      expect(wrapper, contains("import 'package:magic_logger/cli.dart';"));
-      expect(wrapper,
-          contains('registry.registerProvider(MagicLoggerDowelProvider());'));
-    });
-
-    test('idempotent re-run leaves the wrapper unchanged when not --force',
+  group('PluginInstallCommand — direct registration (no install.yaml)', () {
+    test('records the plugin in plugins.json and regenerates _plugins.g.dart',
         () async {
-      final root = Directory.systemTemp.createTempSync('plinst_idem_');
+      final root = Directory.systemTemp.createTempSync('plinst_direct_');
       addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
-
-      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
-      final opts = <String, dynamic>{
-        'force': false,
-        'no-bootstrap': false,
-        'dry-run': false,
-        'non-interactive': false,
-        'use-yaml-only': false,
-        'bootstrap-command': null,
-        'provider': null,
-      };
-
-      await cmd.handle(_ctxWith(opts,
-          positional: const ['magic_logger'], signature: cmd.parsedSignature));
-      final firstSnapshot =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-
-      await cmd.handle(_ctxWith(opts,
-          positional: const ['magic_logger'], signature: cmd.parsedSignature));
-      final secondSnapshot =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-
-      expect(secondSnapshot, equals(firstSnapshot),
-          reason: 'Second run must be a no-op when force is false.');
-    });
-
-    test('--provider override controls the registered class name', () async {
-      final root = Directory.systemTemp.createTempSync('plinst_provider_');
-      addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
 
       final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
       final ctx = _ctxWith(
@@ -267,35 +200,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': 'CustomLoggerProvider',
-        },
-        positional: const ['magic_logger'],
-        signature: cmd.parsedSignature,
-      );
-
-      await cmd.handle(ctx);
-
-      final wrapper =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-      expect(wrapper,
-          contains('registry.registerProvider(CustomLoggerProvider());'));
-    });
-
-    test('--no-bootstrap skips the bootstrap hint line', () async {
-      final root = Directory.systemTemp.createTempSync('plinst_nobootstrap_');
-      addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
-
-      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
-      final ctx = _ctxWith(
-        const <String, dynamic>{
-          'force': false,
-          'no-bootstrap': true,
-          'dry-run': false,
-          'non-interactive': false,
-          'use-yaml-only': false,
-          'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -305,20 +209,63 @@ void main() {
       expect(exit, 0);
 
       final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('Skipping plugin bootstrap'));
-      expect(out, isNot(contains('Bootstrap with: dowel')));
+      expect(out, contains('via the dowel scaffold'));
+
+      final registry = jsonDecode(
+        File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync(),
+      ) as Map<String, dynamic>;
+      final plugins = registry['plugins'] as List<dynamic>;
+      expect(plugins, hasLength(1));
+      expect(
+        (plugins.single as Map<String, dynamic>)['providerClass'],
+        'MagicLoggerDowelProvider',
+      );
+
+      final barrel = File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+          .readAsStringSync();
+      expect(barrel, contains('MagicLoggerDowelProvider'));
+    });
+
+    test('a second run keeps exactly one plugins.json entry', () async {
+      final root = Directory.systemTemp.createTempSync('plinst_idem_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+
+      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
+      const opts = <String, dynamic>{
+        'force': false,
+        'no-bootstrap': false,
+        'dry-run': false,
+        'non-interactive': false,
+        'use-yaml-only': false,
+        'bootstrap-command': null,
+      };
+
+      await cmd.handle(_ctxWith(opts,
+          positional: const ['magic_logger'], signature: cmd.parsedSignature));
+      final firstSnapshot =
+          File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync();
+
+      await cmd.handle(_ctxWith(opts,
+          positional: const ['magic_logger'], signature: cmd.parsedSignature));
+      final registry = jsonDecode(
+        File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync(),
+      ) as Map<String, dynamic>;
+
+      expect(registry['plugins'] as List<dynamic>, hasLength(1));
+      expect(firstSnapshot, isNotEmpty);
     });
 
     test(
         'install purges .dowel/cli-bundle and .dowel/build.stamp '
         'after successful registration', () async {
       // Issue #9 GAP A: after `plugin:install` regenerates lib/app/_plugins.g.dart
-      // (or the legacy bin/dowel.dart wrapper) the next `./bin/dowel` invocation
-      // must rebuild the AOT bundle. Purging .dowel/cli-bundle/ and
-      // .dowel/build.stamp forces the staleness check to rebuild.
+      // the next `./bin/dowel` invocation must rebuild the AOT bundle. Purging
+      // .dowel/cli-bundle/ and .dowel/build.stamp forces the staleness check
+      // to rebuild.
       final root = Directory.systemTemp.createTempSync('plinst_cachepurge_');
       addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
 
       // 1. Pre-create the cache artefacts that the post-install hook must purge.
       final cacheDir = Directory(p.join(root.path, '.dowel', 'cli-bundle'))
@@ -336,7 +283,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -375,7 +321,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -388,30 +333,16 @@ void main() {
       expect(out, contains('not listed in pubspec.yaml'));
     });
 
-    test(
-        'canonical-scaffold projects (lib/app/_plugins.g.dart present, no '
-        'bin/dowel.dart) register via plugins.json without tripping the '
-        'legacy wrapper preflight', () async {
-      final root =
-          Directory.systemTemp.createTempSync('plinst_canonical_no_wrapper_');
+    test('errors toward `dowel install` when there is no scaffold', () async {
+      final root = Directory.systemTemp.createTempSync('plinst_no_scaffold_');
       addTearDown(() => root.deleteSync(recursive: true));
 
-      // Seed pubspec + package_config (preflight rows 1 + 2), the canonical
-      // scaffold barrel, and explicitly OMIT bin/dowel.dart. Pre-fix this
-      // setup returned exit 1 from the legacy-wrapper preflight gate.
-      File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync(
-        'name: consumer\n'
-        'dependencies:\n'
-        '  magic_logger: ^1.0.0\n',
-      );
-      Directory(p.join(root.path, '.dart_tool')).createSync(recursive: true);
-      File(p.join(root.path, '.dart_tool', 'package_config.json'))
-          .writeAsStringSync('{"packages":[{"name": "magic_logger"}]}\n');
-      Directory(p.join(root.path, 'lib', 'app')).createSync(recursive: true);
-      File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
-          .writeAsStringSync(
-        '// GENERATED\nfinal providers = <Object>[];\n',
-      );
+      // Only the preflight prerequisites: no lib/app/_plugins.g.dart, and a
+      // bin/dowel.dart that must NOT be mistaken for a consumer wrapper.
+      _seedConsumerProject(root, pluginName: 'magic_logger');
+      Directory(p.join(root.path, 'bin')).createSync(recursive: true);
+      File(p.join(root.path, 'bin', 'dowel.dart'))
+          .writeAsStringSync('void main() {}\n');
 
       final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
       final ctx = _ctxWith(
@@ -422,49 +353,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
-        },
-        positional: const ['magic_logger'],
-        signature: cmd.parsedSignature,
-      );
-
-      final exit = await cmd.handle(ctx);
-      expect(exit, 0);
-      final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('canonical scaffold'));
-      expect(File(p.join(root.path, '.dowel', 'plugins.json')).existsSync(),
-          isTrue);
-    });
-
-    test(
-        'legacy injection rejects projects with no bin/dowel.dart AND no '
-        'canonical scaffold (preflight moved into the legacy branch only)',
-        () async {
-      final root =
-          Directory.systemTemp.createTempSync('plinst_no_wrapper_legacy_');
-      addTearDown(() => root.deleteSync(recursive: true));
-
-      // Seed only the preflight prerequisites; no canonical scaffold, no
-      // bin/dowel.dart. Only the legacy flow runs, and it must error.
-      File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync(
-        'name: consumer\n'
-        'dependencies:\n'
-        '  magic_logger: ^1.0.0\n',
-      );
-      Directory(p.join(root.path, '.dart_tool')).createSync(recursive: true);
-      File(p.join(root.path, '.dart_tool', 'package_config.json'))
-          .writeAsStringSync('{"packages":[{"name": "magic_logger"}]}\n');
-
-      final cmd = _TestablePluginInstallCommand(fakeProjectRoot: root.path);
-      final ctx = _ctxWith(
-        const <String, dynamic>{
-          'force': false,
-          'no-bootstrap': false,
-          'dry-run': false,
-          'non-interactive': false,
-          'use-yaml-only': false,
-          'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -473,8 +361,12 @@ void main() {
       final exit = await cmd.handle(ctx);
       expect(exit, 1);
       final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('No consumer wrapper found'));
-      expect(out, contains('install'));
+      expect(out, contains('No dowel scaffold found'));
+      expect(out, contains('dowel install'));
+      expect(
+        File(p.join(root.path, '.dowel', 'plugins.json')).existsSync(),
+        isFalse,
+      );
     });
   });
 
@@ -501,7 +393,6 @@ void main() {
           'non-interactive': true,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['demo_plugin'],
         signature: cmd.parsedSignature,
@@ -512,14 +403,10 @@ void main() {
       // Minimal manifest has no ops to apply; commit returns Success(0).
       expect(exit, 0);
       final out = (ctx.output as BufferedOutput).content;
-      // Reaching this point proves the manifest branch fired (the legacy
-      // branch would have appended to bin/dowel.dart; verify it did not).
-      final wrapper =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-      expect(wrapper, isNot(contains("import 'package:demo_plugin/cli.dart';")),
-          reason: 'install.yaml branch must NOT do the legacy injection.');
-      expect(out, isNot(contains('Skipping plugin bootstrap')),
-          reason: 'Legacy bootstrap hint must NOT fire on the manifest path.');
+      // Reaching this point proves the manifest branch fired: the direct
+      // registration prints its own "via the dowel scaffold" line.
+      expect(out, isNot(contains('via the dowel scaffold')),
+          reason: 'install.yaml branch must NOT do the direct registration.');
     });
 
     test('--dry-run flows through to ManifestInstaller without disk writes',
@@ -543,7 +430,6 @@ void main() {
           'non-interactive': true,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['demo_plugin'],
         signature: cmd.parsedSignature,
@@ -575,7 +461,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': true,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -588,15 +473,15 @@ void main() {
       expect(out, contains('install.yaml'));
     });
 
-    test('falls back to legacy injection when install.yaml is not found',
+    test('registers the plugin directly when install.yaml is not found',
         () async {
       final root = Directory.systemTemp.createTempSync('plinst_fallback_');
       addTearDown(() => root.deleteSync(recursive: true));
-      _seedConsumerProject(root, pluginName: 'magic_logger');
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
 
       final cmd = _TestablePluginInstallCommand(
         fakeProjectRoot: root.path,
-        // No install.yaml → resolver returns null → legacy branch fires.
+        // No install.yaml → resolver returns null → direct registration.
         fakeInstallYamlPath: null,
       );
       final ctx = _ctxWith(
@@ -607,7 +492,6 @@ void main() {
           'non-interactive': false,
           'use-yaml-only': false,
           'bootstrap-command': null,
-          'provider': null,
         },
         positional: const ['magic_logger'],
         signature: cmd.parsedSignature,
@@ -616,12 +500,10 @@ void main() {
       final exit = await cmd.handle(ctx);
       expect(exit, 0);
 
-      // Legacy fallback ran → wrapper got the injection.
-      final wrapper =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-      expect(wrapper, contains("import 'package:magic_logger/cli.dart';"));
-      expect(wrapper,
-          contains('registry.registerProvider(MagicLoggerDowelProvider());'));
+      // Direct registration ran → the plugin is in plugins.json.
+      final registry =
+          File(p.join(root.path, '.dowel', 'plugins.json')).readAsStringSync();
+      expect(registry, contains('MagicLoggerDowelProvider'));
     });
   });
 
@@ -651,7 +533,6 @@ void main() {
         'non-interactive': true,
         'use-yaml-only': false,
         'bootstrap-command': null,
-        'provider': null,
       };
     }
 
@@ -947,7 +828,6 @@ void main() {
         'non-interactive': true,
         'use-yaml-only': false,
         'bootstrap-command': null,
-        'provider': null,
       };
     }
 

@@ -203,7 +203,6 @@ returns `null` in REPL mode and the expression string when `--eval` is set.
 String get signature => 'plugin:install '
     '$baseFlags'
     '{name : Plugin pubspec package name (e.g. magic_logger)} '
-    '{--provider= : Override the auto-derived provider class name} '
     '{--bootstrap-command= : Sub-command to chain after registration} '
     '{--use-yaml-only : Fail if install.yaml not found}';
 ```

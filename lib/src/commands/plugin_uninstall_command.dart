@@ -37,9 +37,6 @@ import 'plugin_install_command.dart';
 ///   5. Otherwise, delegates to [ManifestInstaller.uninstall] which derives
 ///      the reverse [InstallOperation]s from the record, commits a fresh
 ///      reverse transaction, and deletes the record on Success.
-///   6. Finally, removes the plugin's `import` line + `registerProvider`
-///      line from `bin/dowel.dart`, the inverse of the legacy injection
-///      [PluginInstallCommand] performs when no manifest is found.
 ///
 /// V1 limitation: only `WriteFile` / `DeleteFile` / `CopyFile` carry full
 /// payload in the install record. Every other op type is recorded as a
@@ -58,8 +55,7 @@ class PluginUninstallCommand extends DowelInstallCommand {
 
   @override
   String get description =>
-      'Uninstall a third-party dowel plugin (reverses the manifest + '
-      'removes the bin/dowel.dart registration).';
+      'Uninstall a third-party dowel plugin (reverses the install manifest).';
 
   @override
   String pluginName(DowelContext ctx) =>
@@ -116,7 +112,7 @@ class PluginUninstallCommand extends DowelInstallCommand {
     final installContext = buildContext(ctx);
     return installContext.prompt.confirm(
       'Uninstall plugin "$pluginName"? This will reverse every recorded '
-      'install operation and remove the bin/dowel.dart registration.',
+      'install operation.',
       defaultValue: false,
     );
   }
@@ -197,15 +193,7 @@ class PluginUninstallCommand extends DowelInstallCommand {
     switch (result) {
       case Success():
         ctx.output.success(result.describe());
-        // 8. Mirror the install-time bin/dowel.dart injection: strip the
-        //    plugin's import + registerProvider lines so the next
-        //    `dart run dowel list` no longer attempts to wire the plugin.
-        _stripWrapperLines(
-          installContext: installContext,
-          pluginName: name,
-          providerClassName: manifest.magic.provider,
-        );
-        // 9. Purge the AOT cli-bundle so the next ./bin/dowel invocation rebuilds
+        // 8. Purge the AOT cli-bundle so the next ./bin/dowel invocation rebuilds
         //    against the updated lib/app/_plugins.g.dart (issue #9 GAP A).
         CliBundleCache.purge(root);
         return 0;
@@ -372,79 +360,5 @@ class PluginUninstallCommand extends DowelInstallCommand {
       DeleteFile() => null,
       _ => null,
     };
-  }
-
-  /// Strips the plugin's `import 'package:<name>/cli.dart';` and
-  /// `registry.registerProvider(<Provider>());` lines from
-  /// `<projectRoot>/bin/dowel.dart`. Inverse of the legacy injection
-  /// [PluginInstallCommand] performs when no manifest is found.
-  ///
-  /// Goes through [InstallContext.fs] (rather than direct `dart:io`) so the
-  /// op is testable against an [InMemoryFs] and consistent with the rest of
-  /// the installer's filesystem seam.
-  ///
-  /// @param installContext     Active [InstallContext] (carries projectRoot
-  ///                           + [VirtualFs] seam).
-  /// @param pluginName         Pubspec package name (matched against the
-  ///                           import line).
-  /// @param providerClassName  Optional PascalCase provider class name. When
-  ///                           supplied (manifest declared `magic.provider`)
-  ///                           the matching register line is stripped too.
-  void _stripWrapperLines({
-    required InstallContext installContext,
-    required String pluginName,
-    String? providerClassName,
-  }) {
-    final wrapperPath = p.join(
-      installContext.projectRoot,
-      'bin',
-      'dowel.dart',
-    );
-    if (!installContext.fs.exists(wrapperPath)) return;
-
-    var content = installContext.fs.readAsString(wrapperPath);
-
-    // 1. Strip the import line (with optional surrounding newlines).
-    final importLine = "import 'package:$pluginName/cli.dart';";
-    content = content.replaceAll(
-      RegExp('\\n?${RegExp.escape(importLine)}\\n?'),
-      '\n',
-    );
-
-    // 2. Strip the register-provider line. Two candidate class names cover
-    //    both manifest-declared providers and the legacy snake-to-pascal
-    //    convention plugin:install uses by default.
-    final candidates = <String>{
-      if (providerClassName != null) providerClassName,
-      _legacyProviderClassName(pluginName),
-    };
-    for (final cls in candidates) {
-      final pattern = RegExp(
-        r'\n?\s*registry\.registerProvider\(' +
-            RegExp.escape(cls) +
-            r'\(\)\);\n?',
-      );
-      content = content.replaceAll(pattern, '\n');
-    }
-
-    // 3. Collapse any accidental triple-newline run the strips left behind.
-    content = content.replaceAll(RegExp(r'\n{3,}'), '\n\n');
-
-    installContext.fs.writeAsString(wrapperPath, content);
-  }
-
-  /// snake_case to `'<PascalCase>DowelProvider'`. Matches the convention
-  /// applied by [PluginInstallCommand] when the operator does not pass
-  /// `--provider=`.
-  ///
-  /// @param pluginName  Pubspec package name in snake_case.
-  /// @return Derived provider class name (`magic_logger` → `MagicLoggerDowelProvider`).
-  static String _legacyProviderClassName(String pluginName) {
-    final parts = pluginName
-        .split('_')
-        .where((part) => part.isNotEmpty)
-        .map((part) => part[0].toUpperCase() + part.substring(1))
-        .join();
-    return '${parts}DowelProvider';
   }
 }

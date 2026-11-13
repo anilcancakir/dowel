@@ -63,12 +63,12 @@ Four commands that write source files into the consumer project. They are delibe
 
 ## Plugin management
 
-Three commands that maintain the `.dowel/plugins.json` registry and its generated barrel `lib/app/_plugins.g.dart`. Atomic writes (`.tmp` plus rename) across every mutation, so concurrent readers (editors, lint daemons) never observe partial state. `plugin:install` routes through three modes (manifest, magic-free fast path, legacy injection) depending on what the consumer project already has.
+Three commands that maintain the `.dowel/plugins.json` registry and its generated barrel `lib/app/_plugins.g.dart`. Atomic writes (`.tmp` plus rename) across every mutation, so concurrent readers (editors, lint daemons) never observe partial state. `plugin:install` routes through two modes (manifest, direct registration) depending on whether the plugin ships an `install.yaml`.
 
 | Command | Description | Boot Mode | MCP Tool |
 |---------|-------------|-----------|----------|
-| `plugin:install` | Register a third-party dowel plugin (`install.yaml` manifest preferred; legacy `bin/dowel.dart` injection as fallback). | none | no |
-| `plugin:uninstall` | Uninstall a third-party dowel plugin (reverses the manifest and removes the `bin/dowel.dart` registration). | none | no |
+| `plugin:install` | Register a third-party dowel plugin (`install.yaml` manifest preferred; direct registration into the dowel scaffold otherwise). | none | no |
+| `plugin:uninstall` | Uninstall a third-party dowel plugin (reverses the install manifest). | none | no |
 | `plugins:refresh` | Regenerate `lib/app/_plugins.g.dart` from `.dowel/plugins.json` registry. | none | no |
 
 ## MCP

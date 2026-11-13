@@ -119,7 +119,7 @@ Exit 0 on success, 1 on pubspec parse failure or `pubspec name` missing.
 - **Boot**: `none`
 - **Allowlisted**: no (codegen + file write)
 
-Scaffold an `DowelCommand` subclass in the consumer (or plugin) at
+Scaffold a `DowelCommand` subclass in the consumer (or plugin) at
 `lib/app/commands/<snake_name>_command.dart` (or
 `lib/src/commands/...` inside a plugin; auto-detected by checking
 `pubspec.yaml`'s package name vs the closest parent).
@@ -253,13 +253,13 @@ against the freshly-regenerated barrel.
 
 ## plugin:install
 
-- **Signature**: `plugin:install <name> [--dry-run] [--force] [--non-interactive] [--no-bootstrap] [--use-yaml-only] [--provider=<C>] [--bootstrap-command=<cmd>]`
+- **Signature**: `plugin:install <name> [--dry-run] [--force] [--non-interactive] [--no-bootstrap] [--use-yaml-only] [--bootstrap-command=<cmd>]`
 - **Group**: plugin management
 - **Boot**: `none`
 - **Allowlisted**: no (interactive prompts for destructive ops)
 
-Install a plugin. Dispatches in three routing modes
-(`lib/src/commands/plugin_install_command.dart:130-181`):
+Install a plugin. Dispatches in two routing modes
+(`lib/src/commands/plugin_install_command.dart`):
 
 1. **Manifest flow** (preferred): plugin ships `install.yaml` at package
    root. Parse, walk `ManifestInstaller`, commit atomically, record at
@@ -270,12 +270,10 @@ Install a plugin. Dispatches in three routing modes
    <consumer>:dowel <cmd> --non-interactive` when no `bin/dowel`). `--no-bootstrap`
    skips the auto-run (falls back to a hint); `--bootstrap-command=<cmd>`
    overrides the manifest value.
-2. **Magic-free canonical fast path**: no manifest, but
-   `lib/app/_plugins.g.dart` exists (canonical scaffold from `install`).
-   Skip legacy injection; write directly to `plugins.json` + refresh.
-3. **Legacy injection fallback**: no manifest, no canonical scaffold.
-   Inject `import 'package:<name>/cli.dart';` plus
-   `registry.registerProvider(...)` into `bin/dispatcher.dart`.
+2. **Direct registration**: no manifest, but `lib/app/_plugins.g.dart`
+   exists (scaffold from `install`). Write directly to `plugins.json` +
+   refresh. Without the scaffold the command exits `1` and asks for
+   `dowel install` first.
 
 ```bash
 ./bin/dowel plugin:install tapir --dry-run    # preview the operations without writing

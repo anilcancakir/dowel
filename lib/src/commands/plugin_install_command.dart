@@ -6,8 +6,6 @@ import 'package:path/path.dart' as p;
 
 import '../console/dowel_context.dart';
 import '../console/string_helper.dart';
-import '../helpers/cli_bundle_cache.dart';
-import '../helpers/config_editor.dart';
 import '../helpers/file_helper.dart';
 import '../installer/dowel_install_command.dart';
 import '../installer/install_exception.dart';
@@ -32,33 +30,28 @@ import 'plugins_refresh_command.dart';
 ///      Plugin Authoring Guide path (declarative; supports dry-run, conflict
 ///      detection, install records, reverse on uninstall).
 ///
-///   2. **Legacy flow** (fallback): when no `install.yaml` is found, fall
-///      back to the original behaviour, append
-///      `import 'package:<name>/cli.dart';` and
-///      `registry.registerProvider(<Provider>())` to the consumer's
-///      `bin/dowel.dart`. Kept for backward compatibility with plugins
-///      authored before the manifest schema landed.
+///   2. **Direct registration**: when no `install.yaml` is found and the
+///      consumer scaffold from `dowel install` is present
+///      (`lib/app/_plugins.g.dart`), record the plugin in
+///      `.dowel/plugins.json` and regenerate `_plugins.g.dart`.
 ///
 /// Pass `--use-yaml-only` to make the manifest flow strict: when no
-/// manifest is found the command errors out instead of falling back.
+/// manifest is found the command errors out instead of registering directly.
 ///
-/// Plugin authoring conventions assumed by the legacy flow:
+/// Plugin authoring conventions assumed by the direct registration:
 ///   - Plugin exports a CLI barrel at `package:<name>/cli.dart`.
 ///   - Plugin declares a provider class named `<PascalCaseName>DowelProvider`
-///     in that barrel. Override with `--provider=ClassName` when the plugin
-///     uses a different naming convention.
+///     in that barrel.
 ///
 /// Pre-flight validation (both flows):
 ///   - The package must be listed in the consumer's `pubspec.yaml`.
 ///   - The package must be resolvable via
 ///     `.dart_tool/package_config.json` (so `flutter pub get` ran).
-///   - `bin/dowel.dart` must exist (legacy flow injects into it; manifest
-///     flow keeps it as the conventional wrapper).
 ///
 /// Dart has no auto-discovery for service providers (no `dart:mirrors` under
 /// AOT, no Laravel-style `composer.json` extras). This command IS the
 /// substitute: the consumer adds the dep + runs `plugin:install <name>` once
-/// and never touches `bin/dowel.dart` by hand.
+/// and never touches the generated wrapper by hand.
 class PluginInstallCommand extends DowelInstallCommand {
   /// Public default constructor. Test fixtures subclass + override
   /// [getProjectRoot] / [resolveInstallYaml] to inject deterministic paths
@@ -69,14 +62,13 @@ class PluginInstallCommand extends DowelInstallCommand {
   String get signature => 'plugin:install '
       '$baseFlags'
       '{name : Plugin pubspec package name (e.g. magic_logger)} '
-      '{--provider= : Override the auto-derived provider class name} '
       '{--bootstrap-command= : Plugin install sub-command to chain after registration (e.g. logger:install)} '
-      '{--use-yaml-only : Fail if install.yaml not found instead of falling back to legacy injection}';
+      '{--use-yaml-only : Fail if install.yaml not found instead of registering the plugin directly}';
 
   @override
   String get description =>
       'Register a third-party dowel plugin (install.yaml manifest preferred; '
-      'legacy bin/dowel.dart injection as fallback).';
+      'direct registration into the dowel scaffold otherwise).';
 
   @override
   String pluginName(DowelContext ctx) =>
@@ -103,7 +95,7 @@ class PluginInstallCommand extends DowelInstallCommand {
   ///
   /// Returns `null` for any failure mode (URI scheme not file, no candidate
   /// file present, resolution exception). Callers treat `null` as "no
-  /// manifest" and proceed to the legacy branch (or fail when
+  /// manifest" and register the plugin directly (or fail when
   /// `--use-yaml-only` is set).
   ///
   /// @param pluginName  The plugin's pubspec package name.
@@ -138,20 +130,14 @@ class PluginInstallCommand extends DowelInstallCommand {
       return 1;
     }
 
-    // 2. Run the shared pre-flight (pubspec dep + package_config). The
-    //    legacy bin/dowel.dart presence check used to live here too, but
-    //    that blocked plugin:install in canonical-scaffold projects (which
-    //    ship bin/dispatcher.dart and never touch the legacy filename); it
-    //    now runs inside the legacy-flow branch only.
+    // 2. Run the shared pre-flight (pubspec dep + package_config).
     final root = getProjectRoot();
-    final wrapperPath = p.join(root, 'bin', 'dowel.dart');
     final preflight = _preflight(ctx, root: root, name: name);
     if (preflight != 0) return preflight;
 
     // 3. Resolve the plugin's install.yaml. When found, route to the
-    //    manifest flow; otherwise honour --use-yaml-only, fall through to
-    //    the direct-registration flow (canonical scaffold path), or fall
-    //    back to the legacy injection.
+    //    manifest flow; otherwise honour --use-yaml-only or register the
+    //    plugin directly.
     final manifestPath = await resolveInstallYaml(name);
     if (manifestPath != null) {
       return _runManifestFlow(ctx, manifestPath: manifestPath);
@@ -160,28 +146,31 @@ class PluginInstallCommand extends DowelInstallCommand {
     if (isUseYamlOnly(ctx)) {
       ctx.output.error(
         'No install.yaml found for plugin "$name" and --use-yaml-only '
-        'was passed. Either remove --use-yaml-only to allow the legacy '
-        'injection fallback, or add an install.yaml manifest to the '
-        'plugin (see doc/install_yaml_schema.md).',
+        'was passed. Either remove --use-yaml-only to register the plugin '
+        'directly, or add an install.yaml manifest to the plugin (see '
+        'doc/plugins/install-yaml.md).',
       );
       return 1;
     }
 
-    // 3b. Generic plugin (no install.yaml) AND canonical consumer scaffold
-    //     present (lib/app/_plugins.g.dart exists). Skip the legacy
-    //     bin/dowel.dart injection: write directly to .dowel/plugins.json
-    //     and refresh _plugins.g.dart. This is the Magic-less parallel of
-    //     the manifest-flow `_registerDowelProvider` step, working purely
-    //     against the canonical scaffold from `install`.
-    if (File(p.join(root, 'lib', 'app', '_plugins.g.dart')).existsSync()) {
-      await _registerDowelProvider(ctx, name: name);
-      ctx.output.success(
-        'Registered "$name" via canonical scaffold (no install.yaml needed).',
+    // 4. Generic plugin (no install.yaml): needs the consumer scaffold from
+    //    `dowel install` (lib/app/_plugins.g.dart). Write directly to
+    //    .dowel/plugins.json and refresh _plugins.g.dart, the manifest-less
+    //    parallel of the manifest-flow `_registerDowelProvider` step.
+    if (!File(p.join(root, 'lib', 'app', '_plugins.g.dart')).existsSync()) {
+      ctx.output.error(
+        'No dowel scaffold found at ${p.join(root, 'lib', 'app')}. '
+        'Run `dart run dowel install` to scaffold bin/dispatcher.dart and '
+        '`lib/app/_plugins.g.dart`, then retry.',
       );
-      return 0;
+      return 1;
     }
 
-    return _runLegacyFlow(ctx, name: name, wrapperPath: wrapperPath);
+    await _registerDowelProvider(ctx, name: name);
+    ctx.output.success(
+      'Registered "$name" via the dowel scaffold (no install.yaml needed).',
+    );
+    return 0;
   }
 
   /// Returns `true` when the operator passed `--use-yaml-only`.
@@ -418,98 +407,6 @@ class PluginInstallCommand extends DowelInstallCommand {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Legacy flow (preserved for plugins without install.yaml)
-  // ---------------------------------------------------------------------------
-
-  /// Original imperative injection: appends an import line + a
-  /// `registerProvider(...)` line into the consumer's `bin/dowel.dart`.
-  /// Kept for backward compatibility with plugins that have not authored a
-  /// manifest yet.
-  Future<int> _runLegacyFlow(
-    DowelContext ctx, {
-    required String name,
-    required String wrapperPath,
-  }) async {
-    // 0. Legacy injection writes directly to the literal bin/dowel.dart
-    //    file; it cannot run without that wrapper on disk. The canonical
-    //    scaffold path branches off before reaching here so this check
-    //    only blocks the legacy fallback (never the dispatcher-based flows).
-    if (!File(wrapperPath).existsSync()) {
-      ctx.output.error(
-        'No consumer wrapper found at $wrapperPath. '
-        'Run `dart run dowel install` to scaffold the '
-        'canonical wrapper (bin/dispatcher.dart) plus '
-        '`lib/app/_plugins.g.dart`; plugin:install will then route through '
-        'the canonical-scaffold path instead of the legacy injection.',
-      );
-      return 1;
-    }
-
-    final providerOverride = ctx.input.option('provider') as String?;
-    final bootstrapOverride = ctx.input.option('bootstrap-command') as String?;
-
-    // 1. Derive provider class name. Convention: snake_case → PascalCase
-    //    + 'DowelProvider' suffix. Override via --provider=ClassName.
-    final providerClass =
-        providerOverride ?? '${_pascalCase(name)}DowelProvider';
-
-    // 2. Idempotency check.
-    final wrapperSource = File(wrapperPath).readAsStringSync();
-    final importLine = "import 'package:$name/cli.dart';";
-    final registerLine = '    registry.registerProvider($providerClass());';
-    final alreadyImported = wrapperSource.contains(importLine);
-    final alreadyRegistered = wrapperSource.contains(registerLine);
-
-    final force = isForce(ctx);
-    if (alreadyImported && alreadyRegistered && !force) {
-      ctx.output.info(
-        '$name is already registered in bin/dowel.dart. Use --force to re-write.',
-      );
-      // Still chain to bootstrap if requested, install commands are
-      // idempotent by convention.
-    } else {
-      // 2a. Append the import (idempotent helper).
-      ConfigEditor.addImportToFile(
-        filePath: wrapperPath,
-        importStatement: importLine,
-      );
-
-      // 2b. Append the register line right after the auto.commands line.
-      if (!alreadyRegistered || force) {
-        if (force && alreadyRegistered) {
-          // Strip the old line so the re-write does not double-insert.
-          final stripped = File(wrapperPath).readAsStringSync().replaceFirst(
-                RegExp('\\n\\s*${RegExp.escape(registerLine)}'),
-                '',
-              );
-          File(wrapperPath).writeAsStringSync(stripped);
-        }
-        _insertRegisterAfterAutoLine(wrapperPath, registerLine);
-      }
-
-      ctx.output.success(
-        'Registered "$name" in $wrapperPath (provider: $providerClass).',
-      );
-    }
-
-    // 3. Purge the AOT cli-bundle so the next ./bin/dowel invocation rebuilds
-    //    against the updated bin/dowel.dart wrapper (issue #9 GAP A).
-    CliBundleCache.purge(getProjectRoot());
-
-    // 4. Optional: chain to the plugin's own install command.
-    if (isSkipBootstrap(ctx)) {
-      ctx.output.info('Skipping plugin bootstrap command (--no-bootstrap).');
-      return 0;
-    }
-    final bootstrapName = bootstrapOverride ?? _deriveBootstrapName(name);
-    ctx.output.info(
-      'Re-run `dowel list` to see the new commands. '
-      'Bootstrap with: dowel $bootstrapName',
-    );
-    return 0;
-  }
-
   /// snake_case → PascalCase. `magic_logger` → `MagicLogger`.
   static String _pascalCase(String snake) {
     return snake
@@ -517,46 +414,5 @@ class PluginInstallCommand extends DowelInstallCommand {
         .where((part) => part.isNotEmpty)
         .map(StringHelper.toPascalCase)
         .join();
-  }
-
-  /// Derive the plugin's domain install command name from the package
-  /// name. Convention: strip a leading `magic_` prefix, keep what remains,
-  /// append `:install`.
-  ///
-  /// `magic_logger` → `logger:install`
-  /// `tapir` → `tapir:install` (if the plugin exposes one)
-  /// `magic_starter` → `starter:install`
-  static String _deriveBootstrapName(String pkg) {
-    const prefix = 'magic_';
-    final stripped =
-        pkg.startsWith(prefix) ? pkg.substring(prefix.length) : pkg;
-    return '$stripped:install';
-  }
-
-  /// Inserts [registerLine] right after the `registerAll(auto.commands,
-  /// ...)` invocation in the consumer wrapper. Falls back to appending
-  /// before the `DowelApplication` construction line when the anchor is
-  /// not present (handles hand-edited wrappers).
-  static void _insertRegisterAfterAutoLine(
-    String wrapperPath,
-    String registerLine,
-  ) {
-    final content = File(wrapperPath).readAsStringSync();
-    final anchor = RegExp(
-      r"registry\.registerAll\(auto\.commands,\s*providerName:\s*'app'\);",
-    );
-    final match = anchor.firstMatch(content);
-    if (match != null) {
-      final head = content.substring(0, match.end);
-      final tail = content.substring(match.end);
-      File(wrapperPath).writeAsStringSync('$head\n$registerLine$tail');
-      return;
-    }
-    // Fallback: insert before the DowelApplication construction line.
-    ConfigEditor.insertCodeBeforePattern(
-      filePath: wrapperPath,
-      pattern: RegExp(r'\s*final app = DowelApplication'),
-      code: '\n$registerLine\n',
-    );
   }
 }

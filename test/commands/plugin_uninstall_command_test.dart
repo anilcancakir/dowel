@@ -9,23 +9,18 @@ import 'package:test/test.dart';
 // Test fixtures
 // ---------------------------------------------------------------------------
 
-/// Builds a fake consumer project tree under [root] with the four files
-/// `plugin:uninstall` needs: pubspec.yaml, package_config.json, the legacy
-/// bin/dowel.dart wrapper (already carrying the plugin's import + register
-/// line — uninstall MUST be able to strip both), and the install record at
-/// `.dowel/installed/<plugin>.json`.
+/// Builds a fake consumer project tree under [root] with the files
+/// `plugin:uninstall` needs: pubspec.yaml, package_config.json, a published
+/// config file, and the install record at `.dowel/installed/<plugin>.json`.
 ///
 /// @param root         Temp project root.
 /// @param pluginName   Plugin pubspec package name.
-/// @param providerName PascalCase provider class name (matches the register
-///                     line shape produced by [PluginInstallCommand]).
 /// @param ops          Optional list of recorded ops to embed in the install
 ///                     record. Defaults to a single WriteFile so the reverse
 ///                     transaction has something concrete to undo.
 void _seedInstalledProject(
   Directory root, {
   required String pluginName,
-  required String providerName,
   List<Map<String, dynamic>>? ops,
 }) {
   // 1. pubspec.yaml.
@@ -42,29 +37,12 @@ void _seedInstalledProject(
     '{"packages":[{"name": "$pluginName"}]}\n',
   );
 
-  // 3. bin/dowel.dart with the plugin already registered (mirror of the
-  //    state plugin:install leaves behind).
-  final binDir = Directory(p.join(root.path, 'bin'))
-    ..createSync(recursive: true);
-  File(p.join(binDir.path, 'dowel.dart')).writeAsStringSync(
-    "import 'package:dowel/dowel.dart';\n"
-    "import 'package:$pluginName/cli.dart';\n\n"
-    "Future<void> main(List<String> args) async {\n"
-    "  final registry = DowelRegistry();\n"
-    "  final auto = await loadAutoIndex();\n"
-    "  registry.registerAll(auto.commands, providerName: 'app');\n"
-    "    registry.registerProvider($providerName());\n"
-    "  final app = DowelApplication(registry);\n"
-    "  await app.run(args);\n"
-    "}\n",
-  );
-
-  // 4. Published config file (the WriteFile op in the record points here).
+  // 3. Published config file (the WriteFile op in the record points here).
   final configPath = p.join(root.path, 'lib', 'config', 'demo.dart');
   Directory(p.dirname(configPath)).createSync(recursive: true);
   File(configPath).writeAsStringSync('const x = 1;\n');
 
-  // 5. Install record.
+  // 4. Install record.
   final recordDir = Directory(p.join(root.path, '.dowel', 'installed'))
     ..createSync(recursive: true);
   File(p.join(recordDir.path, '$pluginName.json')).writeAsStringSync(
@@ -190,14 +168,12 @@ void main() {
   });
 
   group('PluginUninstallCommand — happy path', () {
-    test('full uninstall removes published file + record + wrapper lines',
-        () async {
+    test('full uninstall removes the published file and the record', () async {
       final root = Directory.systemTemp.createTempSync('plun_full_');
       addTearDown(() => root.deleteSync(recursive: true));
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -224,30 +200,19 @@ void main() {
           File(p.join(root.path, '.dowel', 'installed', 'demo_plugin.json'))
               .existsSync(),
           isFalse);
-
-      // bin/dowel.dart no longer carries the plugin's import / register.
-      final wrapper =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-      expect(
-          wrapper, isNot(contains("import 'package:demo_plugin/cli.dart';")));
-      expect(
-          wrapper,
-          isNot(contains(
-              'registry.registerProvider(DemoPluginDowelProvider())')));
     });
 
     test(
         'uninstall purges .dowel/cli-bundle and .dowel/build.stamp '
         'after successful removal', () async {
-      // Issue #9 GAP A: after `plugin:uninstall` strips the plugin's wrapper
-      // import + register lines, the AOT cache must be invalidated so the next
-      // `./bin/dowel` rebuilds without the removed plugin's command surface.
+      // Issue #9 GAP A: after `plugin:uninstall` reverses the install, the AOT
+      // cache must be invalidated so the next `./bin/dowel` rebuilds without
+      // the removed plugin's command surface.
       final root = Directory.systemTemp.createTempSync('plun_cachepurge_');
       addTearDown(() => root.deleteSync(recursive: true));
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -293,7 +258,6 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -325,7 +289,6 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -351,7 +314,6 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -379,9 +341,6 @@ void main() {
           isTrue);
       expect(File(p.join(root.path, 'lib', 'config', 'demo.dart')).existsSync(),
           isTrue);
-      final wrapper =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-      expect(wrapper, contains("import 'package:demo_plugin/cli.dart';"));
     });
   });
 
@@ -393,7 +352,6 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginDowelProvider',
       );
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
@@ -420,10 +378,6 @@ void main() {
       expect(File(p.join(root.path, 'lib', 'config', 'demo.dart')).existsSync(),
           isTrue,
           reason: 'Dry-run must NOT delete published files.');
-      final wrapper =
-          File(p.join(root.path, 'bin', 'dowel.dart')).readAsStringSync();
-      expect(wrapper, contains("import 'package:demo_plugin/cli.dart';"),
-          reason: 'Dry-run must NOT mutate the wrapper.');
 
       final out = (ctx.output as BufferedOutput).content;
       expect(out.toLowerCase(), contains('dry'),
@@ -438,10 +392,6 @@ void main() {
       addTearDown(() => root.deleteSync(recursive: true));
       // Seed everything EXCEPT the install record.
       File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync('name: c\n');
-      final binDir = Directory(p.join(root.path, 'bin'))
-        ..createSync(recursive: true);
-      File(p.join(binDir.path, 'dowel.dart'))
-          .writeAsStringSync('void main(){}\n');
       final manifestPath = p.join(root.path, 'demo_install.yaml');
       _writeInstallYaml(manifestPath, 'demo_plugin');
 
@@ -470,7 +420,6 @@ void main() {
       _seedInstalledProject(
         root,
         pluginName: 'demo_plugin',
-        providerName: 'DemoPluginDowelProvider',
       );
 
       // Subclass returns null for the install.yaml lookup.

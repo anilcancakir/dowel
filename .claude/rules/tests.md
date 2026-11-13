@@ -29,7 +29,7 @@ Pick by what the production code uses, not by personal preference. Mixing the tw
 
 ## Seed helpers
 
-When a test needs a full project-root scaffold (pubspec + .dart_tool/package_config + a consumer wrapper), reuse `_seedConsumerProject(root, pluginName:, wrapper:)` from `test/commands/plugin_install_command_test.dart:20-53`. The canonical consumer wrapper post-install is `bin/dispatcher.dart`; the seed helper deliberately writes the legacy `bin/dowel.dart` filename because `plugin:install`'s legacy-injection mode (Mode 3 in installer routing) anchors on that path. New tests for the dispatcher.dart-based flows (Mode 1 manifest + Mode 2 `_plugins.g.dart`) should seed `bin/dispatcher.dart` directly. For `PluginsRefreshCommand`'s `directoryExists(lib/app)` check, copy `_seedLibApp(root)` (2-line helper from `test/commands/plugins_refresh_command_test.dart:6-11`) inline; do NOT extract a shared file until a third caller appears.
+When a test needs a project-root scaffold (pubspec + .dart_tool/package_config, optionally the `lib/app/_plugins.g.dart` barrel), reuse `_seedConsumerProject(root, pluginName:, scaffold:)` from `test/commands/plugin_install_command_test.dart`. The consumer wrapper post-install is `bin/dispatcher.dart`; never seed `bin/dowel.dart` as a wrapper, it is this package's own entry point. For `PluginsRefreshCommand`'s `directoryExists(lib/app)` check, copy `_seedLibApp(root)` (2-line helper from `test/commands/plugins_refresh_command_test.dart:6-11`) inline; do NOT extract a shared file until a third caller appears.
 
 ## Idempotency assertions
 

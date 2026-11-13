@@ -2,7 +2,7 @@
 
 ## Overview
 
-A plugin is a Dart package that ships an `DowelServiceProvider` subclass. The
+A plugin is a Dart package that ships a `DowelServiceProvider` subclass. The
 subclass declares the CLI commands and MCP tool descriptors the plugin contributes.
 When a consumer calls `plugin:install <name>`, dowel registers the provider in
 `lib/app/_plugins.g.dart`, which is loaded at startup and merged into the
@@ -91,7 +91,7 @@ final class AwesomeDowelProvider extends DowelServiceProvider {
 
 ## Writing Commands
 
-Each entry in `commands()` is an `DowelCommand` subclass. Declare the command
+Each entry in `commands()` is a `DowelCommand` subclass. Declare the command
 surface via the Signature DSL or `configure(ArgParser)`:
 
 - **Signature DSL** (preferred): `String get signature => 'cmd:name {arg} {--flag}'`.
@@ -199,8 +199,8 @@ dart run dowel plugin:install awesome_plugin
 
 This registers `AwesomeDowelProvider.new` in `lib/app/_plugins.g.dart` and
 re-generates the barrel; the provider is discovered at the next `dowel start`.
-See [plugin:install](../commands/plugin-install.md) for the three routing modes
-(manifest, canonical scaffold, legacy).
+See [plugin:install](../commands/plugin-install.md) for the two routing modes
+(manifest, direct registration).
 
 ---
 

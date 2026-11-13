@@ -58,7 +58,7 @@ the import and registration line into the provider file automatically.
 ### 3. Install a plugin
 
 Add the plugin package to your `pubspec.yaml` and resolve it, then register it with
-the consumer wrapper via `plugin:install`. The command runs a three-stage resolution:
+the consumer wrapper via `plugin:install`. The command runs a two-stage resolution:
 
 1. When the plugin ships an `install.yaml` manifest, the manifest flow runs: ops are
    parsed, conflict-checked, and committed atomically, then the plugin's
@@ -66,9 +66,8 @@ the consumer wrapper via `plugin:install`. The command runs a three-stage resolu
    `lib/app/_plugins.g.dart` is refreshed.
 2. When no manifest is found but the canonical scaffold (`lib/app/_plugins.g.dart`)
    is present, registration writes directly to `.dowel/plugins.json` and refreshes
-   the codegen barrel (no `bin/dispatcher.dart` edit needed).
-3. When neither condition is met, the legacy fallback appends an import and a
-   `registerProvider(...)` call to `bin/dowel.dart` directly.
+   the codegen barrel (no `bin/dispatcher.dart` edit needed). Without the
+   scaffold the command stops and asks you to run `dart run dowel install`.
 
 ```bash
 dart pub add awesome_plugin
