@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Question / Discussion
-    url: https://github.com/anilcancakir/dowel/discussions
-    about: Ask questions and discuss dowel with the community
-  - name: Documentation
-    url: https://anilcancakir.com/dowel
-    about: Browse the canonical documentation site
+  - name: Report a security vulnerability
+    url: https://github.com/anilcancakir/dowel/security/advisories/new
+    about: Private vulnerability reporting. Do not open a public issue for a security problem.
+  - name: API reference
+    url: https://pub.dev/documentation/dowel/latest/
+    about: Classes, commands and the plugin installer, generated from the source.

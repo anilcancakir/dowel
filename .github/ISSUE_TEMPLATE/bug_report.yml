@@ -51,7 +51,7 @@ body:
       description: Which part of the framework is affected?
       options:
         - Console (DowelApplication, DowelRegistry, signature DSL)
-        - Commands (21 builtin commands)
+        - Commands (22 builtin commands)
         - Lifecycle (start / stop / status / logs / restart / reload / hot-restart)
         - Scaffolding (make:plugin / make:command / install)
         - Plugin Management (plugin:install / plugin:uninstall / plugins:refresh)
@@ -87,7 +87,8 @@ body:
     id: dowel-version
     attributes:
       label: dowel Version
-      placeholder: "0.0.1"
+      description: Output of `dart run dowel --version`.
+      placeholder: "0.0.21"
     validations:
       required: true
 
