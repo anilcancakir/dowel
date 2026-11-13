@@ -13,6 +13,7 @@ import '../console/dowel_context.dart';
 import '../console/dowel_input.dart';
 import '../console/dowel_output.dart';
 import '../console/dowel_registry.dart';
+import '../console/dowel_version.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 import '../vm/vm_service_client.dart';
@@ -70,11 +71,12 @@ final class McpServer extends MCPServer with ToolsSupport {
           channel,
           implementation: Implementation(
             name: 'dowel_mcp',
-            // Kept in sync with pubspec.yaml `version:` on each release
-            // cut, and test/mcp/mcp_server_version_test.dart fails the
-            // build when it is not. The 0.0.9 cut missed it and shipped a
-            // handshake one release behind.
-            version: '0.0.21',
+            // dowelVersion is kept in sync with pubspec.yaml `version:` on
+            // each release cut; test/console/dowel_version_test.dart and
+            // test/mcp/mcp_server_version_test.dart fail the build when it is
+            // not. The 0.0.9 cut missed it and shipped a handshake one
+            // release behind.
+            version: dowelVersion,
           ),
         );
 

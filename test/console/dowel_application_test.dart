@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/console/dowel_version.dart';
 import 'package:test/test.dart';
 
 /// Run [body] capturing everything written to `stderr` and `stdout`, so the
@@ -172,10 +173,10 @@ void main() {
       expect(code, 1);
     });
 
-    test('default version is the published alpha tag', () {
+    test('default version is the package version', () {
       final app = DowelApplication(registry: DowelRegistry());
 
-      expect(app.version, DowelApplication.defaultVersion);
+      expect(app.version, dowelVersion);
     });
 
     test('custom version is honored', () {

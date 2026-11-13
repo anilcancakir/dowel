@@ -12,6 +12,7 @@ import 'dowel_context.dart';
 import 'dowel_input.dart';
 import 'dowel_output.dart';
 import 'dowel_registry.dart';
+import 'dowel_version.dart';
 import 'command_boot.dart';
 import 'process_alive.dart';
 
@@ -26,11 +27,11 @@ import 'process_alive.dart';
 /// V1 has 2 boot modes; headless is deferred to V1.x (would force a Flutter
 /// dep into pure-Dart dowel + circular dep with magic).
 class DowelApplication {
-  DowelApplication({required this.registry, this.version = '1.0.0-alpha.1'});
-
-  static const String defaultVersion = '1.0.0-alpha.1';
+  DowelApplication({required this.registry, this.version = dowelVersion});
 
   final DowelRegistry registry;
+
+  /// Printed by `--version`; defaults to the package version.
   final String version;
 
   /// Dispatch a raw argv list. Returns the process exit code (0 = success).
