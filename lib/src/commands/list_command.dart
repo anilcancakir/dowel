@@ -6,7 +6,7 @@ import '../console/dowel_registry.dart';
 import '../console/command_boot.dart';
 import '../helpers/console_style.dart';
 
-/// `dowel list` — prints every registered command grouped by `:` namespace.
+/// `dowel list`: prints every registered command grouped by `:` namespace.
 class ListCommand extends DowelCommand {
   ListCommand(this._registry);
 

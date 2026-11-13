@@ -1,8 +1,13 @@
 # Auto-sync the skills registry when a dowel release is published.
 #
-# Fires repository_dispatch at anilcancakir/ai on a published GitHub release, or
-# on a manual run. The registry's sync.yml receives the event, pulls the
-# skills/dowel/ subtree, bumps the version triplet, and pushes to main.
+# Called by publish.yml after its github-release job (the `registry` job, wired
+# once the registry exists), so the dispatch happens only after pub.dev has
+# accepted the release; or run by hand. It is NOT triggered by
+# `release: [published]`: the release is created under the default
+# GITHUB_TOKEN, and GitHub starts no workflow run from an event raised by that
+# token, so such a trigger never fires. The registry's sync.yml receives the
+# repository_dispatch, pulls the skills/dowel/ subtree, bumps the version
+# triplet, and pushes to main.
 #
 # Deliberately NOT on every push. A skill edit that lands on master between
 # releases waits for the release that carries it, so the registry version

@@ -8,7 +8,7 @@ import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../helpers/file_helper.dart';
 
-/// `dowel mcp:install` — idempotently adds the dowel MCP server entry
+/// `dowel mcp:install`: idempotently adds the dowel MCP server entry
 /// to the project's `.mcp.json` (Claude Code / Cursor / Windsurf config).
 ///
 /// Entry shape is chosen by a three-branch precedence rule. The first

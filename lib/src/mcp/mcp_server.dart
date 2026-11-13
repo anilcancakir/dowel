@@ -454,7 +454,7 @@ final class McpServer extends MCPServer with ToolsSupport {
 
   /// Walks the registry's command list and emits an [McpToolDescriptor] for
   /// every command in [_safeDowelCommandNames]. The allowlist excludes
-  /// interactive (`tinker`, `help`), codegen (`make:*`, `*:refresh`), MCP
+  /// interactive (`help`), codegen (`make:*`, `*:refresh`), MCP
   /// meta (`mcp:*`), installer (`plugin:*`, `install`) commands
   /// that either need a TTY or recurse into the MCP server itself.
   ///
@@ -508,9 +508,9 @@ final class McpServer extends MCPServer with ToolsSupport {
             'Usage:\n'
             '- Call this BEFORE invoking any plugin tool (tapir_snap, '
             'crumbs_tail, dowel_tinker) that needs VM Service access.\n'
-            '- Default device is the first available; pass `device: '
-            '"chrome"` for web (port 3100), `device: "macos"` for desktop, '
-            'or `device: "<serial>"` for a connected mobile.\n'
+            '- Default device is `chrome` (web, port 3100); pass `device: '
+            '"macos"` for desktop, or `device: "<serial>"` for a connected '
+            'mobile.\n'
             '- Returns once the VM Service URI is captured; the Flutter '
             'process keeps running in the background.\n'
             '- IF THIS CALL TIMES OUT, the app is probably still starting '
@@ -525,8 +525,10 @@ final class McpServer extends MCPServer with ToolsSupport {
             '`dowel_restart`. For source-change reload call '
             '`dowel_reload` (state preserved) or `dowel_hot_restart` '
             '(state dropped).\n'
-            '- Fails with "another app is recorded" when this project\'s '
-            'session already has a running pid; call `dowel_stop` first.';
+            '- Check `dowel_status` first and call `dowel_stop` before '
+            'starting again: a second web start fails with "Port <n> is '
+            'already in use", and a second start on another device launches '
+            'a second app.';
 
       case 'stop':
         return 'Stop the currently-running Flutter app and clear its state '
@@ -704,7 +706,7 @@ final class McpServer extends MCPServer with ToolsSupport {
               'description': 'Target Flutter device id. Common values: '
                   '`chrome` (web), `macos` (desktop), `<adb-serial>` '
                   '(Android), or any id from `flutter devices`. Omit to '
-                  'let Flutter pick the first available.',
+                  'use `chrome`.',
             },
             'port': <String, dynamic>{
               'type': 'string',

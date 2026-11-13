@@ -2,7 +2,7 @@ import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
 
 /// Concrete subclass used to exercise the protected helper surface that
-/// `DowelInstallCommand` exposes. The handle implementation is trivial — the
+/// `DowelInstallCommand` exposes. The handle implementation is trivial: the
 /// helper-method behavior is what these tests cover.
 class _TestInstallCommand extends DowelInstallCommand {
   _TestInstallCommand({this.pluginNameValue = 'test_plugin'});
@@ -57,7 +57,7 @@ DowelContext _ctxWith(
 }
 
 void main() {
-  group('DowelInstallCommand — signature DSL', () {
+  group('DowelInstallCommand: signature DSL', () {
     test('baseFlags interpolation parses into 4 standard option specs', () {
       final cmd = _TestInstallCommand();
       final parsed = cmd.parsedSignature;
@@ -95,14 +95,14 @@ void main() {
     });
   });
 
-  group('DowelInstallCommand — boot', () {
+  group('DowelInstallCommand: boot', () {
     test('boot is CommandBoot.none — install commands run pre-app-launch', () {
       final cmd = _TestInstallCommand();
       expect(cmd.boot, CommandBoot.none);
     });
   });
 
-  group('DowelInstallCommand — buildContext(ctx)', () {
+  group('DowelInstallCommand: buildContext(ctx)', () {
     test('returns an InstallContext.real wrapping the input DowelContext', () {
       final cmd = _TestInstallCommand();
       final dowelCtx = _ctxWith(const <String, dynamic>{});
@@ -115,7 +115,7 @@ void main() {
     });
   });
 
-  group('DowelInstallCommand — boolean flag helpers', () {
+  group('DowelInstallCommand: boolean flag helpers', () {
     test('isDryRun reads the --dry-run option from ctx.input', () {
       final cmd = _TestInstallCommand();
 
@@ -173,7 +173,7 @@ void main() {
     });
   });
 
-  group('DowelInstallCommand — pluginName(ctx) override contract', () {
+  group('DowelInstallCommand: pluginName(ctx) override contract', () {
     test('subclass may return a static plugin name', () {
       final cmd = _TestInstallCommand(pluginNameValue: 'magic_logger');
       final ctx = _ctxWith(const <String, dynamic>{});

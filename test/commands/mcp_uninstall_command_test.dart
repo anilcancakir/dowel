@@ -150,7 +150,7 @@ void main() {
     });
   });
 
-  group('McpUninstallCommand handle — old args shape (fluttersdk_mcp:server)',
+  group('McpUninstallCommand handle: old args shape (fluttersdk_mcp:server)',
       () {
     test('removes a dowel entry that uses the old mcp args shape', () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
@@ -271,7 +271,7 @@ void main() {
         'does NOT delete the .mcp.json file even when mcpServers becomes empty',
         () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // Only entry is dowel — after removal mcpServers is empty.
+      // Only entry is dowel: after removal mcpServers is empty.
       File(mcpPath).writeAsStringSync(jsonEncode({
         'mcpServers': {
           'dowel': {

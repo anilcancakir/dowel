@@ -38,7 +38,7 @@ void _seedConsumerProject(
     '{"packages":[{"name": "$pluginName"}]}\n',
   );
 
-  // 3. lib/app/_plugins.g.dart — the barrel `dowel install` scaffolds.
+  // 3. lib/app/_plugins.g.dart: the barrel `dowel install` scaffolds.
   if (scaffold) {
     Directory(p.join(root.path, 'lib', 'app')).createSync(recursive: true);
     File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
@@ -184,7 +184,7 @@ void main() {
     });
   });
 
-  group('PluginInstallCommand — direct registration (no install.yaml)', () {
+  group('PluginInstallCommand: direct registration (no install.yaml)', () {
     test('records the plugin in plugins.json and regenerates _plugins.g.dart',
         () async {
       final root = Directory.systemTemp.createTempSync('plinst_direct_');

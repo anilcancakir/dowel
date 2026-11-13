@@ -50,7 +50,7 @@ Future<int> _defaultRunDowel(
       delegateToConsumer: delegateToConsumer,
     );
 
-/// `dart run dowel:mcp [args]` — MCP server entry point.
+/// `dart run dowel:mcp [args]`: MCP server entry point.
 ///
 /// Thin wrapper around [mcpMain]. All server logic lives in [McpServeCommand]
 /// dispatched by [runDowel]; this file must not implement server logic

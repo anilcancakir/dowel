@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:dowel/dowel.dart';
 
-/// `dowel mcp:uninstall` — remove the `dowel` MCP server entry from
+/// `dowel mcp:uninstall`: remove the `dowel` MCP server entry from
 /// `.mcp.json`, whatever its args shape. Entries written by earlier releases
 /// live under the `fluttersdk` key and are not touched: delete them by hand.
 /// Preserves all other entries. Idempotent.

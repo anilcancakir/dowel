@@ -8,7 +8,7 @@ import '../console/command_boot.dart';
 import '../helpers/file_helper.dart';
 import 'commands_index_writer.dart';
 
-/// `dowel commands:refresh` — scans `lib/app/commands/` and rewrites
+/// `dowel commands:refresh`: scans `lib/app/commands/` and rewrites
 /// `_index.g.dart` so every DowelCommand subclass in that directory is
 /// auto-registered on the next `dowel` invocation.
 ///

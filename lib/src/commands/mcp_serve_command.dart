@@ -18,7 +18,7 @@ typedef ServeStrategy = Future<void> Function({
   required McpFilterConfig filter,
 });
 
-/// `dowel mcp:serve` — starts the dowel MCP server over stdio JSON-RPC.
+/// `dowel mcp:serve`: starts the dowel MCP server over stdio JSON-RPC.
 ///
 /// The server bridges Claude Code / Cursor / Windsurf to the running Flutter
 /// app via the VM Service extension method surface contributed by installed

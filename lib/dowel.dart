@@ -1,4 +1,4 @@
-/// dowel: Symfony-Console-grade CLI framework for Dart + Flutter.
+/// dowel: a composable CLI framework and stdio MCP server for Dart and Flutter.
 ///
 /// Single barrel entry. Consumers import via `package:dowel/dowel.dart`
 /// and gain access to the full public API surface (Application + Command + Input/Output

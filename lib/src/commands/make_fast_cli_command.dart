@@ -10,7 +10,7 @@ import '../console/command_boot.dart';
 import '../helpers/file_helper.dart';
 import '../stubs/stub_loader.dart';
 
-/// `make:fast-cli` — scaffold a POSIX shell wrapper (`bin/dowel`) that compiles
+/// `make:fast-cli`: scaffold a POSIX shell wrapper (`bin/dowel`) that compiles
 /// `bin/dispatcher.dart` into an AOT binary via `dart build cli`, cached at
 /// `.dowel/cli-bundle/`. Wrapper auto-detects staleness and re-compiles
 /// transparently. Result: ~50ms startup for `./bin/dowel <cmd>` vs ~3s for

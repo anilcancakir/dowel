@@ -6,7 +6,7 @@ import '../console/command_boot.dart';
 import '../tinker/tinker.dart';
 import '../tinker/tinker_formatter.dart';
 
-/// `dowel tinker` — connected REPL into the running Flutter app.
+/// `dowel tinker`: connected REPL into the running Flutter app.
 ///
 /// Reads input lines from stdin, evaluates each as a Dart expression in the
 /// running app's root library via VM Service evaluate RPC, pretty-prints the

@@ -9,7 +9,7 @@ import '../helpers/config_editor.dart';
 import '../helpers/file_helper.dart';
 import 'commands_index_writer.dart';
 
-/// `dowel make:command MyCommand` — scaffolds a new DowelCommand subclass.
+/// `dowel make:command MyCommand`: scaffolds a new DowelCommand subclass.
 ///
 /// Output location is context-aware:
 /// - **Consumer app** (lib/app/ + a consumer wrapper such as

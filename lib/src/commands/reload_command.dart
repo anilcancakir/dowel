@@ -5,7 +5,7 @@ import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 
-/// `dowel reload` — hot reload the running flutter app.
+/// `dowel reload`: hot reload the running flutter app.
 ///
 /// Writes `r\n` to the FIFO that flutter run's stdin reads from. flutter
 /// run's own keystroke handler picks it up and runs incremental Dart

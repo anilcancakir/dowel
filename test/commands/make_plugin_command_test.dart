@@ -1193,7 +1193,7 @@ void main() {
             ..createSync(recursive: true);
 
       // 2. Run scaffold with the REAL FlutterCreateRunner (no mock). Generic
-      //    mode is used so the only path dep is dowel — this is
+      //    mode is used so the only path dep is dowel: this is
       //    the simplest surface to validate without needing a real magic package.
       final cmd = _TestableMakePluginCommand(
         fakeDowelRoot: dowelRoot,
@@ -1261,7 +1261,7 @@ void main() {
       // 3. Run `dart pub get` from the plugin directory. The pubspec must
       //    have a valid relative path to dowel. A hardcoded
       //    `../../` from <tmpRoot>/consumer_app/packages/foo/ would point to
-      //    <tmpRoot>/consumer_app/ — not the dowel root — and pub get would
+      //    <tmpRoot>/consumer_app/: not the dowel root: and pub get would
       //    fail with exit code 66.
       final pubGet = await Process.run(
         'dart',

@@ -127,7 +127,7 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 2 — writes bin/dowel with correct content
+  // Test 2: writes bin/dowel with correct content
   // -------------------------------------------------------------------------
   test('writes bin/dowel with correct shell script content', () async {
     final ctx = _ctx();
@@ -150,7 +150,7 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 3 — chmod called on bin/dowel
+  // Test 3: chmod called on bin/dowel
   // -------------------------------------------------------------------------
   test('chmod +x is called on bin/dowel', () async {
     await MakeFastCliCommand.scaffoldInto(
@@ -167,7 +167,7 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 4 — .gitignore patched (idempotent: exactly ONE .dowel/ line)
+  // Test 4: .gitignore patched (idempotent: exactly ONE .dowel/ line)
   // -------------------------------------------------------------------------
   test('.gitignore is patched with .dowel/ exactly once (idempotent)',
       () async {
@@ -241,7 +241,7 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 7 — idempotency: second run with force=false skips bin/dowel
+  // Test 7: idempotency: second run with force=false skips bin/dowel
   // -------------------------------------------------------------------------
   test(
       'second run with force=false skips bin/dowel and does not re-invoke build',
@@ -280,7 +280,7 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 8 — force: second run with force=true rewrites bin/dowel + re-chmods
+  // Test 8: force: second run with force=true rewrites bin/dowel + re-chmods
   // -------------------------------------------------------------------------
   test('second run with force=true rewrites bin/dowel and calls chmod again',
       () async {

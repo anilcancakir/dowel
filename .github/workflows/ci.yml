@@ -32,9 +32,9 @@ jobs:
 
       # The example's generated barrel (lib/app/_plugins.g.dart) is written by
       # the plugin refresh command, not formatted by hand, so the gate covers
-      # the package and its tests only.
+      # the package, its tests and the hand-written example entry point.
       - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed lib/ test/ bin/
+        run: dart format --output=none --set-exit-if-changed lib/ test/ bin/ example/lib/main.dart
 
       - name: Analyze code
         run: dart analyze lib/ test/ bin/

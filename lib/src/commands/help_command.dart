@@ -5,7 +5,7 @@ import '../console/dowel_context.dart';
 import '../console/dowel_registry.dart';
 import '../console/command_boot.dart';
 
-/// `dowel help <command>` — prints full signature for a single command.
+/// `dowel help <command>`: prints full signature for a single command.
 class HelpCommand extends DowelCommand {
   HelpCommand(this._registry);
 
