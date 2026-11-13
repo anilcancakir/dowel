@@ -1,33 +1,86 @@
 # dowel
 
-> Composable CLI framework and stdio MCP server for Flutter and Dart. Scaffolding, code generation, transactional plugin installs, hot reload orchestration, REPL, and AI agent tool surfaces in one binary.
+> One binary for your Flutter dev loop and your AI agent: start, hot reload and inspect a running app, scaffold code, install plugins transactionally, and expose the same commands through a built-in stdio MCP server.
 
-Pure Dart 3.4+ CLI framework. Consumed via `dart run dowel <command>`. 21 built-in commands plus a stdio MCP server for AI coding agents (Claude Code, Cursor, Windsurf).
+**Stack**: Dart >=3.4 (pure Dart; the app you drive needs Flutter). Dependencies: `args`, `dart_mcp`, `vm_service`, `yaml`, `yaml_edit`, `xml`, `crypto`, `path`, `meta`, `stream_channel`.
+
+**Setup**:
+
+```bash
+dart pub add dowel
+dart run dowel install     # bin/dispatcher.dart, lib/app/*.g.dart barrels, bin/dowel fast wrapper
+dart run dowel list        # every registered command
+```
+
+```dart
+import 'package:dowel/dowel.dart';
+
+final class GreetCommand extends DowelCommand {
+  @override
+  String get signature => 'greet {name} {--shout}';
+
+  @override
+  String get description => 'Greet a person by name.';
+
+  @override
+  CommandBoot get boot => CommandBoot.none;
+
+  @override
+  Future<int> handle(DowelContext context) async {
+    context.output.success('Hello, ${context.input.argument('name') ?? 'world'}');
+    return 0;
+  }
+}
+```
+
+## API
+
+- `runDowel(args, baseProviders:, autoProviders:)`: the shared entry; delegates to `bin/dispatcher.dart` when the project has one.
+- `DowelCommand`: `signature` (`'cmd:name {arg} {--flag}'`) or `configure(ArgParser)`, `handle(DowelContext)` returns the exit code.
+- `DowelServiceProvider`: `commands()` and `mcpTools()`; a plugin exports one from `package:<name>/cli.dart`.
+- `DowelInstallCommand` and `PluginInstaller`: staged, atomic, reversible install operations; `install.yaml` is the declarative form.
+- 22 built-in commands: `start`, `stop`, `status`, `logs`, `restart`, `reload`, `hot-restart`, `install`, `make:plugin`, `make:command`, `make:fast-cli`, `plugin:install`, `plugin:uninstall`, `plugins:refresh`, `mcp:serve`, `mcp:install`, `mcp:uninstall`, `help`, `list`, `doctor`, `tinker`, `commands:refresh`.
+- 10 MCP substrate tools: `dowel_start`, `dowel_stop`, `dowel_status`, `dowel_logs`, `dowel_restart`, `dowel_reload`, `dowel_hot_restart`, `dowel_doctor`, `dowel_list`, `dowel_tinker`.
+
+## Platforms
+
+The lifecycle commands (`start`, `stop`, `reload`, `hot-restart`) use a POSIX FIFO: macOS and Linux. The rest of the CLI and the MCP server run wherever Dart does.
+
+## Rules for agents
+
+- Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml`; it registers into `lib/app/_plugins.g.dart`.
+- Preview with `plugin:install <name> --dry-run`; every operation is staged and nothing writes before the commit.
+- Do not edit `*.g.dart` barrels; regenerate them with `commands:refresh` and `plugins:refresh`.
+- Start the app with `dowel start`, not `flutter run`: reload, restart, logs and tinker find it through the session recorded under `~/.dowel/sessions/<hash>/`.
+- Reconnect the MCP client after `mcp:install` or a change to `.dowel/mcp.json`.
+- Plugin MCP tools need `./bin/dowel mcp:serve` or `dart run :dispatcher mcp:serve`; `dart run dowel:mcp` serves the substrate tools only.
+- Exit code `75` means "not ready, retry" (the app is still building); any other non-zero code is a failure.
+- `bin/dowel.dart` is this package's own entry point, never a project wrapper; the wrapper is `bin/dispatcher.dart`.
 
 ## Docs
-- [Installation](https://anilcancakir.com/dowel/docs/getting-started/installation.md)
-- [Quickstart](https://anilcancakir.com/dowel/docs/getting-started/quickstart.md)
-- [Command catalog](https://anilcancakir.com/dowel/docs/commands/index.md)
-- [start](https://anilcancakir.com/dowel/docs/commands/start.md): records the session per project under `~/.dowel/sessions/<hash>/`, so two apps can be driven at once. `~/.dowel/state.json` stays as a pointer to whichever started last. Override with `--state=<path>` or `DOWEL_STATE_FILE`; commands refuse to act on another project's app.
-- [plugin:install](https://anilcancakir.com/dowel/docs/commands/plugin-install.md)
-- [mcp:serve](https://anilcancakir.com/dowel/docs/commands/mcp-serve.md)
-- [make:plugin](https://anilcancakir.com/dowel/docs/commands/make-plugin.md)
-- [install](https://anilcancakir.com/dowel/docs/commands/install.md)
-- [tinker](https://anilcancakir.com/dowel/docs/commands/tinker.md)
-- [MCP overview](https://anilcancakir.com/dowel/docs/mcp/overview.md)
-- [MCP setup](https://anilcancakir.com/dowel/docs/mcp/setup.md)
-- [MCP tool reference](https://anilcancakir.com/dowel/docs/mcp/tool-reference.md)
-- [Plugin authoring](https://anilcancakir.com/dowel/docs/plugins/authoring.md)
-- [install.yaml schema](https://anilcancakir.com/dowel/docs/plugins/install-yaml.md)
-- [Installer DSL](https://anilcancakir.com/dowel/docs/plugins/installer-dsl.md)
-- [Signature DSL](https://anilcancakir.com/dowel/docs/reference/signature-dsl.md)
 
-## Source
-- [GitHub](https://github.com/anilcancakir/dowel)
-- [pub.dev](https://pub.dev/packages/dowel)
-- [CHANGELOG](https://github.com/anilcancakir/dowel/blob/master/CHANGELOG.md)
+- [Getting started](https://anilcancakir.com/dowel/docs/getting-started/index.md): what dowel is and how the pieces fit
+- [Installation](https://anilcancakir.com/dowel/docs/getting-started/installation.md): requirements and `dart pub add dowel`
+- [Quickstart](https://anilcancakir.com/dowel/docs/getting-started/quickstart.md): from an empty project to a plugin and a command
+- [Commands](https://anilcancakir.com/dowel/docs/commands/index.md): the catalogue, grouped by intent, with boot mode and MCP exposure
+- [install](https://anilcancakir.com/dowel/docs/commands/install.md): the consumer scaffold
+- [make:fast-cli](https://anilcancakir.com/dowel/docs/commands/make-fast-cli.md): the AOT wrapper `bin/dowel`
+- [make:plugin](https://anilcancakir.com/dowel/docs/commands/make-plugin.md): scaffold a plugin package
+- [mcp:serve](https://anilcancakir.com/dowel/docs/commands/mcp-serve.md): the stdio server and its filter
+- [plugin:install](https://anilcancakir.com/dowel/docs/commands/plugin-install.md): the manifest route and direct registration
+- [start](https://anilcancakir.com/dowel/docs/commands/start.md): the recorded session, one per project (`--state=<path>` or `DOWEL_STATE_FILE` overrides it)
+- [tinker](https://anilcancakir.com/dowel/docs/commands/tinker.md): evaluate Dart in the running app
+- [MCP overview](https://anilcancakir.com/dowel/docs/mcp/overview.md): substrate and plugin tools, the state file contract
+- [MCP setup](https://anilcancakir.com/dowel/docs/mcp/setup.md): wire the server into Claude Code, Cursor and others
+- [MCP tool reference](https://anilcancakir.com/dowel/docs/mcp/tool-reference.md): every substrate tool and its input
+- [Plugin authoring](https://anilcancakir.com/dowel/docs/plugins/authoring.md): write a plugin
+- [install.yaml schema](https://anilcancakir.com/dowel/docs/plugins/install-yaml.md): every section and key
+- [Installer DSL](https://anilcancakir.com/dowel/docs/plugins/installer-dsl.md): the procedural escape hatch
+- [Signature DSL](https://anilcancakir.com/dowel/docs/reference/signature-dsl.md): the argument and flag grammar
 
-## Optional
-- [README](https://github.com/anilcancakir/dowel/blob/master/README.md)
-- [LICENSE](https://github.com/anilcancakir/dowel/blob/master/LICENSE)
-- [Issues](https://github.com/anilcancakir/dowel/issues)
+## Links
+
+- [README](https://github.com/anilcancakir/dowel#readme)
+- [API reference](https://pub.dev/documentation/dowel/latest/)
+- [Changelog](https://github.com/anilcancakir/dowel/blob/master/CHANGELOG.md)
+- [Source](https://github.com/anilcancakir/dowel)
