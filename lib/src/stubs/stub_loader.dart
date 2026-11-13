@@ -108,7 +108,8 @@ class StubLoader {
       final pubspec = File(path.join(current.path, 'pubspec.yaml'));
       if (pubspec.existsSync()) {
         final content = pubspec.readAsStringSync();
-        if (content.contains('name: $_pkgName')) {
+        if (RegExp('^name:\\s*$_pkgName\\s*\$', multiLine: true)
+            .hasMatch(content)) {
           return [path.join(current.path, 'assets', 'stubs')];
         }
       }
