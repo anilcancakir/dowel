@@ -103,7 +103,7 @@ MCP tool call:
 - `McpFilterConfig.fromFile` reads `.dowel/mcp.json` relative to the working directory, not the project root: `lib/src/commands/mcp_serve_command.dart`.
 - `_classPattern` in `lib/src/commands/commands_index_writer.dart` matches every `class X extends *Command` in `lib/app/commands/`, including intermediate bases and commented-out code, and each match is registered in `_index.g.dart`.
 - `toolsDeny` matches the MCP name (`dowel_hot_restart`), not the command name: `lib/src/mcp/mcp_filter_config.dart`.
-- `doctor` is not in `_bypassDelegation`, so in a project that still has a previous-package `bin/dispatcher.dart` it hands over to a dispatcher that does not compile and never reaches its leftovers warning: `lib/src/console/run_dowel.dart`.
+- `doctor` is in `_bypassDelegation` with `install`, `commands:refresh` and `plugins:refresh`: a diagnostic must run when the project's own `bin/dispatcher.dart` does not compile, which is the state of a project moving from the previous package. Keep any new check independent of the consumer's dispatcher: `lib/src/console/run_dowel.dart`.
 - `PluginUninstallCommand._opFromRecord` rebuilds only `WriteFile`, `DeleteFile` and `CopyFile`, while `ManifestInstaller._opFromRecord` also rebuilds `PublishFile` and the dependency operations, so `plugin:uninstall --dry-run` lists fewer reversals than the real run performs: `lib/src/commands/plugin_uninstall_command.dart`.
 
 Last reviewed: 2026-11-14 after the install-record, public-surface and MCP changes.

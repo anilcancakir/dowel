@@ -97,7 +97,7 @@ It also warns about a `fluttersdk` entry in `.mcp.json`, in any shape, and says 
 WARN: Old MCP entry detected. Your .mcp.json still has the "fluttersdk" server that fluttersdk_artisan wrote, and that package no longer exists. Delete the "fluttersdk" entry from .mcp.json, then run: ./bin/dowel mcp:install (or: dart run dowel mcp:install).
 ```
 
-`doctor` hands over to the project's `bin/dispatcher.dart` when one exists. The old dispatcher no longer compiles, so while it is there the command never reaches these checks. Delete the dispatcher first (step 3); `doctor` then lists what remains.
+`doctor` runs from dowel itself, like `install`, so it reaches these checks even while the old `bin/dispatcher.dart` is still there; it lists what remains to delete.
 
 <a name="earlier-dowel"></a>
 ## An App Already on an Earlier dowel
@@ -122,7 +122,6 @@ An app that has already moved to dowel meets a few one-time changes when it upda
 
 | Mistake | Fix |
 |:---|:---|
-| Running `dart run dowel doctor` before deleting the old dispatcher | `doctor` hands over to `bin/dispatcher.dart`, which no longer compiles. Delete the dispatcher first. |
 | Running `dart run dowel install` before `dart pub add dowel` | `dart run dowel` needs the dependency. Step 1 comes first. |
 | Running `./bin/dowel <command>` right after `commands:refresh` and meeting `Unknown command` | `commands:refresh` does not rebuild the compiled `bin/dowel`, which still holds the empty index `install` built. Delete `.dowel/build.stamp` and the next `./bin/dowel` call rebuilds, or use `dart run :dispatcher <command>`, which compiles fresh. |
 | Re-adding `.mcp.json` with `mcp:install` while the `fluttersdk` entry is still there | Both servers then run side by side. Delete the old entry first. |
