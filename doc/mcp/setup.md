@@ -11,7 +11,7 @@ The dowel CLI ships with a built-in [Model Context Protocol (MCP)](https://model
 - [Available Tools](#available-tools)
 - [Related Documentation](#related-documentation)
 
-This page documents the per-client install matrix: the exact configuration snippet each MCP-compatible client needs to spawn `./bin/dowel mcp:serve` (or `dart run :dispatcher mcp:serve` as a fallback) against your project. The dowel MCP server is stdio-only in V1 (no remote HTTP endpoint); every client below launches the CLI locally with the project directory as the working directory.
+This page documents the per-client install matrix: the exact configuration snippet each MCP-compatible client needs to spawn `./bin/dowel mcp:serve` (or `dart run :dispatcher mcp:serve` as a fallback) against your project. The dowel MCP server is stdio-only (no remote HTTP endpoint); every client below launches the CLI locally with the project directory as the working directory.
 
 <a name="without-dowel-mcp"></a>
 ## Without dowel MCP
@@ -28,7 +28,7 @@ LLM agents working against a running Flutter app are blind without dowel MCP:
 
 The dowel MCP server bridges the agent to the running app over the VM Service:
 
-- 10 substrate command tools (`dowel_start`, `dowel_stop`, `dowel_status`, `dowel_logs`, `dowel_restart`, `dowel_reload`, `dowel_hot_restart`, `dowel_doctor`, `dowel_list`, `dowel_tinker`).
+- The substrate command tools (`dowel_start`, `dowel_stop`, `dowel_status`, `dowel_logs`, `dowel_restart`, `dowel_reload`, `dowel_hot_restart`, `dowel_doctor`, `dowel_list`, `dowel_tinker`).
 - Plugin tools surface automatically once the consumer's `bin/dispatcher.dart` wrapper registers the provider; see each plugin's MCP tool reference for the current catalogue ([tapir](https://anilcancakir.com/tapir/docs/mcp/tool-reference), [crumbs](https://anilcancakir.com/crumbs/docs/mcp/tool-reference)).
 - Tool visibility filters via `.dowel/mcp.json` + env vars + CLI flags (Cargo-style replace for allow, union for deny).
 - Zero release-build impact: every dowel integration gates on `kDebugMode` at the consumer's `main.dart`.
@@ -70,6 +70,8 @@ The canonical `.mcp.json` entry shape (written by `./bin/dowel mcp:install` or `
 ```
 
 When `bin/dowel` is absent or on Windows, `mcp:install` writes `{"command": "dart", "args": ["run", ":dispatcher", "mcp:serve"]}` instead.
+
+The entry runs the project's dispatcher, so the server serves the substrate tools plus every installed plugin's. `dart run dowel:mcp` serves the substrate tools only; use it to debug dowel itself, not as the project entry.
 
 Every client below uses the canonical shape above, though the `command` + `args` payload adjusts based on platform and dowel availability. The `cwd` field must point at the project root (the directory that contains `pubspec.yaml`).
 
@@ -367,7 +369,7 @@ The working directory must contain a `pubspec.yaml` that depends on `dowel` (dir
 
 When `bin/dowel` is absent or on Windows, `mcp:install` writes `{"command": "dart", "args": ["run", ":dispatcher", "mcp:serve"]}` instead.
 
-Remote HTTP transport is NOT supported in V1; the dowel MCP server is stdio-only because it bridges to the local VM Service URI recorded in this project's session by `./bin/dowel start` (or `dart run :dispatcher start` when `bin/dowel` is absent).
+Remote HTTP transport is not supported; the dowel MCP server is stdio-only because it bridges to the local VM Service URI recorded in this project's session by `./bin/dowel start` (or `dart run :dispatcher start` when `bin/dowel` is absent).
 
 ---
 
@@ -416,6 +418,8 @@ The command is idempotent: pre-existing `mcpServers` keys are preserved, and run
 dart run dowel mcp:install --path ./config/mcp.json
 ```
 
+An entry left by the package dowel replaced, under the `fluttersdk` key, is not replaced: `mcp:install` writes `dowel` beside it and warns, so delete the old entry by hand (see [Migrating from fluttersdk_artisan](../getting-started/migrating-from-fluttersdk-artisan.md)).
+
 To remove the entry later:
 
 ```bash
@@ -429,7 +433,7 @@ Both commands work without a running Flutter app; they only edit the JSON file.
 <a name="available-tools"></a>
 ## Available Tools
 
-The dowel MCP server surfaces 10 substrate tools plus plugin-contributed tools from any registered sibling plugin (`tapir`, `crumbs`, or custom plugins). See [tool-reference.md](./tool-reference.md) for the per-tool input schema, output shape, and example invocations of the substrate tools, plus links to each plugin's MCP tool reference for the current plugin tool catalogue.
+The dowel MCP server surfaces the substrate tools plus plugin-contributed tools from any registered sibling plugin (`tapir`, `crumbs`, or custom plugins). See [tool-reference.md](./tool-reference.md) for the per-tool input schema, output shape, and example invocations of the substrate tools, plus links to each plugin's MCP tool reference for the current plugin tool catalogue.
 
 Tool visibility is filtered in three layers (file `.dowel/mcp.json` lowest priority, env vars middle, CLI flags highest priority; deny always wins over allow). To temporarily hide a tool surface without uninstalling the server, edit `.dowel/mcp.json`:
 
@@ -446,7 +450,7 @@ Tool visibility is filtered in three layers (file `.dowel/mcp.json` lowest prior
 }
 ```
 
-After editing `.dowel/mcp.json` or env vars, run `/mcp reconnect dowel` inside Claude Code (or the equivalent reconnect action in your client); the server does NOT auto-reload in V1.
+After editing `.dowel/mcp.json` or env vars, run `/mcp reconnect dowel` inside Claude Code (or the equivalent reconnect action in your client); the server does not reload its filter on its own.
 
 <a name="related-documentation"></a>
 ## Related Documentation
@@ -454,3 +458,4 @@ After editing `.dowel/mcp.json` or env vars, run `/mcp reconnect dowel` inside C
 - [MCP Overview](overview.md): the substrate and plugin tool layers.
 - [MCP Tool Reference](tool-reference.md): every substrate tool and its input.
 - [mcp:serve](../commands/mcp-serve.md): the server command and its filter flags.
+- [Migrating from fluttersdk_artisan](../getting-started/migrating-from-fluttersdk-artisan.md): replace the old `.mcp.json` entry.

@@ -16,7 +16,7 @@
 - **One expression.** The VM compiles an expression, not a program: a trailing `;`, several statements, an `import` or a declaration fail with compile error code 113. Collapse statements into a closure, `(() { var x = 1; return x + 1; })()`, or use a cascade. Dart has no comma operator.
 - **`await` compiles, but returns the Future.** When the source contains the text `await`, dowel wraps it as `(() async => <expr>)()` (`VmServiceClient.evaluate`), which the VM accepts. The RPC does not wait for the Future, so the result is a reference such as `<_Future#objects/1/0>`, never the awaited value, and an asynchronous failure is not reported either. Start the work with `await`, then read the outcome with a second synchronous expression. The check is a substring match, so the word inside a string literal triggers the wrap too.
 - **Scope is the root library**, usually `lib/main.dart`: its top-level symbols and whatever it imports, public names only. There is no `this`, no local variable and no symbol from a library the root does not import. A host app's singleton, top-level service or container lookup works as long as the root library reaches it.
-- **The main isolate is read on every call**, so a hot restart is transparent. The MCP server keeps its VM connection for the life of the process: after a device change or a `dowel_stop` and `dowel_start`, reconnect the MCP client if calls fail.
+- **The main isolate is read on every call**, so a hot restart is transparent. The MCP server drops its VM connection when the app goes away and dials the session's current URI on the next call: after a device change or a `dowel_stop` and `dowel_start`, retry, and reconnect the MCP client only if calls keep failing.
 - `dowel_tinker` is one shot with no streaming. Loop in the agent, not in the expression.
 
 ## Reading the result
@@ -38,6 +38,7 @@ The result text starts with `` # `dowel tinker` exit N ``, and `isError` is set 
 |---|---|---|
 | Compile error | `[ERROR] evaluate: (113) <compiler message>` | 1 |
 | The expression threw at runtime | `Error: <message>` | 0, so `isError` is false: read the text |
+| A blank `eval` | `--eval needs a Dart expression, e.g. --eval "1 + 1". Omit it to start the REPL.` | 1 |
 | No session | `### Error` then `Not connected to a running Flutter app. Run ...` | error |
 | A session is recorded but the VM Service is unreachable | An error result from the uncaught connect exception; the text may not start with `### Error` | error |
 

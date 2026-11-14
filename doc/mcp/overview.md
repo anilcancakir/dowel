@@ -1,10 +1,10 @@
 # MCP Integration Overview
 
-How `dowel` exposes its commands to AI clients as MCP tools: what MCP is, the ten substrate tools, the tools plugins contribute and the state file that ties a tool call to a running app.
+How `dowel` exposes its commands to AI clients as MCP tools: what MCP is, the substrate tools, the tools plugins contribute and the state file that ties a tool call to a running app.
 
 - [What is MCP](#what-is-mcp)
 - [Why MCP in dowel](#why-mcp-in-dowel)
-- [10 Substrate Tools](#substrate-tools)
+- [Substrate Tools](#substrate-tools)
 - [Plugin-Contributed Tools](#plugin-contributed-tools)
 - [State File Contract](#state-file-contract)
 - [Architecture Diagram](#architecture-diagram)
@@ -47,25 +47,26 @@ reconnect across stop-restart cycles, and structured error formatting so the mod
 
 <a name="substrate-tools"></a>
 
-## 10 Substrate Tools
+## Substrate Tools
 
-The MCP server always registers the following ten tools, derived from the dowel CLI's built-in
+The MCP server always registers the following tools, derived from the dowel CLI's built-in
 command set. Tool names are normalised from `cmd:name` to `cmd_name` so they satisfy the MCP
 identifier constraint (`[a-zA-Z][a-zA-Z0-9_]*`). These tools run in-process via the dowel
-registry; nine of them require no VM Service connection (so `dowel_start` works even before any
-Flutter app is running), while `dowel_tinker` dispatches over the VM Service and lazy-reconnects
-on first call.
+registry; all but `dowel_tinker` require no VM Service connection (so `dowel_start` works even
+before any Flutter app is running), while `dowel_tinker` dispatches over the VM Service and
+lazy-reconnects on first call. The set is registered before the handshake and never changes, so
+the server sends no `notifications/tools/list_changed`.
 
 | Tool | Maps to CLI command | Purpose |
 |:---|:---|:---|
 | `dowel_start` | `start` | Launch the Flutter app via `flutter run` and write `state.json` |
 | `dowel_stop` | `stop` | Stop the running Flutter process group, wait until it is gone, and delete `state.json` |
 | `dowel_status` | `status` | Read `state.json` and return the current process metadata as JSON |
-| `dowel_logs` | `logs` | Return the log captured from `flutter run` (`follow` tails it) |
-| `dowel_restart` | `restart` | Stop the running app and start it again, carrying the prior session's device and ports across (not the `R` hot restart, which is `dowel_hot_restart`) |
+| `dowel_logs` | `logs` | Return the whole log captured from `flutter run` in the tool result (`follow` tails it and never returns a result: use it from the CLI) |
+| `dowel_restart` | `restart` | Stop the running app and start it again, carrying the prior session's device, ports, build mode and `flutter run` arguments across unless an option changes one (not the `R` hot restart, which is `dowel_hot_restart`) |
 | `dowel_reload` | `reload` | Hot reload (sends `r` to `flutter run`) without losing widget state |
 | `dowel_hot_restart` | `hot-restart` | Hot restart (sends `R` to `flutter run`), resetting ephemeral state |
-| `dowel_doctor` | `doctor` | Run preflight checks (`flutter --version`, `dart --version`, port 3100 free, Flutter SDK 3.30.0 or newer for `--cdp-port`) and report each as pass or fail |
+| `dowel_doctor` | `doctor` | Run preflight checks (`flutter --version`, `dart --version`, port 3100 free, Flutter SDK 3.30.0 or newer for `--cdp-port`) and report each as pass or fail, then warn about a stale `.mcp.json` entry or files left by the package dowel replaced |
 | `dowel_list` | `list` | List all registered dowel commands with their signatures |
 | `dowel_tinker` | `tinker` | Evaluate Dart expression in running app via VM Service. Maps to: tinker command. Requires running app (dowel_start first). |
 
@@ -80,7 +81,7 @@ client's own file tools, or recurse into the MCP server itself.
 
 ## Plugin-Contributed Tools
 
-Beyond the ten substrate tools, plugins extend the MCP catalogue by overriding
+Beyond the substrate tools, plugins extend the MCP catalogue by overriding
 `DowelServiceProvider.mcpTools()`. The default implementation returns an empty list; plugins return
 a list of `McpToolDescriptor` instances that the MCP server collects at initialise time and registers
 alongside the substrate tools. The same `McpFilterConfig` allow/deny rules apply uniformly, so a
@@ -88,15 +89,19 @@ deny rule against a plugin tool name works identically to `tools.deny: [dowel_st
 
 Plugin tools dispatch through the VM Service (not in-process), so they require a running Flutter app.
 The MCP server lazy-reconnects on each dispatch call, meaning the agent can call `dowel_start`
-first and the very next plugin tool call picks up the new app automatically.
+first and the very next plugin tool call picks up the new app automatically. The same holds after
+the app restarts: the server drops its connection when the socket closes and dials the URI the
+session records now on the next call, so `dowel_restart` or a stop and start needs no MCP client
+reconnect. A plugin tool call that finds the connection disposed before the drop lands reconnects
+and runs once more.
 
 **Plugin registration is explicit.** The consumer's `bin/dispatcher.dart` wrapper must list each
 provider in the `baseProviders` list it passes to `runDowel(...)` (auto-discovery via
 `lib/app/_plugins.g.dart` handles this for `plugin:install`-registered packages). Consumers
 invoke `./bin/dowel mcp:serve` (post-install via `mcp:install`) or `dart run :dispatcher mcp:serve`
-(Windows / no `bin/dowel` fallback) to start the MCP server with plugins collected. The
-`bin/mcp.dart` entry point (`dart run dowel:mcp`) loads only the substrate commands without
-plugin tools.
+(Windows / no `bin/dowel` fallback) to start the MCP server with plugins collected: substrate
+tools plus every plugin's. The `bin/mcp.dart` entry point (`dart run dowel:mcp`) loads only the
+substrate tools, without plugin tools.
 
 The two sibling packages that ship production plugin tools are:
 
@@ -123,8 +128,8 @@ app's VM Service WebSocket URI. If the file is absent or lacks a `vmServiceUri` 
 stays online and registers all tools, but VM Service dispatch calls return an actionable error until
 the app is started.
 
-The state file holds one record per project: starting a second app in the same project overwrites the previous record, while another project gets a session of its own. It is
-never committed to version control (`.gitignore` / `.pubignore` exclude `.dowel/`).
+The state file holds one record per project: starting a second app in the same project overwrites the previous record, while another project gets a session of its own. It lives under your home
+directory, outside the project, so it is never committed to version control.
 
 Fields (from `lib/src/state/state_file.dart`):
 
@@ -200,5 +205,5 @@ Fields (from `lib/src/state/state_file.dart`):
 
 - [Setup guide](setup.md): install the MCP server, configure `.dowel/mcp.json`, and wire provider
   registration in `bin/dispatcher.dart`.
-- [Tool reference](tool-reference.md): per-tool input schema, example calls, and error codes for all
-  ten substrate tools, plus links to each plugin's own MCP tool reference site.
+- [Tool reference](tool-reference.md): per-tool input schema, example calls, and error codes for
+  every substrate tool, plus links to each plugin's own MCP tool reference site.

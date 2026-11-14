@@ -22,6 +22,8 @@ paths:
 
 - Editor-backed operations write through `dart:io` while staging and sit outside the `.tmp` rollback. That is why the preflight runs first: a miss after staging would leave an orphan import and no record to reverse it by.
 - The record lands before the shell operations so a failed shell step stays uninstallable.
+- A failure after an editor-backed edit returns `InstallError(rolledBack: false)` and `_failAfterHelperEdits` writes a partial record (`"partial": true`) of those edits; with no editor edit on disk, a failed `.tmp` write stays `rolledBack: true`.
+- Editor-backed operations are never a conflict (`ConflictDetector._isHelperEdit`); only whole-file writes are, and `force` skips every check.
 
 ## Idempotency
 
@@ -31,7 +33,7 @@ paths:
 
 ## Sealed hierarchies
 
-`InstallOperation` and `TransactionResult` (`Success`, `DryRun`, `Conflict`, `Error`) are sealed. Consumers use an exhaustive `switch` with no default branch, so the analyzer flags a missing case; the string-keyed `_opFromRecord` switches are not sealed switches and are not checked. A new variant means updating every dispatcher (the Change guide in ARCHITECTURE.md lists them).
+`InstallOperation` and `TransactionResult` (`InstallSuccess`, `InstallDryRun`, `InstallConflict`, `InstallError`) are sealed. Consumers use an exhaustive `switch` with no default branch, so the analyzer flags a missing case; the string-keyed `_opFromRecord` switches are not sealed switches and are not checked. A new variant means updating every dispatcher (the Change guide in ARCHITECTURE.md lists them).
 
 ## Indentation contract
 
@@ -39,11 +41,11 @@ paths:
 
 ## Reversibility
 
-`InstallTransaction` records every operation with its typed payload in `.dowel/installed/<plugin>.json`. `ManifestInstaller.reverseOf` reverses only dependency additions and file-creating operations (`WriteFile`, `PublishFile`, `CopyFile`); every other operation, including each `Inject*`, is skipped with a warning. `plugin:uninstall` then removes the plugin from `.dowel/plugins.json` and regenerates `lib/app/_plugins.g.dart`.
+`InstallTransaction` records every operation with its typed payload in `.dowel/installed/<plugin>.json`, written through `<record>.<pid>.tmp` and a rename. The record carries `version` (`installRecordVersion`, 1), `stubHashes` under project-relative forward-slash keys (`installRecordKey`) and a `preExisting` flag on each dependency addition; `readInstallRecord` refuses a record without the version or with absolute keys, which `ConflictDetector` reports as `unsupported-install-record` and `plugin:uninstall` rejects until a `--force` install rewrites it. `ManifestInstaller.reverseOf` reverses only dependency additions and file-creating operations (`WriteFile`, `PublishFile`, `CopyFile`), and `ManifestInstaller.uninstall` keeps a `preExisting` dependency; every other operation, including each `Inject*`, is skipped with a warning. `plugin:uninstall` then removes the plugin from `.dowel/plugins.json` and regenerates `lib/app/_plugins.g.dart`.
 
 ## Two install routes
 
-`PluginInstallCommand.handle` dispatches in this order:
+Before either route, a barrel that registers providers while `.dowel/plugins.json` is missing is refused (`_orphanedBarrelImports`): a missing registry reads as empty, so registering would regenerate the barrel with one plugin. Then `PluginInstallCommand.handle` dispatches in this order:
 
 1. `install.yaml` resolvable (`resolveInstallYaml(name)` returns non-null): `_runManifestFlow`, then `_registerDowelProvider`. `--use-yaml-only` turns a missing manifest into an error.
 2. No manifest and `lib/app/_plugins.g.dart` exists: `_registerDowelProvider` directly. This route writes no install record, so `plugin:uninstall` cannot reverse it. Without the scaffold the command errors toward `dowel install`; there is no wrapper-injection fallback and no third branch, so route through the existing fan-out points.

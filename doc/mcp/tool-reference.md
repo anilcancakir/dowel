@@ -1,7 +1,7 @@
 # MCP Tool Reference
 
 Catalogue of every MCP tool surfaced by `dowel` directly. The MCP server exposes
-**10 substrate tools** (always available) plus plugin-contributed tools when the matching
+the **substrate tools** (always available) plus plugin-contributed tools when the matching
 provider is registered in the consumer's `bin/dispatcher.dart`. Plugin tool catalogues live on
 each plugin's own documentation site (see [Plugin Tools](#plugin-tools) below).
 
@@ -62,9 +62,12 @@ the MCP surface).
 <a name="substrate-tools"></a>
 ## Substrate Tools
 
-The 10 substrate tools are always present when the MCP server starts. They are served
+The substrate tools are always present when the MCP server starts. They are served
 in-process: the server builds a `MapInput` from the MCP arguments, runs the dowel command
-via `BufferedOutput`, and returns the combined stdout + exit code as MCP text content.
+via `BufferedOutput`, and returns the exit code and the captured output as MCP text content,
+starting with a `` # `dowel <command>` exit N `` line; `isError` is set when `N` is not `0`.
+Every option a command declares has an input property of the same name: an option is a string, a
+flag a boolean and a repeatable option an array of strings.
 
 ### dowel_start
 
@@ -81,6 +84,9 @@ tinker) can connect to the running VM.
 | `vm-service-port` | string | `8181` | Port the VM Service binds to on the host. Change when 8181 is already taken. |
 | `dds` | boolean | `false` | Enable the Dart Development Service (DDS) proxy. Set `true` when a tool requires DDS-only features. |
 | `profile-static` | boolean | `false` | Run a device (Android, iOS, desktop) with `flutter run --profile`: release-like performance, no hot reload. On `chrome` it only tags the session, because a web profile build has no VM Service. |
+| `cdp-port` | string | (none) | Chrome DevTools Protocol port (numeric string). Pre-launches Chrome with `--remote-debugging-port=N` and runs Flutter on `-d web-server`; needed by the plugin tools that resize or emulate a device. Omit for a plain start. |
+| `timeout` | string | `90` | Seconds to wait for the VM Service URI (numeric string). Raise it for a cold native build. |
+| `flutter-arg` | array of strings | (none) | Extra arguments forwarded verbatim to `flutter run`, one per item (for example `["--dart-define=KEY=VALUE", "--flavor=dev"]`). Forwarded last, so a repeated flag overrides the default this tool chose. Carried across a restart. |
 
 ### dowel_stop
 
@@ -113,12 +119,15 @@ No parameters.
 
 Maps to dowel command: `logs`
 
-Returns the log captured from the Flutter process since this project's session started. Use
-this to see compilation errors, framework warnings, and `print()` output from the app.
+Returns the log captured from the Flutter process since this project's session started, in
+the text of the tool result (after the `` # `dowel logs` exit 0 `` header). Use this to see
+compilation errors, framework warnings, and `print()` output from the app. The command writes
+through its captured output, never straight to the server's stdout, which is the JSON-RPC channel.
+It answers with `isError` and a warning when no log exists yet.
 
 | Parameter | Type | Default | Description |
 |:---|:---|:---|:---|
-| `follow` | boolean | `false` | When `true`, tail the live log stream until the client disconnects (`-f` on the CLI). When `false`, return the whole captured log and exit immediately. |
+| `follow` | boolean | `false` | When `false`, return the whole captured log and exit immediately. When `true`, tail the live log (`-f` on the CLI) until it is interrupted; a tool call answers only when the command ends, so a tool call with `follow: true` never returns a result. Use `follow` from the CLI. |
 
 ### dowel_restart
 
@@ -129,7 +138,18 @@ relaunch carries the prior session's device, web port, VM Service port, CDP port
 values and profile build mode across. The Dart process is new, so all in-memory state is lost.
 For the `R` keypress, use [dowel_hot_restart](#dowel_hot_restart).
 
-No parameters.
+Every parameter is optional; an omitted one keeps the value of the prior `dowel_start`, so a
+restart can change one setting and keep the rest. The MCP server reconnects to the new app on the
+next call that needs the VM Service.
+
+| Parameter | Type | Description |
+|:---|:---|:---|
+| `device` | string | Flutter device id. Omit to keep the prior session's device. |
+| `port` | string | Web port (numeric string). Omit to keep the prior port. |
+| `vm-service-port` | string | Host VM Service port (numeric string). Omit to keep the prior port. |
+| `cdp-port` | string | Chrome DevTools Protocol port (numeric string). Omit to keep the prior port. |
+| `profile-static` | boolean | Profile build on a device. Omit to keep the prior build mode; `false` forces a debug build. |
+| `flutter-arg` | array of strings | Extra arguments forwarded verbatim to `flutter run`. Omit to keep the prior session's arguments; passing any replaces the whole carried set. |
 
 ### dowel_reload
 
@@ -160,9 +180,9 @@ Maps to dowel command: `doctor`
 
 Runs four preflight checks, each reported as pass or fail: `flutter --version`,
 `dart --version`, port 3100 free, and a Flutter SDK of 3.30.0 or newer (needed for
-`--cdp-port`). It also prints advisory warnings for a stale `.mcp.json` entry and an SDK too
-old for CDP commands; those never change the exit code. Run this first when `dowel_start`
-fails unexpectedly.
+`--cdp-port`). It also prints advisory warnings for a stale `.mcp.json` entry, files left by
+the package dowel replaced, and an SDK too old for CDP commands; those never change the exit
+code. Run this first when `dowel_start` fails unexpectedly.
 
 No parameters.
 
@@ -190,6 +210,9 @@ expression runs in the foreground isolate's root library scope and is passed thr
 |:---|:---|:---|:---|
 | `eval` | string | (required) | Dart expression to evaluate in the running app's root library (e.g. `User.current.name`, `MonitorController.instance.refresh()`, `1+1`). Runs synchronously in the foreground isolate; the formatted result returns as text. |
 
+A blank `eval` is a usage error (exit `1`, `--eval needs a Dart expression`): it never starts the
+REPL, which would read the JSON-RPC channel on stdin.
+
 ---
 
 <a name="plugin-tools"></a>
@@ -198,7 +221,8 @@ expression runs in the foreground isolate's root library scope and is passed thr
 Plugin tools are contributed by sibling packages via `DowelServiceProvider.mcpTools()`.
 They surface in the MCP server only when the corresponding provider is registered in the
 consumer's `bin/dispatcher.dart` and the MCP server is restarted (run `./bin/dowel mcp:serve` or
-`dart run :dispatcher mcp:serve` on Windows or when `bin/dowel` is absent).
+`dart run :dispatcher mcp:serve` on Windows or when `bin/dowel` is absent). Both entries serve the
+substrate tools plus the plugin tools; `dart run dowel:mcp` serves the substrate tools only.
 
 Each plugin tool dispatches over a `ext.<domain>.*` VM Service extension registered by the
 plugin inside the running Flutter app.
@@ -255,7 +279,7 @@ and union for deny lists.
 
 ### Layer 1: `.dowel/mcp.json`
 
-Place this file in the project root (next to `bin/dispatcher.dart`):
+Place this file in the project root (next to `bin/dispatcher.dart`); the server reads it relative to its working directory. Commit it: only the AOT cache under `.dowel/` is gitignored.
 
 ```json
 {

@@ -55,7 +55,7 @@ IMMEDIATE methods run synchronously the moment they appear in the chain. They do
 | `confirm(...)` | Drives `InstallContext.prompt.confirm(...)`; stores `'true'` or `'false'` |
 | `choice(...)` | Drives `InstallContext.prompt.choice(...)`; stores the selected option |
 | `startWith(hook)` | Registers a pre-commit callback (fires before op dispatch, every outcome) |
-| `endWith(hook)` | Registers a post-Success callback (skipped on `DryRun`/`Conflict`/`Error`) |
+| `endWith(hook)` | Registers a post-success callback (skipped on `InstallDryRun`, `InstallConflict` and `InstallError`) |
 
 Captured answers are readable via `installer.vars['key']` immediately, allowing the chain to
 branch on user input before enqueuing ops.
@@ -151,9 +151,8 @@ optional in Dart and both are in use: `(app) => XServiceProvider(app),` and
 
 **A pattern injection that matches nothing fails the install, before anything is written.** The
 transaction checks every `InjectBeforePattern` and `InjectAfterPattern` against its target file ahead
-of the stage loop and returns `Error` naming every offending op. Before this they wrote nothing and
-the install reported Success, so a plugin whose pattern did not fit the host's file registered nothing
-and said nothing about it.
+of the stage loop and returns `InstallError` naming every offending op. A pattern that does not fit
+the host's file is therefore never a silent success that registered nothing.
 
 The check is a preflight rather than an in-loop failure because helper-backed ops write through
 `dart:io` during staging, outside the `.tmp` rollback, and the install record `plugin:uninstall` reads
@@ -177,8 +176,8 @@ primary rather than accept the fallback, which is what the trailing-comment tole
 
 `install.yaml` has no pattern-injection op at all (see the manifest schema), so `fallbackPattern` is
 a property of the Dart DSL only. The install record persists `pattern` through `toString()` and
-neither pattern op has a reverse in V1, so `plugin:uninstall` logs `[skipped]` for both and reads
-neither field.
+neither pattern op has a reverse, so `plugin:uninstall` logs both as skipped and reads neither
+field.
 
 ### Android Operations
 
@@ -271,7 +270,7 @@ build configurations, and sets the key in each of them. The build settings stay 
   edits `<platform>/Runner.xcodeproj/project.pbxproj`.
 - A `List<String>` value is merged into the array the file already carries, entry by entry, so entries
   another plugin or the app put there survive. A value of any other type fails the install with an
-  `Error`.
+  `InstallError`.
 
 All of these writes are helper-backed, so none is covered by the transaction's `.tmp` rollback. Plan
 for that when you stage this op.
@@ -291,7 +290,7 @@ that already landed:
   which is why they warn alike: the file is one Xcode can open, so setting the build setting there by
   hand works.
 
-A `project.pbxproj` that is not a valid project file at all still fails the install with an `Error`,
+A `project.pbxproj` that is not a valid project file at all still fails the install with an `InstallError`,
 and the project file is left untouched in every one of these cases.
 
 ### Web Operations
@@ -314,7 +313,7 @@ and the project file is left untouched in every one of these cases.
 | `runShell(command:, [args:, workingDir:])` | DEFERRED | Enqueues a `RunShell` op that executes after all file mutations have landed |
 | `askToRunShell(prompt:, command:, [args:])` | HYBRID | Prompts immediately; enqueues `RunShell` only when the user confirms |
 
-Shell ops execute after all file mutations have landed. Non-zero exit surfaces as `Error`; the
+Shell ops execute after all file mutations have landed. Non-zero exit surfaces as `InstallError`; the
 install record from the preceding phase stays on disk so `plugin:uninstall` can reverse file
 mutations independently.
 
@@ -323,30 +322,51 @@ mutations independently.
 | Method | Phase | Description |
 |:---|:---|:---|
 | `startWith(hook)` | IMMEDIATE (registration); fires pre-commit | `void Function(InstallContext)` invoked before op dispatch, on every outcome |
-| `endWith(hook)` | IMMEDIATE (registration); fires post-Success only | Invoked after `Success`; never fires on `DryRun`, `Conflict`, or `Error` |
+| `endWith(hook)` | IMMEDIATE (registration); fires post-success only | Invoked after `InstallSuccess`; never fires on `InstallDryRun`, `InstallConflict` or `InstallError` |
 
 ---
 
 <a name="atomic-commit-semantics"></a>
 ## Atomic Commit Semantics
 
-`commit()` delegates to `InstallTransaction.commit()` (see
-`lib/src/installer/install_transaction.dart:132-234`), which executes in seven phases:
+`commit()` delegates to `InstallTransaction.commit()`, which returns an `InstallSuccess`,
+`InstallDryRun`, `InstallConflict` or `InstallError` (a `sealed` hierarchy, so a `switch` over a
+`TransactionResult` needs no default branch). It executes in these phases:
 
-1. **Dry-run short-circuit** (line 144): `dryRun: true` renders staged ops and returns `DryRun`
+1. **Dry-run short-circuit**: `dryRun: true` renders staged ops and returns `InstallDryRun`
    without touching disk.
-2. **Conflict pre-flight** (line 152): detects user-modified target files. `force: true` bypasses.
-3. **In-memory staging** (line 162): ops are reduced into `Map<String, String?>` where `null`
-   marks a delete. No disk writes yet.
-4. **Atomic `.tmp` writes** (line 173): each non-null entry is written to `<absPath>.tmp`. If any
-   write throws, all successful temps are deleted and the method returns `Error(rolledBack: true)`.
-5. **Rename into place** (line 193): `.tmp` files are renamed over their targets; deletes are
-   applied. POSIX `rename(2)` is atomic, so readers never see partial state. Failures past this
-   point surface as `Error(rolledBack: false)`.
-6. **Install record** (line 213): `.dowel/installed/<plugin>.json` is written BEFORE shell ops
-   so the install is always reversible even when a shell step fails later.
-7. **Shell ops** (line 228): `RunShell` ops execute last. A non-zero exit returns `Error`; the
-   record from phase 6 stays intact.
+2. **Conflict pre-flight**: detects user-modified target files and returns `InstallConflict`, which
+   lists each file with its reason. `force: true` bypasses it, and with it every other conflict
+   check. Files an editor changes (the pubspec, native manifests, `main.dart`, `.env`) are never a
+   conflict; whole-file writes still are.
+3. **Pattern preflight**: every pattern injection must resolve against its target file, or the
+   install returns `InstallError` before anything is staged.
+4. **In-memory staging**: ops are reduced into `Map<String, String?>` where `null` marks a delete.
+   Editor-backed ops (dependencies, injections, native files) write to disk here, through
+   `dart:io`, outside the `.tmp` rollback.
+5. **Atomic `.tmp` writes**: each non-null entry is written to `<absPath>.<pid>.tmp`. If any write
+   throws, all successful temps are deleted and the method returns `InstallError(rolledBack: true)`.
+   When an editor-backed op already changed a file in phase 4, nothing of that is rolled back: the
+   result says `rolledBack: false` and a partial install record (`"partial": true`) lists the edits
+   that landed.
+6. **Rename into place**: `.tmp` files are renamed over their targets; deletes are applied. POSIX
+   `rename(2)` is atomic, so readers never see partial state. Failures past this point surface as
+   `InstallError(rolledBack: false)`.
+7. **Install record**: `.dowel/installed/<plugin>.json` is written, through a temp file and a
+   rename, BEFORE shell ops so the install is reversible even when a shell step fails later. A
+   failure to write it returns `InstallError` naming the record, with every file already in place.
+8. **Shell ops**: `RunShell` ops execute last. A non-zero exit returns `InstallError`; the record
+   from phase 7 stays intact.
+
+### The install record
+
+The record carries `"version": 1`, the content hash of every file the install wrote under
+project-relative, forward-slash keys (`stubHashes`), and every operation with its typed payload. A
+dependency addition also carries `preExisting`, true when the project declared that dependency
+before the install: `addDependency` leaves such an entry as it is, and `plugin:uninstall` never
+removes it. A record without a version, or one with absolute keys, is not read: the next install
+reports an `unsupported-install-record` conflict, and `plugin:uninstall` refuses it. Re-run the
+install with `--force` once to rewrite it.
 
 ### One-shot guard
 
@@ -354,11 +374,14 @@ mutations independently.
 `StateError` regardless of the first call's outcome. Construct a fresh `PluginInstaller` per
 install pass.
 
-### V1 reversibility
+### Reversibility
 
-`plugin:uninstall` reverses `WriteFile`, `DeleteFile`, and `CopyFile` (hash-verified). Injection
-ops and helper-backed ops (pubspec, native, web, env) log `[skipped]` in V1. V1.1 will introduce
-anchor-bracket markers for reversible injections.
+`plugin:uninstall` reverses the operations that create files (`WriteFile`, `PublishFile`,
+`CopyFile`, hash-verified) and the dependency additions (`AddDependency`, `AddPathDependency`) the
+project did not already declare. Every other operation (each `Inject*`, `AddPubspecAsset`,
+`MergeJson`, `RemoveDependency`, `DeleteFile`, `RunShell`) is logged as skipped: reverse those edits
+by hand. It then removes the plugin from `.dowel/plugins.json` and regenerates
+`lib/app/_plugins.g.dart`.
 
 ---
 
@@ -420,7 +443,12 @@ class AnalyticsInstallCommand extends DowelInstallCommand {
         command: 'flutter', args: ['pub', 'get']);
 
     final result = await installer.commit(dryRun: isDryRun(ctx), force: isForce(ctx));
-    return switch (result) { Success() => 0, DryRun() => 0, Conflict() => 1, Error() => 2 };
+    return switch (result) {
+      InstallSuccess() => 0,
+      InstallDryRun() => 0,
+      InstallConflict() => 1,
+      InstallError() => 2,
+    };
   }
 }
 ```

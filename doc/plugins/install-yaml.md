@@ -27,31 +27,37 @@ Canonical schema for the declarative `install.yaml` manifest consumed by `plugin
 
 `install.yaml` is the declarative manifest that drives `plugin:install`'s manifest flow. The file is parsed by `ManifestParser` (`lib/src/installer/manifest_parser.dart`) into a typed `InstallManifest` (`lib/src/installer/install_manifest.dart`) and consumed by `ManifestInstaller`, which translates each section into deferred `InstallOperation`s on the `PluginInstaller` transaction. Nothing writes to disk until `commit(dryRun:, force:)` fires.
 
-The schema is intentionally tolerant: every section except `plugin_name` is optional, every section factory returns a sensible empty default when absent, and partial manifests parse cleanly. Schema violations raise `ManifestValidationException`; raw YAML syntax errors raise `FormatException`.
+The schema is tolerant of absence but not of surprises: every section except `plugin_name` is optional, every section factory returns a sensible empty default when absent, and partial manifests parse cleanly. A top-level key that is not in the table below is rejected, because it comes from a manifest written for a later dowel and skipping it would install the sections this version knows and report success. Schema violations raise `ManifestValidationException`; raw YAML syntax errors raise `FormatException`.
 
 <a name="top-level-fields"></a>
 ## Top-Level Fields
 
-| Field | Type | Required | Default | Source |
-|:---|:---|:---|:---|:---|
-| `plugin_name` | string | yes | (none) | `manifest_parser.dart:112` |
-| `dependencies` | map | no | empty | `manifest_parser.dart:124` |
-| `publish` | map | no | empty | `manifest_parser.dart:127` |
-| `json_merge` | map | no | empty | `manifest_parser.dart:128` |
-| `magic` | map | no | empty | `manifest_parser.dart:129` |
-| `native` | map | no | empty | `manifest_parser.dart:132` |
-| `env` | map | no | empty | `manifest_parser.dart:135` |
-| `prompts` | list | no | empty | `manifest_parser.dart:136` |
-| `placeholders` | map | no | empty | `manifest_parser.dart:137` |
-| `post_install` | map | no | empty | `manifest_parser.dart:138` |
-| `bootstrap_command` | string | no | `null` | `manifest_parser.dart:141` |
+| Field | Type | Required | Default |
+|:---|:---|:---|:---|
+| `plugin_name` | string | yes | (none) |
+| `dependencies` | map | no | empty |
+| `publish` | map | no | empty |
+| `json_merge` | map | no | empty |
+| `magic` | map | no | empty |
+| `native` | map | no | empty |
+| `env` | map | no | empty |
+| `prompts` | list | no | empty |
+| `placeholders` | map | no | empty |
+| `post_install` | map | no | empty |
+| `bootstrap_command` | string | no | `null` |
+
+An unknown top-level key makes the parse fail with a `ManifestValidationException` that names every unknown key, the manifest path and the running dowel version, so `plugin:install` reports it and writes nothing:
+
+```text
+<path>/install.yaml has unknown top-level key "native_extra". The manifest may need a newer dowel than the running <dowel version>: upgrade dowel, or remove the key if it is a typo.
+```
 
 <a name="plugin_name"></a>
 ## plugin_name
 
 The plugin's pubspec package name. Used to scope `.dowel/installed/<plugin>.json` reversibility records, the `plugins.json` registry entry, and the generated `lib/app/_plugins.g.dart` import line.
 
-**Validation regex** (`manifest_parser.dart:31`):
+**Validation regex:**
 
 ```
 ^[a-z_][a-z0-9_]*$
@@ -75,6 +81,8 @@ Pubspec mutations. The `dependencies:` map (note the YAML key is plural, but the
 | `pubspec_assets` | `List<String>` | Paths appended under `flutter.assets:` |
 
 Empty maps and missing keys are interchangeable; both produce an empty `PubspecDeps`.
+
+A dependency the consumer's pubspec already declares under the same section keeps its constraint, whatever the manifest says. The install record marks it `preExisting`, and `plugin:uninstall` leaves it in place; it removes only the dependencies the install added.
 
 ```yaml
 dependencies:
@@ -130,7 +138,7 @@ Magic-framework integration block. Every slot is optional; the section defaults 
 | `config_factory` | string | `injectConfigFactory(name)` |
 | `routes` | string | `injectRoute(name)` |
 
-**Validation regex** for `provider` (`manifest_parser.dart:34`):
+**Validation regex** for `provider`:
 
 ```
 ^[A-Z][A-Za-z0-9]*$
@@ -201,7 +209,7 @@ native:
 | `info_plist` | `Map<String, Object>` | Values may be String, bool, num, or List. Runtime-type branching happens in the dispatcher. |
 | `url_schemes` | `List<String>` | Custom URL schemes registered under `CFBundleURLTypes`, written without the `://` suffix. One `CFBundleURLTypes` dict (role `Editor`) is appended per scheme; a scheme any existing dict already lists is skipped. |
 | `entitlements` | `Map<String, Object>` | Values may be String, bool, or a list of strings. Written to every entitlements file the application target signs with; see below. |
-| `podfile.platform_version` | string (optional) | Informational in v1: no chain method consumes it yet. |
+| `podfile.platform_version` | string (optional) | Informational: no chain method consumes it. |
 | `podfile.pods` | `List<String>` | Pod declarations appended to `target 'Runner'`. |
 
 ```yaml
@@ -251,7 +259,7 @@ Environment variables to inject into the consumer's `.env`. Map of var name to s
 | Field | Type | Required | Notes |
 |:---|:---|:---|:---|
 | `default` | scalar | yes | Default value written into `.env`. Coerced via `toString()`. Missing raises `FormatException('env entry missing required "default".')`. |
-| `comment` | string | no | Advisory documentation. The v1 dispatcher does NOT emit the comment into the `.env` file. |
+| `comment` | string | no | Written as a `# <comment>` line above the key when the key is added to `.env`. |
 
 Non-map entries raise `FormatException('env entry "<key>" must be a map with "default" + optional "comment"; got <type>.')`.
 
@@ -289,7 +297,7 @@ prompts:
 
 Map of placeholder key to value template. Values may reference prompt answers via `{{ prompts.KEY }}`. Whitespace around the dotted reference is optional, so `{{prompts.x}}` and `{{ prompts.x }}` are both accepted.
 
-**Reference regex** (`manifest_parser.dart:39`):
+**Reference regex:**
 
 ```
 \{\{\s*prompts\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}
@@ -312,7 +320,7 @@ Post-install shell operations plus a final info message. Every sub-field is opti
 |:---|:---|:---|
 | `run` | `List<{cmd, args?}>` | Shell commands run unconditionally at commit phase. `cmd` is required; missing raises `FormatException('Shell spec missing required "cmd".')`. |
 | `ask_to_run` | `List<{prompt, cmd, args?}>` | Shell commands run only after user confirmation. The prompt fires immediately at install time; on yes the shell call is deferred. Missing `prompt` or `cmd` raises `FormatException('ask_to_run entry requires "prompt" and "cmd" strings.')`. |
-| `message` | string | Optional info message emitted after a Success result. |
+| `message` | string | Optional info message emitted after an `InstallSuccess` result. |
 
 ```yaml
 post_install:
@@ -330,7 +338,7 @@ post_install:
 <a name="bootstrap_command"></a>
 ## bootstrap_command
 
-Optional plugin-specific bootstrap command name AUTO-RUN after a Success result. On a non-dry-run install, once the plugin is registered (`plugins.json` + `lib/app/_plugins.g.dart` regenerated), `plugin:install` spawns the declared command as a fresh dispatcher subprocess so the just-registered plugin command actually executes. The chained command is a plugin command that was only just written to `_plugins.g.dart`, so it is not loaded in the current process; a subprocess is the only way to reach it.
+Optional plugin-specific bootstrap command name AUTO-RUN after an `InstallSuccess` result. On a non-dry-run install, once the plugin is registered (`plugins.json` + `lib/app/_plugins.g.dart` regenerated), `plugin:install` spawns the declared command as a fresh dispatcher subprocess so the just-registered plugin command actually executes. The chained command is a plugin command that was only just written to `_plugins.g.dart`, so it is not loaded in the current process; a subprocess is the only way to reach it.
 
 Dispatcher resolution:
 
@@ -344,8 +352,6 @@ Override and opt-out:
 
 - `--bootstrap-command=<name>` on the `plugin:install` invocation overrides the manifest value (the override command runs instead of the declared one).
 - `--no-bootstrap` skips the auto-run entirely; the command falls back to printing the hint.
-
-This was hint-only before `0.0.9`: prior versions only printed `Bootstrap with: dowel <name>` and never executed the command.
 
 ```yaml
 bootstrap_command: example:install

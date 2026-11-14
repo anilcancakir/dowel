@@ -11,7 +11,7 @@ dowel setup with a plugin installed and a custom command registered.
 - [What's next?](#whats-next)
 - [Related Documentation](#related-documentation)
 
-Prerequisites: Dart 3.4+ SDK, a Flutter project with a valid `pubspec.yaml`, and
+Prerequisites: Dart 3.13 or newer, a Flutter project with a valid `pubspec.yaml`, and
 `flutter pub get` already run so `.dart_tool/package_config.json` is present.
 
 ---
@@ -129,7 +129,7 @@ namespace: commands without a `:` come first with no heading, and each `:` prefi
 dart run dowel list
 ```
 
-A clean setup shows the 22 built-in commands: 12 without a namespace (`start`,
+A clean setup shows the built-in commands: the ones without a namespace (`start`,
 `stop`, `status`, `logs`, `restart`, `reload`, `hot-restart`, `doctor`, `list`,
 `help`, `install`, `tinker`) listed first, then the namespaced ones under the
 headings `commands`, `make`, `mcp`, `plugin` and `plugins`. Your `hello-world`
@@ -147,8 +147,8 @@ appear under the heading of the prefix before the `:` in their names.
 
 ---
 
-All five commands shown above are part of the `dowel` built-in command
-set and require no additional packages beyond the initial `dart pub add` in step 1.
+Every command shown above is part of the `dowel` built-in command
+set and requires no additional packages beyond the initial `dart pub add` in step 1.
 Plugin commands contributed by third-party packages appear in `dowel list` under
 their own namespace after `plugin:install` completes.
 
@@ -157,3 +157,4 @@ their own namespace after `plugin:install` completes.
 
 - [Installation](installation.md): requirements and the project scaffold.
 - [Plugin Authoring](../plugins/authoring.md): write a plugin of your own.
+- [Migrating from fluttersdk_artisan](migrating-from-fluttersdk-artisan.md): move an app that runs the old package.

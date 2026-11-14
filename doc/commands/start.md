@@ -71,7 +71,7 @@ The command returns as soon as all of it is gone (about 15 seconds at worst per 
 <a name="state-file"></a>
 ## State File
 
-`start` writes the session atomically, once as soon as the child PIDs are known and again when the VM Service URI lands. The schema (from `lib/src/state/state_file.dart:13-24`):
+`start` writes the session atomically, once as soon as the child PIDs are known and again when the VM Service URI lands. The schema (from `lib/src/state/state_file.dart`):
 
 ```json
 {
@@ -163,7 +163,7 @@ Allows up to 180 seconds for the VM Service URI to appear in the log. Use this w
 **VM Service URI never appears (timeout).** When `--timeout` runs out before the URI shows up in the log, `start` checks whether `flutter run` is still alive.
 
 - **Still running (exit 75).** A first native build (CocoaPods, SwiftPM, Gradle) routinely takes longer than 90 seconds, and the app keeps building after `start` returns. `start` prints `flutter run (pid <n>) is still building after <n>s ...` and exits `75` (`EX_TEMPFAIL`, `DowelCommand.exitTryAgain`), so a script can tell "not ready yet" from a failure. The session stays recorded with `booting: true`; `status` shows it, and the next connected command reads the URI from the log once the build finishes. A connected command run before that point also exits `75` while the recorded `flutter run` is alive, so a script can retry on the one code until it succeeds. Pass `--timeout=600` to make `start` itself wait for a cold build.
-- **Exited (exit 1).** `flutter run` died before announcing a URI, almost always a build or launch error. `start` prints `flutter run (pid <n>) exited before announcing a VM Service URI` with the log path, stops the FIFO holder and removes the session (the log stays), so `status` does not report a dead app as booting. Common causes in `~/.dowel/sessions/<hash>/flutter-dev.log`: a wrong `--device` value, a missing `CHROME_EXECUTABLE` env var in headless environments, or a compile error in the app's entry point.
+- **Exited (exit 1).** `flutter run` died before announcing a URI, almost always a build or launch error. `start` prints `flutter run (pid <n>) exited before announcing a VM Service URI` with the log path, stops the FIFO holder and removes the session (the log stays), so `status` does not report a dead app as booting. Common causes in `~/.dowel/sessions/<hash>/flutter-dev.log`: a wrong `--device` value, a missing `CHROME_EXECUTABLE` env var on a machine with no display (a CI runner, a container), or a compile error in the app's entry point.
 
 On the `--cdp-port` branch a timeout still fails the start with exit 1 and reaps Chrome and the flutter tool, since a web build has no long native phase to wait out.
 

@@ -12,7 +12,7 @@ The substrate tools are the builtin commands in `_safeDowelCommandNames` (`lib/s
 ## Result envelope
 
 - A substrate tool returns text that starts with `` # `dowel <cmd>` exit N ``, then the command's captured output: errors as `[ERROR] <message>`, warnings after the data. `isError` is true when `N` is not 0, so exit 75 ("not ready, retry") arrives as an error: retry it.
-- Only the captured output reaches the result. Anything a command writes straight to the process stdout never does (see `dowel_logs`).
+- Only the captured output reaches the result, so a command writes through its output object: under `mcp:serve` the process stdout is the JSON-RPC channel, and a raw write there corrupts the stream.
 - Failures on the MCP side (no session, a failed connect for a plugin tool, an uncaught exception inside a command) return `### Error`, then the message, with `isError: true`; an uncaught exception inside a command adds a stack trace. A failed VM Service connect for `dowel_tinker` is not caught by that handler, so its error result can omit the `### Error` prefix. Application failures never become JSON-RPC protocol errors; those arise only for a malformed call.
 - Plugin tools and `dowel_tinker` with no usable session answer with the `### Error` texts in the Recovery table of `SKILL.md`.
 
@@ -22,21 +22,21 @@ Boot mode is `none` for every tool except `dowel_tinker` (`connected`).
 
 | Tool | Behaviour the description omits |
 |---|---|
-| `dowel_start` | Spawns `flutter run` and records the session; it never checks for an existing one. `--cdp-port`, `--timeout` and `--flutter-arg` are CLI-only: pass a define with `./bin/dowel start --flutter-arg=--dart-define=K=V`, and `restart` carries it. Success lines: `flutter run pid=<n>`, `vmServiceUri=<ws>`, `state=<path>`, `log=<path>`. Exit 75 while the build is still running. |
+| `dowel_start` | Spawns `flutter run` and records the session; it never checks for an existing one. It takes every option `start` takes: `cdp-port` and `timeout` are numeric strings, `flutter-arg` is an array of strings (`["--dart-define=K=V"]`) and `restart` carries it. Success lines: `flutter run pid=<n>`, `vmServiceUri=<ws>`, `state=<path>`, `log=<path>`. Exit 75 while the build is still running. |
 | `dowel_stop` | Stops the app and deletes the session. On an Android serial it also runs `adb shell am force-stop`. If it cannot kill the app it keeps the session and exits 1. Refuses a session owned by another project. |
-| `dowel_restart` | Takes no arguments over MCP. It stops, then starts with the prior session's device, ports, `flutterArgs` and build mode; to change device use `dowel_stop`, then `dowel_start { device }`. |
+| `dowel_restart` | Stops, then starts with the prior session's device, ports, `flutterArgs` and build mode. It takes `device`, `port`, `vm-service-port`, `cdp-port`, `profile-static` and `flutter-arg`: an omitted one keeps the prior value, so pass only the setting to change (`profile-static: false` forces a debug build; any `flutter-arg` replaces the whole carried set). |
 | `dowel_reload`, `dowel_hot_restart` | Write `r` or `R` into the FIFO and exit 0 once the keystroke is written, before Flutter finishes: read the log for the effect. Exit 2 when the pipe is missing or the session has no `stdinPipe`. |
 | `dowel_status` | JSON with `running`, `pid`, `alive`, `vmServiceUri`, `device`, `webPort`, `startedAt`, `projectRoot`, `ownedByThisProject` and, while booting, `booting`. `{"running": false}` means no session and no pointer. A pointer to another project's app gives `running: true, ownedByThisProject: false`, with a warning after the JSON. |
-| `dowel_logs` | Writes the log to the server's own stdout, which is the MCP transport, so the result carries only the header and the bytes can corrupt the stream. `follow: true` never returns. Read the log with the Read tool at `~/.dowel/sessions/<hash>/flutter-dev.log`, or run `./bin/dowel logs` from a shell. |
+| `dowel_logs` | Returns the whole captured log in the result text, after the header. `follow: true` never returns a result, because a tool call answers only when the command ends: follow the log with `./bin/dowel logs --follow` from a shell. With no log yet it answers `Log file not found at <path>` with exit 1. |
 | `dowel_doctor` | The hard checks (`flutter --version`, `dart --version`, port 3100 free, Flutter SDK 3.30.0 or newer for `--cdp-port`); exit 1 if one fails. Advisory `WARN:` lines, such as an old MCP entry, do not change the exit code. |
 | `dowel_list` | The command catalogue; plugin namespaces appear only through the dispatcher entry. |
-| `dowel_tinker` | The only `connected` tool; see `tinker-eval.md`. It runs no session ownership check. |
+| `dowel_tinker` | The only `connected` tool; see `tinker-eval.md`. It runs no session ownership check. A blank `eval` is a usage error (exit 1), never the REPL. |
 
 ## Plugin tools
 
 Plugin tools live in plugin packages and load only through the dispatcher entry (`./bin/dowel mcp:serve` or `dart run :dispatcher mcp:serve`). They are not substrate tools and are called through the VM Service extension the plugin registered at app boot; `tapir_evaluate` goes through `evaluate` directly. The `tapir` and `crumbs` skills document the tools of those plugins.
 
-Once connected, the server keeps that client until it shuts down. After a `dowel_stop` and `dowel_start`, or a device change, reconnect the MCP client if connected calls fail. No plugin tool checks session ownership, so in a worktree without its own session they act on whatever `~/.dowel/state.json` names.
+Once connected, the server keeps that client until the app goes away: it then drops the client and dials the session's current URI on the next call, so a `dowel_stop` and `dowel_start`, a `dowel_restart` or a device change needs no MCP client reconnect (reconnect only if calls keep failing). No plugin tool checks session ownership, so in a worktree without its own session they act on whatever `~/.dowel/state.json` names.
 
 ## Filter
 

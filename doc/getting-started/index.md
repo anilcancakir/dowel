@@ -14,6 +14,8 @@ the MCP server into your AI client.
 - [**Quickstart**](quickstart.md): 5-step end-to-end walkthrough from install to first running command.
 - [**MCP setup**](../mcp/setup.md): Wire the dowel MCP server into Claude Code, Cursor, Windsurf,
   or another AI client.
+- [**Migrating from fluttersdk_artisan**](migrating-from-fluttersdk-artisan.md): Move an app that
+  runs the old package onto dowel, and what `install` and `doctor` detect on the way.
 
 <a name="what-is-dowel"></a>
 ## What is dowel?
@@ -24,8 +26,8 @@ binary." That description captures what it ships today: a single binary that cov
 lifecycle of a Flutter project from initial scaffold through live inspection by an AI agent, without
 stitching together a collection of separate tools.
 
-Built on pure Dart 3.4+ with no Flutter runtime dependency, `dowel` runs as a plain VM
-process and ships 22 built-in commands across six groups: consumer setup, plugin lifecycle, code
+Built on pure Dart with no Flutter runtime dependency, `dowel` runs as a plain VM
+process and ships built-in commands in six groups: consumer setup, plugin lifecycle, code
 generators, dev-loop orchestration, inspection, and MCP server management. The plugin system extends
 this catalogue via `DowelServiceProvider` subclasses, so teams can bundle project-specific commands
 alongside the built-ins and install them into any consumer project with a single `plugin:install`
@@ -45,3 +47,4 @@ contract, and the same binary entry point.
 
 - New here? Start with [Installation](installation.md).
 - Already installed? Run the [Quickstart](quickstart.md).
+- Coming from `fluttersdk_artisan`? Follow [Migrating from fluttersdk_artisan](migrating-from-fluttersdk-artisan.md).

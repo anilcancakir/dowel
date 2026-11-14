@@ -65,14 +65,15 @@ All four flags are **repeatable**. Each can also be set via environment variable
 
 The server does **not** require a running Flutter app at startup. When
 the session is absent or contains no `vmServiceUri`, initialisation
-completes normally: all tools register and the server stays online
-(source: `mcp_server.dart:137-149`).
+completes normally: all tools register and the server stays online.
+The tools are registered before the handshake and never change, so the server sends no
+`notifications/tools/list_changed`.
 
 Tool calls that need the VM Service attempt a **lazy reconnect** on first
-invocation (source: `mcp_server.dart:228-256`):
+invocation:
 
-- Dispatch checks whether `_vmClient` is null.
-- If null, a single shared in-flight future reads the session,
+- Dispatch checks whether the server holds a VM Service client.
+- If it holds none, a single shared in-flight future reads the session,
   connects the WebSocket, and captures the main isolate ID.
 - Concurrent calls that arrive during the reconnect await the same future,
   preventing a client-leak race.
@@ -80,7 +81,12 @@ invocation (source: `mcp_server.dart:228-256`):
   `Run dowel start to launch the Flutter app, then retry the tool call.`
 - The guard clears in `finally` so the next call retries cleanly.
 
-**Note:** the server does NOT auto-reload filter configuration in V1. After editing
+The same path covers an app that restarts. When the app stops, `dowel_restart` runs or a stop
+is followed by a start, the connection closes and the server drops its client; the next call
+dials the URI the session records at that moment. A plugin tool call that finds the connection
+disposed before the drop lands reconnects once and runs again. No MCP client reconnect is needed.
+
+**Note:** the server does not reload its filter configuration on its own. After editing
 `.dowel/mcp.json` or any `DOWEL_MCP_*` env var, run `/mcp reconnect dowel`
 in Claude Code (or restart the server process in other clients) to apply the change.
 
@@ -90,7 +96,7 @@ in Claude Code (or restart the server process in other clients) to apply the cha
 ## 3-Layer Filter
 
 Tool visibility is controlled by three layers using **Cargo-style precedence**
-(source: `mcp_filter_config.dart:97-235`):
+(source: `mcp_filter_config.dart`):
 
 | Layer | Source | Priority |
 |:---|:---|:---|
@@ -137,8 +143,8 @@ A non-empty `--include-*` replaces the env and file allow list for that axis.
 
 At initialise time the server merges two tool sets, then applies the active filter.
 
-**Substrate tools (10):** run in-process via the dowel command registry. Nine work
-without a running Flutter app; `dowel_tinker` dispatches over the VM Service and
+**Substrate tools:** run in-process via the dowel command registry. All but `dowel_tinker`
+work without a running Flutter app; `dowel_tinker` dispatches over the VM Service and
 lazy-reconnects on first call. Their filter package name is `dowel`.
 
 | MCP Tool Name | Dowel Command |
@@ -156,7 +162,7 @@ lazy-reconnects on first call. Their filter package name is `dowel`.
 
 Excluded from the substrate allowlist: `help`, `make:*`, `*:refresh`, `mcp:*`,
 `plugin:*`, `install`. These require a TTY, mutate source on disk, or
-recurse into the server itself (source: `mcp_server.dart:744-755`).
+recurse into the server itself.
 
 **Plugin tools:** contributed via `DowelServiceProvider.mcpTools()` on each
 registered provider. The default returns an empty list. Providers such as

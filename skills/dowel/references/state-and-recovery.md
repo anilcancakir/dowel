@@ -1,6 +1,6 @@
 # State, lifecycle and recovery
 
-dowel keeps mutable state outside the source tree: the session directory `~/.dowel/sessions/<hash>/` (state, log and FIFO of one project's running app), the pointer `~/.dowel/state.json`, and the AOT bundle `.dowel/cli-bundle/` with its stamp `.dowel/build.stamp`. This file covers each, the two MCP entry points, and the recovery cases that need more than a row of the Recovery table in `SKILL.md`.
+dowel keeps mutable state outside the source tree: the session directory `~/.dowel/sessions/<hash>/` (state, log and FIFO of one project's running app), the pointer `~/.dowel/state.json`, and the AOT bundle `.dowel/cli-bundle/` with its stamp `.dowel/build.stamp` and build lock `.dowel/.dowel.lock/`: those three are the only gitignored part of `.dowel/`. `.dowel/plugins.json`, `.dowel/installed/` and `.dowel/mcp.json` are source of truth and stay in version control. This file covers each, the two MCP entry points, and the recovery cases that need more than a row of the Recovery table in `SKILL.md`.
 
 ## Contents
 
@@ -33,7 +33,7 @@ dowel keeps mutable state outside the source tree: the session directory `~/.dow
 | `chromePid`, `tmpProfileDir`, `cdpPort` | Set by `start --cdp-port`, null otherwise |
 | `flutterArgs` | The `--flutter-arg` values; absent when there were none |
 
-`restart` stops, then starts again with the prior session's device, `webPort`, `vmServicePort`, `cdpPort`, `flutterArgs` and `profile: static`; an explicit flag wins. It refuses to go on when `stop` refuses, and a failed relaunch leaves no app, so do not restart blind in a worktree. Over MCP `dowel_restart` takes no arguments: to change device, `dowel_stop` then `dowel_start { device }`. Read the file through `dowel_status`, which adds an `alive` probe.
+`restart` stops, then starts again with the prior session's device, `webPort`, `vmServicePort`, `cdpPort`, `flutterArgs` and `profile: static`; an explicit flag wins. It refuses to go on when `stop` refuses, and a failed relaunch leaves no app, so do not restart blind in a worktree. Over MCP `dowel_restart` takes the same options and an omitted one keeps the prior value: to change the device, `dowel_restart { device }`. Read the file through `dowel_status`, which adds an `alive` probe.
 
 ## FIFO model
 
@@ -75,7 +75,7 @@ Plugin tools missing from `tools/list` (`dowel_list` shows command namespaces an
 1. Read `.mcp.json`: `dart run dowel:mcp` is the substrate entry and never lists plugin tools.
 2. Read `.dowel/plugins.json` and `lib/app/_plugins.g.dart` (`autoDiscoveredProviders()` must be non-empty). Run `./bin/dowel plugins:refresh`; if `plugins.json` is empty too, run `./bin/dowel plugin:install <name>`.
 3. Reconnect the MCP client (Claude Code: `/mcp reconnect dowel`); the server does not signal tool-list changes.
-4. Read the stderr boot line `[dowel_mcp] initialized with N tools (M filtered; P plugin + S substrate)`: `P` is the plugin tool count before filtering, and `M` above zero means a filter is denying tools.
+4. Read the stderr boot line `[dowel_mcp] registered N tools (M filtered; P plugin + S substrate)`: `P` is the plugin tool count before filtering, and `M` above zero means a filter is denying tools.
 
 ## Recovery cases
 
@@ -83,7 +83,7 @@ Plugin tools missing from `tools/list` (`dowel_list` shows command namespaces an
 - **`booting: true` and no `vmServiceUri`.** The caller gave up before the URI was scraped, typically at a client's tool-call limit on a cold iOS or Android build; the app is up. Do not re-run `start` or hand-write the file. A CLI connected command reads the URI back from the log and completes the record: `./bin/dowel tinker --eval=1`; it exits 75 while the build is still running and 1 when the recorded process is gone. The MCP tools do not do this. If it does not clear, `flutter run` is failing: read the log.
 - **CLI `start` exits 75** (`flutter run (pid N) is still building after Ns`): the plain branch while the app is alive; treat it as the interrupted start above and do not re-run `start`. Exit 1 with `exited before announcing a VM Service URI` is the real failure. The `--cdp-port` branch reaps what it spawned and exits 1.
 - **`<ext> is not registered in the running app yet`** (exit 75): the app is still booting, or it is a release build or lacks the plugin. Wait and retry.
-- **Connected calls fail after a restart, stop and start, or device change.** The MCP server keeps its first VM client, which still points at the old app. Reconnect the MCP client (Claude Code: `/mcp reconnect dowel`).
+- **Connected calls fail after a restart, stop and start, or device change.** The MCP server drops its VM client when the old app's socket closes and dials the URI the session records now on the next call; a plugin tool call that finds the old connection disposed reconnects once and runs again. So retry the call after `dowel_status` shows the new app `alive`. Reconnect the MCP client (Claude Code: `/mcp reconnect dowel`) only if it keeps failing.
 - **`start --cdp-port` failures.** `CDP port <N> is already in use` and `Port <web-port> is already in use` fail before anything is spawned (free the port with `lsof -ti tcp:<port>` or pick another). `Chrome binary not found` names the expected path. A Flutter SDK older than 3.30.0 is refused on this branch. If Chrome fails after the probe, `start` kills Chrome and returns an error.
 - **`doctor` reports the default web port busy.** Another process holds TCP 3100; pass `--port=<N>` to `start`.
 - **Reset everything for a project.** `./bin/dowel stop`, remove its session directory, then `./bin/dowel start`.

@@ -2,7 +2,7 @@
 
 > One binary for your Flutter dev loop and your AI agent: start, hot reload and inspect a running app, scaffold code, install plugins transactionally, and expose the same commands through a built-in stdio MCP server.
 
-**Stack**: Dart >=3.4. dowel is pure Dart; the app you drive needs Flutter.
+**Stack**: Dart >=3.13. dowel is pure Dart; the app you drive needs Flutter.
 
 **Setup**:
 
@@ -38,7 +38,8 @@ final class GreetCommand extends DowelCommand {
 - `runDowel(args, baseProviders:, autoProviders:)`: the shared entry; delegates to the project's `bin/dispatcher.dart` when it has one.
 - `DowelCommand`: `signature` (`'cmd:name {arg} {--flag}'`) or `configure(ArgParser)`; `handle(DowelContext)` returns the exit code.
 - `DowelServiceProvider`: `commands()` and `mcpTools()`; a plugin exports one from `package:<name>/cli.dart`.
-- `DowelInstallCommand` and `PluginInstaller`: staged install operations (file writes swap in through `.tmp` files, but helper edits write directly and neither they nor a failure during the swap are rolled back) that `plugin:uninstall` can reverse; `install.yaml` is the declarative form.
+- `DowelInstallCommand` and `PluginInstaller`: staged install operations; `commit` returns `InstallSuccess`, `InstallDryRun`, `InstallConflict` or `InstallError`. File writes swap in through `.tmp` files, but helper edits (dependencies, injections, native files) write directly and are not rolled back: a failure after them reports `rolledBack: false` and leaves a partial install record. `plugin:uninstall` reverses only the files an install created and the dependencies it added that the project did not already declare, and logs every other operation, each `Inject*` among them, as skipped. `install.yaml` is the declarative form; an unknown top-level key fails the parse.
+- `package:dowel/dowel.dart` lists its exports with `show` (the install manifest model and the install operations are exported whole): a symbol not listed is internal. Plugins extend `DowelCommand`, `DowelGeneratorCommand`, `DowelInstallCommand` and `DowelServiceProvider`; the other exported classes are `final`, and `DowelInput`, `PromptDriver`, `StubDriver` and `VirtualFs` are `interface` classes. `package:args` is re-exported only for `ArgParser`, `ArgParserException` and `ArgResults`.
 
 ## Built-in commands
 
@@ -61,11 +62,14 @@ The lifecycle commands (`start`, `stop`, `reload`, `hot-restart`) use a POSIX FI
 
 - Start the app with `dowel start`, not `flutter run`: reload, restart, logs and tinker find it through the session recorded under `~/.dowel/sessions/<hash>/`.
 - In a git worktree, run `dowel start` there (or pass `--state=<path>`) before any command that uses the session (`reload`, `stop`, `tinker`, a plugin's `<package>:*`). The ownership check passes when the worktree sits inside the project root the main app recorded (an app at the repo root, the worktree under it) and for state with no recorded `projectRoot`; the command then acts on the main app and reports success. A sibling checkout, or an app in a subdirectory the worktree is not inside, is refused. MCP plugin tools and `dowel_tinker` run no such check. An MCP server resolves the session from its own working directory and falls back to the shared `~/.dowel/state.json` pointer when that project has none, so it can reach the main app; run these commands from a shell inside the worktree. `--state=<path>` skips the check, and a missing or unreadable file falls back to that pointer, so confirm the file exists and holds the intended `projectRoot`.
-- Read the app log from the file named by the `log=` line of `dowel start`, or with `./bin/dowel logs`: `dowel_logs` over MCP writes to the server's stdout, which is the transport, and does not return it.
+- `dowel_logs` returns the whole captured log in the tool result. With `follow: true` it never returns a result over MCP, so follow the log from a shell with `./bin/dowel logs --follow`, or read the file named by the `log=` line of `dowel start`.
+- `dowel_start` and `dowel_restart` take every option their CLI commands take; an omitted `dowel_restart` option keeps the prior session's value. The MCP server dials the session's current URI again after the app restarts, so a restart needs no MCP client reconnect.
 - Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml`; it creates the scaffold the plugin is registered into (`lib/app/_plugins.g.dart`).
-- Preview with `plugin:install <name> --dry-run`; it writes nothing. A real run can leave helper edits behind if it fails, so check `git status` after a failure.
+- Preview with `plugin:install <name> --dry-run`; it writes nothing. A real run can leave helper edits behind if it fails, so check `git status` after a failure. An install record written by an older dowel is refused (`unsupported-install-record`): run `plugin:install <name> --force` once, which also switches off every other conflict check, so read `git diff` after it.
+- Commit `.dowel/plugins.json` and `.dowel/installed/`; only `.dowel/cli-bundle/`, `.dowel/build.stamp` and `.dowel/.dowel.lock/` are cache. `plugin:install` refuses to run when `lib/app/_plugins.g.dart` registers providers but `.dowel/plugins.json` is missing: restore it from version control.
+- A project that still has files generated by `fluttersdk_artisan` makes `dart run dowel install` stop and print the steps; `dart run dowel doctor` warns about the same leftovers. Follow the migration page in Docs, and delete the old `bin/dispatcher.dart` first, because `doctor` hands over to it.
 - Do not edit `*.g.dart` barrels; regenerate them with `commands:refresh` and `plugins:refresh`.
-- Plugin MCP tools need `./bin/dowel mcp:serve` or `dart run :dispatcher mcp:serve`; `dart run dowel:mcp` serves the substrate tools only.
+- MCP entry points: `./bin/dowel mcp:serve` or `dart run :dispatcher mcp:serve` serve the substrate tools plus every plugin's; `dart run dowel:mcp` serves the substrate tools only.
 - Reconnect the MCP client after `mcp:install` or a change to `.dowel/mcp.json`; stdio servers are not reloaded on their own.
 - Exit code `75` means "not ready, retry" (the app is still building); any other non-zero code is a failure.
 - The only project wrapper is `bin/dispatcher.dart`; `bin/dowel.dart` is this package's own entry point and is ignored as one.
@@ -75,6 +79,7 @@ The lifecycle commands (`start`, `stop`, `reload`, `hot-restart`) use a POSIX FI
 - [Getting started](https://anilcancakir.com/dowel/docs/getting-started/index.md): what dowel is and how the pieces fit
 - [Installation](https://anilcancakir.com/dowel/docs/getting-started/installation.md): requirements and `dart pub add dowel`
 - [Quickstart](https://anilcancakir.com/dowel/docs/getting-started/quickstart.md): from an empty project to a plugin and a command
+- [Migrating from fluttersdk_artisan](https://anilcancakir.com/dowel/docs/getting-started/migrating-from-fluttersdk-artisan.md): the migration steps, what `install` and `doctor` detect, and the one-time changes for an app on an earlier dowel
 - [Commands](https://anilcancakir.com/dowel/docs/commands/index.md): the catalogue, grouped by intent, with boot mode and MCP exposure
 - [install](https://anilcancakir.com/dowel/docs/commands/install.md): the consumer scaffold
 - [make:fast-cli](https://anilcancakir.com/dowel/docs/commands/make-fast-cli.md): the AOT wrapper `bin/dowel`

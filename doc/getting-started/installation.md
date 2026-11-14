@@ -13,34 +13,23 @@ Getting started with dowel requires a few steps to wire the CLI binary and codeg
 
 Before adding dowel to your project, ensure your environment meets these minimum version requirements. We recommend staying on the latest stable Dart SDK for the best experience.
 
-dowel is a pure Dart package. Flutter is optional: it is only required when you intend to drive a running Flutter app (hot reload, Tapir gestures, Crumbs inspection). Projects that only need scaffolding, code generation, or the MCP server can run on any Dart 3.4+ environment.
+dowel is a pure Dart package. Flutter is optional: it is only required when you intend to drive a running Flutter app (hot reload, Tapir gestures, Crumbs inspection). Projects that only need scaffolding, code generation, or the MCP server can run on any Dart 3.13 or newer environment.
 
-| Dependency | Minimum Version | Recommended |
+| Dependency | Minimum Version | Notes |
 |:---|:---|:---|
-| Dart       | `>= 3.4.0`      | `3.6.0+`    |
-| Flutter    | optional        | `3.27.0+`   |
+| Dart       | `>= 3.13.0`     | The SDK floor of the package. |
+| Flutter    | optional        | `3.30.0` or newer for `start --cdp-port`; `doctor` checks it. |
 
 <a name="installation-step"></a>
 ## Installation
 
-Add `dowel` to your project using the Dart CLI:
+Add `dowel` to your project using the Dart CLI, which writes a caret constraint and fetches the package:
 
 ```bash
 dart pub add dowel
 ```
 
-Alternatively, add it manually to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  dowel: ^0.0.21
-```
-
-Then fetch dependencies:
-
-```bash
-dart pub get
-```
+Moving an app from `fluttersdk_artisan`? Follow [Migrating from fluttersdk_artisan](migrating-from-fluttersdk-artisan.md) instead: `dart run dowel install` stops on the files the old package generated.
 
 <a name="basic-setup"></a>
 ## Basic Setup
@@ -51,7 +40,7 @@ After installing the package, run the scaffold command to create the canonical c
 dart run dowel install
 ```
 
-This command writes three files into your project:
+This command writes three files into your project, then builds the fast wrapper `bin/dowel`:
 
 | File | Purpose |
 |:---|:---|
@@ -69,10 +58,14 @@ dart run dowel install --force
 
 `install` also ensures `dowel` is listed as a direct dependency in your `pubspec.yaml`. The generated barrel files at `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart` import from `package:dowel/dowel.dart`, so the analyzer requires a direct dep to pass `depend_on_referenced_packages`.
 
-The injection is automatic and follows two modes:
+A `dowel` entry the pubspec already declares, under `dependencies` or `dev_dependencies`, is left exactly as it is. Only when there is none does `install` add one, in one of two modes:
 
 - **Monorepo / path-dep workflow**: when your project already resolves `dowel` via a local path (detected from `.dart_tool/package_config.json`), the scaffold injects a `path:` reference pointing to the same checkout. This avoids a pub.dev fetch against a version that may not yet be published.
-- **pub.dev workflow**: when no local resolution is found, the scaffold injects the `any` constraint and lets pub resolve the version transitively. Replace `any` with a pinned range (e.g. `^0.0.21`) before committing.
+- **pub.dev workflow**: when no local resolution is found, the scaffold injects a caret constraint on the version that is running.
+
+### Version control
+
+`install` adds only the machine-local cache to `.gitignore`: `.dowel/cli-bundle/`, `.dowel/build.stamp` and `.dowel/.dowel.lock/`. Commit the rest of `.dowel/`: `plugins.json` is the registry `lib/app/_plugins.g.dart` is generated from, `installed/` holds the records `plugin:uninstall` reverses, and `mcp.json` is the tool filter.
 
 <a name="verify-installation"></a>
 ## Verify Installation
@@ -83,7 +76,7 @@ Run the built-in `list` command to confirm the scaffold is wired correctly:
 dart run dowel list
 ```
 
-The output lists all registered commands grouped by the part of the name before the `:`. Commands without a `:` (`start`, `install`, `tinker` and the rest) print first, with no heading; the namespaced commands follow under one heading per prefix, in alphabetical order. A fresh scaffold with no additional plugins shows the 22 built-in commands:
+The output lists all registered commands grouped by the part of the name before the `:`. Commands without a `:` (`start`, `install`, `tinker` and the rest) print first, with no heading; the namespaced commands follow under one heading per prefix, in alphabetical order. A fresh scaffold with no additional plugins shows only the built-in commands:
 
 ```
  ℹ Available commands (22):
@@ -131,3 +124,4 @@ The stray paragraph under `mcp:serve` is that command's two-paragraph descriptio
 - [Quickstart](quickstart.md): a first command, a plugin and the MCP server.
 - [Commands](../commands/index.md): what each built-in command does.
 - [MCP Setup](../mcp/setup.md): wire the server into an AI client.
+- [Migrating from fluttersdk_artisan](migrating-from-fluttersdk-artisan.md): move an app that runs the old package.
