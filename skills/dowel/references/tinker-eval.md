@@ -58,7 +58,7 @@ dowel_tinker { eval: "(MyService.instance..reset()).state.toString()" }
 dowel_tinker { eval: "(() { MyService.instance.notify('boot'); return 'notified'; })()" }
 ```
 
-The cascade returns the receiver, so the wrapped parentheses plus `.state.toString()` reads the state after a synchronous side effect. A closure runs several statements and returns a self-describing string. To compare before and after an action, evaluate the same read expression on either side of it; after an `await` start, give the work a moment before the second read.
+The cascade returns the receiver, so the wrapped parentheses plus `.state.toString()` reads the state after a synchronous side effect. A closure runs several statements and returns a self-describing string. To compare before and after an action, evaluate the same read expression on either side of it; after an `await` start, poll a completion flag the app exposes (such as `isLoading`) with a timeout, because a quiet state does not prove the work finished.
 
 ## When not to use tinker
 
