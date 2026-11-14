@@ -126,7 +126,7 @@ A plugin without a manifest is registered directly in `.dowel/plugins.json` and 
 ./bin/dowel mcp:install      # or: dart run dowel mcp:install
 ```
 
-`mcp:install` writes the `dowel` entry into `.mcp.json`; reconnect your client once (Claude Code: `/mcp reconnect dowel`). The server speaks stdio JSON-RPC and exposes ten substrate tools plus whatever the installed plugins contribute:
+`mcp:install` writes the `dowel` entry into `.mcp.json`; reconnect your client once (Claude Code: `/mcp reconnect dowel`). The server speaks stdio JSON-RPC and exposes the substrate tools plus whatever the installed plugins contribute:
 
 | Tool | Does |
 |---|---|
@@ -155,9 +155,10 @@ Rules for an agent working with this package. Each one is a mistake the maintain
 | Do | Because |
 |---|---|
 | Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml` | The command registers into `lib/app/_plugins.g.dart` and stops without it |
-| Preview with `plugin:install <name> --dry-run` before the real run | Writes swap in through `.tmp` files only after every staging write succeeded, and a conflict with a user-edited file needs a decision |
+| Preview with `plugin:install <name> --dry-run` before the real run | File writes swap in through `.tmp` files after staging, but dependency and injection edits write directly and are not rolled back, and a conflict with a user-edited file needs a decision |
 | Leave `*.g.dart` barrels alone; regenerate with `commands:refresh` and `plugins:refresh` | They are generated, a hand edit is overwritten |
 | Start the app with `dowel start`, not `flutter run` | Reload, restart, logs and tinker find the app through the recorded session |
+| In a git worktree, run `dowel start` there (or pass `--state=<path>`) before any command that uses the session (`reload`, `stop`, `tinker`, a plugin's `<package>:*`) | The ownership check passes when the worktree sits inside the project root the main app recorded (an app at the repo root, the worktree under it) and for state with no recorded `projectRoot`; the command then acts on the main app and reports success. A sibling checkout, or an app in a subdirectory the worktree is not inside, is refused. MCP plugin tools and `dowel_tinker` run no such check. An MCP server resolves the session from its own working directory and falls back to the shared `~/.dowel/state.json` pointer when that project has none, so it can reach the main app; run these from a shell inside the worktree. `--state=<path>` skips the check, and a missing or unreadable file falls back to that pointer, so confirm the file exists and holds the intended `projectRoot` |
 | Reconnect the MCP client after `mcp:install` or a change to `.dowel/mcp.json` | Clients do not reload a server entry on their own |
 | Use `./bin/dowel mcp:serve` (or `dart run :dispatcher mcp:serve`) for plugin tools | `dart run dowel:mcp` loads only the substrate tools |
 | Read the exit code: `75` means retry, anything else non-zero is a failure | The app may still be building |
