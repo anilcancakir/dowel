@@ -750,6 +750,146 @@ void main() {
     );
 
     test(
+      'a dependency the plugin added is removed after a forced reinstall',
+      () async {
+        final root = Directory.systemTemp.createTempSync('mi_reinstall_dep_');
+        addTearDown(() => root.deleteSync(recursive: true));
+        final pubspec = File(p.join(root.path, 'pubspec.yaml'))
+          ..writeAsStringSync('name: app\ndependencies:\n  http: ^1.0.0\n');
+        final manifest = InstallManifest(
+          pluginName: 'example_plugin',
+          pubspec: const PubspecDeps(
+            deps: <String, String>{'foo_sdk': '^1.0.0'},
+            devDeps: <String, String>{},
+            assets: <String>[],
+          ),
+          publish: const {},
+          jsonMerge: const {},
+          magic: MagicIntegration.empty(),
+          native: NativeConfig.empty(),
+          env: const {},
+          prompts: const [],
+          placeholders: const {},
+          postInstall: PostInstallSpec.empty(),
+        );
+        InstallContext ctx() => InstallContext.test(
+          fs: const RealFs(),
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          projectRoot: root.path,
+        );
+
+        final installed = await ManifestInstaller(ctx(), manifest).install();
+        final reinstalled = await ManifestInstaller(
+          ctx(),
+          manifest,
+        ).install(force: true);
+        final removed = await ManifestInstaller(ctx(), manifest).uninstall();
+
+        expect(installed, isA<InstallSuccess>(), reason: installed.describe());
+        expect(
+          reinstalled,
+          isA<InstallSuccess>(),
+          reason: reinstalled.describe(),
+        );
+        expect(removed, isA<InstallSuccess>(), reason: removed.describe());
+        final content = pubspec.readAsStringSync();
+        expect(content, isNot(contains('foo_sdk')));
+        expect(content, contains('http: ^1.0.0'));
+      },
+    );
+
+    group('a record naming a path outside the project', () {
+      late Directory sandbox;
+      late Directory root;
+      late File victim;
+
+      setUp(() {
+        sandbox = Directory.systemTemp.createTempSync('mi_escape_');
+        root = Directory(p.join(sandbox.path, 'app'))..createSync();
+        victim = File(p.join(sandbox.path, 'victim.txt'))
+          ..writeAsStringSync('keep me');
+      });
+
+      tearDown(() => sandbox.deleteSync(recursive: true));
+
+      Future<TransactionResult> uninstallWith({
+        required List<Map<String, dynamic>> ops,
+        Map<String, String> stubHashes = const <String, String>{},
+      }) {
+        File(p.join(root.path, '.dowel', 'installed', 'example_plugin.json'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(
+            jsonEncode(<String, dynamic>{
+              'version': 1,
+              'plugin': 'example_plugin',
+              'installedAt': '2025-01-01T00:00:00.000Z',
+              'ops': ops,
+              'stubHashes': stubHashes,
+            }),
+          );
+        final ctx = InstallContext.test(
+          fs: const RealFs(),
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          projectRoot: root.path,
+        );
+        return ManifestInstaller(ctx, _minimalManifest()).uninstall();
+      }
+
+      test('is refused for a target that climbs out', () async {
+        final result = await uninstallWith(
+          ops: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'WriteFile',
+              'targetPath': '../victim.txt',
+              'content': 'x',
+            },
+          ],
+        );
+
+        expect(result, isA<InstallError>());
+        expect((result as InstallError).error, contains('../victim.txt'));
+        expect(victim.existsSync(), isTrue);
+      });
+
+      test('is refused for an absolute target', () async {
+        final result = await uninstallWith(
+          ops: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'CopyFile',
+              'sourcePath': 'lib/a.dart',
+              'targetPath': victim.path,
+            },
+          ],
+        );
+
+        expect(result, isA<InstallError>());
+        expect(victim.existsSync(), isTrue);
+      });
+
+      test('is refused for a hash key that climbs out', () async {
+        File(p.join(root.path, 'lib', 'a.dart'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('a');
+        final result = await uninstallWith(
+          ops: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'WriteFile',
+              'targetPath': 'lib/a.dart',
+              'content': 'a',
+            },
+          ],
+          stubHashes: <String, String>{'lib/../../victim.txt': 'abc'},
+        );
+
+        expect(result, isA<InstallError>());
+        expect(victim.existsSync(), isTrue);
+        expect(File(p.join(root.path, 'lib', 'a.dart')).existsSync(), isTrue);
+      });
+    });
+
+    test(
       'a record without a version is refused and nothing is reversed',
       () async {
         final fs = InMemoryFs();

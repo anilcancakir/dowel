@@ -65,7 +65,7 @@ A `dowel` entry the pubspec already declares, under `dependencies` or `dev_depen
 
 ### Version control
 
-`install` adds only the machine-local cache to `.gitignore`: `.dowel/cli-bundle/`, `.dowel/build.stamp` and `.dowel/.dowel.lock/`. Commit the rest of `.dowel/`: `plugins.json` is the registry `lib/app/_plugins.g.dart` is generated from, `installed/` holds the records `plugin:uninstall` reverses, and `mcp.json` is the tool filter.
+`install` adds only the machine-local cache to `.gitignore`: `.dowel/cli-bundle*`, `.dowel/build.stamp*` and `.dowel/.dowel.lock/`. Commit the rest of `.dowel/`: `plugins.json` is the registry `lib/app/_plugins.g.dart` is generated from, `installed/` holds the records `plugin:uninstall` reverses, and `mcp.json` is the tool filter.
 
 <a name="verify-installation"></a>
 ## Verify Installation

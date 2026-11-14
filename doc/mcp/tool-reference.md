@@ -125,9 +125,9 @@ compilation errors, framework warnings, and `print()` output from the app. The c
 through its captured output, never straight to the server's stdout, which is the JSON-RPC channel.
 It answers with `isError` and a warning when no log exists yet.
 
-| Parameter | Type | Default | Description |
-|:---|:---|:---|:---|
-| `follow` | boolean | `false` | When `false`, return the whole captured log and exit immediately. When `true`, tail the live log (`-f` on the CLI) until it is interrupted; a tool call answers only when the command ends, so a tool call with `follow: true` never returns a result. Use `follow` from the CLI. |
+No parameters. The tool returns the log once. Following it is a CLI feature
+(`./bin/dowel logs --follow`), because a tool call answers only when the command ends and a
+tail never ends; a call that passes `follow: true` anyway is refused with `isError`.
 
 ### dowel_restart
 

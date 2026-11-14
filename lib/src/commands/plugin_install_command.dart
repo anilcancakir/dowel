@@ -142,8 +142,10 @@ class PluginInstallCommand extends DowelInstallCommand {
         '${orphaned.join(', ')}, but .dowel/plugins.json, the registry it is '
         'generated from, is missing. Installing now would regenerate the '
         'barrel without them. Restore .dowel/plugins.json from version '
-        'control (commit it; only .dowel/cli-bundle/, .dowel/build.stamp and '
-        '.dowel/.dowel.lock/ are cache), then retry.',
+        'control (commit it; only .dowel/cli-bundle*, .dowel/build.stamp* and '
+        '.dowel/.dowel.lock/ are cache), then retry. Or delete '
+        'lib/app/_plugins.g.dart, run `dart run dowel install` to write an '
+        'empty one, and run plugin:install again for each plugin.',
       );
       return 1;
     }

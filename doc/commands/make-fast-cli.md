@@ -49,7 +49,7 @@ make:fast-cli {--force : Overwrite bin/dowel even when it already exists}
 
 4. **Compiles the binary.** Runs `dart build cli -t bin/dispatcher.dart -o .dowel/cli-bundle`, producing an AOT-native binary at `.dowel/cli-bundle/bundle/bin/dispatcher`.
 
-5. **Patches `.gitignore`.** Appends the cache entries `.dowel/cli-bundle/`, `.dowel/build.stamp` and `.dowel/.dowel.lock/` when they are missing, so the compiled cache is never tracked. The rest of `.dowel/` is source of truth and stays trackable: `plugins.json` is the registry `lib/app/_plugins.g.dart` is generated from, `installed/` holds the install records and `mcp.json` is the tool filter. A bare `.dowel/` line, which earlier versions wrote, is replaced by the three entries, because it also ignored `plugins.json`. Idempotent.
+5. **Patches `.gitignore`.** Appends the cache entries `.dowel/cli-bundle*`, `.dowel/build.stamp*` and `.dowel/.dowel.lock/` when they are missing, so the compiled cache is never tracked. The globs also cover the scratch paths of a build: `bin/dowel` compiles into `.dowel/cli-bundle.build.<pid>`, parks the old bundle at `.dowel/cli-bundle.old.<pid>` and stages the stamp at `.dowel/build.stamp.tmp`. The rest of `.dowel/` is source of truth and stays trackable: `plugins.json` is the registry `lib/app/_plugins.g.dart` is generated from, `installed/` holds the install records and `mcp.json` is the tool filter. A bare `.dowel/` line, which earlier versions wrote, is replaced by the three entries, because it also ignored `plugins.json`. Idempotent.
 
 ---
 

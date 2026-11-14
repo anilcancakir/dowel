@@ -74,7 +74,45 @@ InstallRecordRead readInstallRecord(VirtualFs fs, String recordPath) {
     );
   }
 
+  // Uninstall deletes the paths a record names, and the record is committed,
+  // so a pull request can point it anywhere: refuse one that leaves the
+  // project rather than reverse it.
+  final ops = decoded['ops'];
+  final paths = <Object?>[
+    ...hashes.keys,
+    if (ops is List)
+      for (final op in ops.whereType<Map>()) ...<Object?>[
+        op['targetPath'],
+        op['sourcePath'],
+      ],
+  ];
+  final escaping = paths.whereType<String>().where(
+    (path) => !isInsideProject(path),
+  );
+  if (escaping.isNotEmpty) {
+    return (
+      record: null,
+      problem: _refusal(
+        recordPath,
+        'names a path outside the project ("${escaping.first}")',
+      ),
+    );
+  }
+
   return (record: decoded, problem: null);
+}
+
+/// Whether [path], resolved against the project root, names something inside
+/// it: not absolute on any platform and not climbing out through `..`.
+/// Backslashes count as separators so a record written on Windows is judged
+/// the way Windows would resolve it.
+bool isInsideProject(String path) {
+  if (_isAbsoluteKey(path)) return false;
+  const root = '/project';
+  final resolved = p.posix.normalize(
+    p.posix.join(root, path.replaceAll(r'\', '/')),
+  );
+  return p.posix.isWithin(root, resolved);
 }
 
 /// Whether [key] names an absolute path on any platform: a POSIX root, a

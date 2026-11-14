@@ -113,6 +113,19 @@ void main() {
 
       expect(result['cdp-port'], '9223');
     });
+
+    test('--cdp-port help names no plugin', () {
+      final parser = ArgParser();
+      StartCommand().configure(parser);
+
+      final help = parser.options['cdp-port']!.help!;
+
+      expect(
+        help,
+        contains('Required for the commands that need the CDP port.'),
+      );
+      expect(help, isNot(contains('tapir')));
+    });
   });
 
   group('StartCommand.compareSemver', () {
@@ -577,7 +590,7 @@ void main() {
       expect(state['cdpPort'], 9223);
       expect(
         state['tmpProfileDir'],
-        '${tempProfileRoot.path}/tapir-chrome-9223',
+        '${tempProfileRoot.path}/dowel-chrome-9223',
       );
       expect(state['vmServiceUri'], 'ws://127.0.0.1:8181/abc/ws');
       expect(state['vmServicePort'], 8181);
@@ -849,7 +862,7 @@ void main() {
         reason: 'FIFO must be deleted on failure',
       );
       expect(
-        Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
+        Directory('${tempProfileRoot.path}/dowel-chrome-9223').existsSync(),
         isFalse,
         reason: 'tmp profile dir must be removed on failure',
       );
@@ -925,7 +938,7 @@ void main() {
         isFalse,
       );
       expect(
-        Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
+        Directory('${tempProfileRoot.path}/dowel-chrome-9223').existsSync(),
         isFalse,
       );
     });
@@ -1001,7 +1014,7 @@ void main() {
         reason: 'FIFO must be deleted on failure',
       );
       expect(
-        Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
+        Directory('${tempProfileRoot.path}/dowel-chrome-9223').existsSync(),
         isFalse,
         reason: 'tmp profile dir must be removed on failure',
       );
@@ -1076,7 +1089,7 @@ void main() {
         reason: 'flutter must not have been spawned (FIFO setup threw first)',
       );
       expect(
-        Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
+        Directory('${tempProfileRoot.path}/dowel-chrome-9223').existsSync(),
         isFalse,
         reason: 'tmp profile dir must be removed on failure',
       );

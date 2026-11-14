@@ -313,6 +313,29 @@ native:
   });
 
   group('ManifestParser — validation', () {
+    for (final target in <String>[
+      '../outside.dart',
+      'lib/../../outside.dart',
+      '/etc/outside.dart',
+    ]) {
+      test('throws when a publish target leaves the project ($target)', () {
+        final yaml =
+            'plugin_name: example_plugin\n'
+            'publish:\n'
+            '  install/x.stub: $target\n';
+        expect(
+          () => ManifestParser.parseString(yaml),
+          throwsA(
+            isA<ManifestValidationException>().having(
+              (e) => e.message,
+              'message',
+              contains(target),
+            ),
+          ),
+        );
+      });
+    }
+
     test('throws when plugin_name is missing', () {
       const yaml = '''
 publish:

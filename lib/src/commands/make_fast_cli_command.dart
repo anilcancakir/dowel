@@ -194,9 +194,13 @@ final class MakeFastCliCommand extends DowelCommand {
   /// `bin/dowel`. The rest of `.dowel/` is source of truth and is committed:
   /// `plugins.json` regenerates `lib/app/_plugins.g.dart`, `installed/` holds
   /// the records `plugin:uninstall` reverses, `mcp.json` is the tool filter.
+  ///
+  /// The globs also cover the scratch paths of a build: `bin/dowel` compiles
+  /// into `cli-bundle.build.<pid>`, parks the old bundle at
+  /// `cli-bundle.old.<pid>` and stages the stamp at `build.stamp.tmp`.
   static const List<String> _cacheEntries = <String>[
-    '.dowel/cli-bundle/',
-    '.dowel/build.stamp',
+    '.dowel/cli-bundle*',
+    '.dowel/build.stamp*',
     '.dowel/.dowel.lock/',
   ];
 

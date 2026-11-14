@@ -348,10 +348,11 @@ mutations independently.
    throws, all successful temps are deleted and the method returns `InstallError(rolledBack: true)`.
    When an editor-backed op already changed a file in phase 4, nothing of that is rolled back: the
    result says `rolledBack: false` and a partial install record (`"partial": true`) lists the edits
-   that landed.
+   that landed. On a reinstall it also keeps the operations and hashes of the record it replaces,
+   whose files are still on disk.
 6. **Rename into place**: `.tmp` files are renamed over their targets; deletes are applied. POSIX
    `rename(2)` is atomic, so readers never see partial state. Failures past this point surface as
-   `InstallError(rolledBack: false)`.
+   `InstallError(rolledBack: false)`, with the same partial record as phase 5.
 7. **Install record**: `.dowel/installed/<plugin>.json` is written, through a temp file and a
    rename, BEFORE shell ops so the install is reversible even when a shell step fails later. A
    failure to write it returns `InstallError` naming the record, with every file already in place.
@@ -364,9 +365,12 @@ The record carries `"version": 1`, the content hash of every file the install wr
 project-relative, forward-slash keys (`stubHashes`), and every operation with its typed payload. A
 dependency addition also carries `preExisting`, true when the project declared that dependency
 before the install: `addDependency` leaves such an entry as it is, and `plugin:uninstall` never
-removes it. A record without a version, or one with absolute keys, is not read: the next install
-reports an `unsupported-install-record` conflict, and `plugin:uninstall` refuses it. Re-run the
-install with `--force` once to rewrite it.
+removes it. A reinstall keeps `preExisting: false` for a dependency the previous record says the
+plugin added. A record without a version, one with absolute keys, or one whose `targetPath`,
+`sourcePath` or `stubHashes` key leaves the project is not read: the next install reports an
+`unsupported-install-record` conflict, and `plugin:uninstall` refuses it, so a changed record in a
+pull request cannot make uninstall delete a file outside the project. Re-run the install with
+`--force` once to rewrite it.
 
 ### One-shot guard
 

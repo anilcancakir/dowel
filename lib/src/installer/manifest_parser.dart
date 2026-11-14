@@ -24,6 +24,7 @@ import 'package:yaml/yaml.dart';
 import '../console/dowel_version.dart';
 import 'install_exception.dart';
 import 'install_manifest.dart';
+import 'install_record.dart';
 
 /// Static parser: reads YAML text, returns a validated [InstallManifest].
 final class ManifestParser {
@@ -206,6 +207,12 @@ final class ManifestParser {
         throw FormatException(
           'publish entry "$k" must map to a String target path; '
           'got ${v.runtimeType}.',
+        );
+      }
+      if (!isInsideProject(v)) {
+        throw ManifestValidationException(
+          'publish entry "$k" targets "$v", which is outside the project; '
+          'use a path relative to the project root.',
         );
       }
       out[k.toString()] = v;

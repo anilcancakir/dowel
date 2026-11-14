@@ -265,8 +265,9 @@ final class XcodeProjectEditor {
     if (changed) {
       // The installer does not roll helper-backed writes back and a truncated
       // .pbxproj cannot be opened, so land the new content through a sibling
-      // temp file and one rename rather than in place.
-      final staged = File('$pbxprojPath.tmp')
+      // temp file and one rename rather than in place. The pid keeps two
+      // concurrent installs off each other's temp.
+      final staged = File('$pbxprojPath.$pid.tmp')
         ..writeAsStringSync(document.emit());
       staged.renameSync(pbxprojPath);
     }

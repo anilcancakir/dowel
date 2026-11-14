@@ -55,7 +55,7 @@ void _seedInstalledProject(
           <Map<String, dynamic>>[
             <String, dynamic>{
               'type': 'WriteFile',
-              'targetPath': configPath,
+              'targetPath': 'lib/config/demo.dart',
               'content': 'const x = 1;\n',
             },
           ],

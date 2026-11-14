@@ -264,6 +264,32 @@ void main() {
       },
     );
 
+    test('a record with a source path outside the project is unsupported', () {
+      final fs = InMemoryFs();
+      fs.writeAsString(
+        '/proj/.dowel/installed/demo.json',
+        jsonEncode(<String, dynamic>{
+          'version': 1,
+          'plugin': 'demo',
+          'ops': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'CopyFile',
+              'sourcePath': '../secrets.env',
+              'targetPath': 'lib/a.dart',
+            },
+          ],
+          'stubHashes': <String, String>{},
+        }),
+      );
+      final detector = ConflictDetector(_makeCtx(fs: fs));
+
+      final conflicts = detector.detect(const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+      ], pluginName: 'demo');
+
+      expect(conflicts.single.reason, 'unsupported-install-record');
+    });
+
     test('a record that is not JSON is reported instead of thrown', () {
       final fs = InMemoryFs();
       fs.writeAsString('/proj/.dowel/installed/demo.json', '{not json');

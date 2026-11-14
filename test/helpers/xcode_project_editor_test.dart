@@ -205,6 +205,24 @@ void main() {
     });
   });
 
+  group('XcodeProjectEditor.setEntitlementsPath: staging', () {
+    test('stages the write through a temp named for this process', () {
+      // A directory in the way makes the staged write fail, which proves the
+      // editor stages through that name rather than a shared `.tmp`.
+      Directory('$pbxprojPath.$pid.tmp').createSync();
+      final before = _md5(pbxprojPath);
+
+      expect(
+        () => XcodeProjectEditor.setEntitlementsPath(
+          pbxprojPath,
+          'Runner/Runner.entitlements',
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(_md5(pbxprojPath), before);
+    });
+  });
+
   group('XcodeProjectEditor.setEntitlementsPath — idempotency', () {
     test('a second run writes nothing and leaves the hash unchanged', () {
       XcodeProjectEditor.setEntitlementsPath(
@@ -397,7 +415,7 @@ void main() {
       XcodeProjectEditor.entitlementsPaths(pbxprojPath);
 
       expect(_md5(pbxprojPath), before);
-      expect(File('$pbxprojPath.tmp').existsSync(), isFalse);
+      expect(File('$pbxprojPath.$pid.tmp').existsSync(), isFalse);
     });
 
     test('throws FileSystemException when the project file is missing', () {

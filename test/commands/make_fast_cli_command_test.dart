@@ -200,8 +200,8 @@ void main() {
       final lines = gitignore.readAsLinesSync();
       expect(lines, isNot(contains('.dowel/')));
       for (final entry in <String>[
-        '.dowel/cli-bundle/',
-        '.dowel/build.stamp',
+        '.dowel/cli-bundle*',
+        '.dowel/build.stamp*',
         '.dowel/.dowel.lock/',
       ]) {
         expect(lines.where((line) => line == entry), hasLength(1));
@@ -224,13 +224,49 @@ void main() {
       final lines = File(p.join(tempDir.path, '.gitignore')).readAsLinesSync();
       expect(lines, <String>[
         'build/',
-        '.dowel/cli-bundle/',
-        '.dowel/build.stamp',
+        '.dowel/cli-bundle*',
+        '.dowel/build.stamp*',
         '.dowel/.dowel.lock/',
         '*.log',
       ]);
     },
   );
+
+  test('.gitignore covers the scratch paths a wrapper build leaves', () async {
+    await MakeFastCliCommand.scaffoldInto(
+      root: tempDir.path,
+      force: false,
+      ctx: _ctx(),
+    );
+    Process.runSync('git', <String>[
+      'init',
+      '-q',
+    ], workingDirectory: tempDir.path);
+
+    // `bin/dowel` builds into `cli-bundle.build.<pid>`, parks the old bundle
+    // at `cli-bundle.old.<pid>` and stages the stamp at `build.stamp.tmp`.
+    final ignored = Process.runSync('git', <String>[
+      'check-ignore',
+      '--no-index',
+      '.dowel/cli-bundle/bundle/bin/dispatcher',
+      '.dowel/cli-bundle.build.4242/bundle',
+      '.dowel/cli-bundle.old.4242/bundle',
+      '.dowel/build.stamp',
+      '.dowel/build.stamp.tmp',
+      '.dowel/.dowel.lock/owner',
+      '.dowel/plugins.json',
+      '.dowel/installed/demo.json',
+    ], workingDirectory: tempDir.path);
+
+    expect((ignored.stdout as String).trim().split('\n'), <String>[
+      '.dowel/cli-bundle/bundle/bin/dispatcher',
+      '.dowel/cli-bundle.build.4242/bundle',
+      '.dowel/cli-bundle.old.4242/bundle',
+      '.dowel/build.stamp',
+      '.dowel/build.stamp.tmp',
+      '.dowel/.dowel.lock/owner',
+    ]);
+  });
 
   // -------------------------------------------------------------------------
   // Test 5 — dart build cli invoked with correct args

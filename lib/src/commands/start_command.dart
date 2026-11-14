@@ -249,7 +249,7 @@ final class StartCommand extends DowelCommand {
         help:
             'Chrome DevTools Protocol port. When set, pre-launches Chrome '
             'with --remote-debugging-port=N and runs flutter with -d web-server. '
-            'Required for tapir:resize / tapir:device commands.',
+            'Required for the commands that need the CDP port.',
       )
       ..addOption(
         'timeout',
@@ -670,7 +670,7 @@ final class StartCommand extends DowelCommand {
 
     // 5. Launch Chrome detached with debug port + dedicated user-data-dir.
     final tmpRoot = cdpTmpProfileDirRoot ?? '/tmp';
-    final tmpProfileDir = '$tmpRoot/tapir-chrome-$cdpPort';
+    final tmpProfileDir = '$tmpRoot/dowel-chrome-$cdpPort';
     final chromeProcess = await cdpProcessStarter(chromeBinary, <String>[
       // CDP wiring (load-bearing for tapir + this start command).
       '--remote-debugging-port=$cdpPort',

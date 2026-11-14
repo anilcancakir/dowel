@@ -1,6 +1,6 @@
 # State, lifecycle and recovery
 
-dowel keeps mutable state outside the source tree: the session directory `~/.dowel/sessions/<hash>/` (state, log and FIFO of one project's running app), the pointer `~/.dowel/state.json`, and the AOT bundle `.dowel/cli-bundle/` with its stamp `.dowel/build.stamp` and build lock `.dowel/.dowel.lock/`: those three are the only gitignored part of `.dowel/`. `.dowel/plugins.json`, `.dowel/installed/` and `.dowel/mcp.json` are source of truth and stay in version control. This file covers each, the two MCP entry points, and the recovery cases that need more than a row of the Recovery table in `SKILL.md`.
+dowel keeps mutable state outside the source tree: the session directory `~/.dowel/sessions/<hash>/` (state, log and FIFO of one project's running app), the pointer `~/.dowel/state.json`, and the AOT bundle `.dowel/cli-bundle/` with its stamp `.dowel/build.stamp` and build lock `.dowel/.dowel.lock/`: those three, with the scratch paths of a build, are the only gitignored part of `.dowel/` (`.dowel/cli-bundle*`, `.dowel/build.stamp*`, `.dowel/.dowel.lock/`). `.dowel/plugins.json`, `.dowel/installed/` and `.dowel/mcp.json` are source of truth and stay in version control. This file covers each, the two MCP entry points, and the recovery cases that need more than a row of the Recovery table in `SKILL.md`.
 
 ## Contents
 

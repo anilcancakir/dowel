@@ -6,8 +6,7 @@ import 'dowel_registry.dart';
 /// Execution context handed to every [DowelCommand.handle].
 ///
 /// Constructed by [DowelApplication.dispatch] based on the command's
-/// [CommandBoot] declaration. V1 has 2 constructors (bare, connected); no
-/// `app` field because headless mode is deferred to V1.x.
+/// [CommandBoot] declaration, either bare or connected to a running app.
 ///
 /// [registry] is populated by [DowelApplication.dispatch] so command
 /// handlers can call `ctx.registry?.find('cmd')?.handle(ctx)` for in-process

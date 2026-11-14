@@ -107,6 +107,11 @@ class InstallTransaction {
   /// a dependency that was the user's before the install.
   final Set<int> _preExistingDependencies = <int>{};
 
+  /// The readable install record this commit replaces, read once before
+  /// staging; `null` on a first install or when [readInstallRecord] refused
+  /// the file.
+  Map<String, dynamic>? _priorRecord;
+
   /// Conflict list injected by tests via [debugSetConflictsForTest]. When it
   /// is non-empty it replaces the [ConflictDetector] result; production never
   /// sets it.
@@ -199,6 +204,14 @@ class InstallTransaction {
       return patternError;
     }
 
+    // 3b. A reinstall reads the record it replaces: a dependency that record
+    //     says the plugin added stays the plugin's, and a failed commit keeps
+    //     its operations in the partial record.
+    _priorRecord = readInstallRecord(
+      _ctx.fs,
+      installRecordPath(_ctx.projectRoot, _pluginName),
+    ).record;
+
     final stagedWrites = <String, String?>{};
     for (final (index, op) in _ops.indexed) {
       final stageError = _stageOp(index, op, stagedWrites);
@@ -235,7 +248,8 @@ class InstallTransaction {
     //    apply pending deletes. Rename + delete failures here are not rolled
     //    back: the .tmp swap is the atomic boundary on POSIX. Any partial
     //    failure past this point is surfaced as an [InstallError] with
-    //    rolledBack false so the operator can inspect manually.
+    //    rolledBack false, and helper edits that landed go into a partial
+    //    record like a failure in phase 4.
     try {
       for (final entry in stagedWrites.entries) {
         final absPath = entry.key;
@@ -246,7 +260,10 @@ class InstallTransaction {
         }
       }
     } catch (e) {
-      return InstallError(error: e.toString(), rolledBack: false);
+      return _failAfterHelperEdits(
+        InstallError(error: e.toString(), rolledBack: false),
+        stagedOps: _ops.length,
+      );
     }
 
     // 6. Persist the install record BEFORE running shell ops. The atomic
@@ -313,6 +330,11 @@ class InstallTransaction {
   /// says nothing was rolled back, and a partial record lists those
   /// operations so `plugin:uninstall` can reverse what it can. With no helper
   /// edit on disk, [failure] stands as it is.
+  ///
+  /// On a reinstall the partial record replaces a full one, so it keeps that
+  /// record's operations and hashes too: the files the earlier install wrote
+  /// are still on disk, and dropping them from the record would leave them
+  /// to `plugin:uninstall` as unknown and to the next install as unmanaged.
   TransactionResult _failAfterHelperEdits(
     InstallError failure, {
     required int stagedOps,
@@ -328,7 +350,10 @@ class InstallTransaction {
       ops: landed,
       partial: true,
     );
-    final recordError = _writeRecord(record);
+    final prior = _priorRecord;
+    final recordError = _writeRecord(
+      prior == null ? record : _mergeRecords(prior, record),
+    );
 
     return InstallError(
       error:
@@ -349,6 +374,56 @@ class InstallTransaction {
       RunShell() => false,
       _ => true,
     };
+  }
+
+  /// [partial] with the operations and hashes of [prior] folded in. An
+  /// operation both list appears once, at its place in [prior], carrying what
+  /// this commit recorded; a file both hashed keeps the hash this commit
+  /// read, since that is what is on disk now.
+  Map<String, dynamic> _mergeRecords(
+    Map<String, dynamic> prior,
+    Map<String, dynamic> partial,
+  ) {
+    final priorOps = prior['ops'];
+    final ops = <String, Map<String, dynamic>>{
+      if (priorOps is List)
+        for (final op in priorOps.whereType<Map<String, dynamic>>())
+          _opIdentity(op): op,
+    };
+    for (final op in partial['ops'] as List<Map<String, dynamic>>) {
+      ops[_opIdentity(op)] = op;
+    }
+
+    return <String, dynamic>{
+      ...partial,
+      'ops': ops.values.toList(),
+      'stubHashes': <String, dynamic>{
+        ...prior['stubHashes'] as Map<String, dynamic>,
+        ...partial['stubHashes'] as Map<String, String>,
+      },
+    };
+  }
+
+  /// A recorded operation's payload without its `preExisting` flag, so the
+  /// same dependency addition matches across two installs.
+  String _opIdentity(Map<String, dynamic> op) {
+    return jsonEncode(<String, dynamic>{...op}..remove('preExisting'));
+  }
+
+  /// Whether the record this commit replaces lists [name] as a dependency the
+  /// plugin added itself (`preExisting: false`). On a reinstall the pubspec
+  /// already declares it, and only that record still knows whose it is.
+  bool _addedByPriorInstall(String name, {required bool isDev}) {
+    final ops = _priorRecord?['ops'];
+    if (ops is! List) return false;
+    return ops.whereType<Map>().any(
+      (op) =>
+          (op['type'] == 'AddDependency' ||
+              op['type'] == 'AddPathDependency') &&
+          op['name'] == name &&
+          (op['isDev'] == true) == isDev &&
+          op['preExisting'] == false,
+    );
   }
 
   /// Resolves [relPath] against [InstallContext.projectRoot]. Absolute paths
@@ -419,12 +494,16 @@ class InstallTransaction {
 
         // ---------- Pubspec ----------
         // A dependency the user already declared keeps its constraint, and
-        // the record marks it so uninstall leaves it in place.
+        // the record marks it so uninstall leaves it in place. One the
+        // previous install of this plugin added is declared too, and stays
+        // the plugin's.
         case AddDependency():
           final pubspec = _pubspecPath();
           final section = op.isDev ? 'dev_dependencies' : 'dependencies';
           if (pubspecDeclaresDependency(pubspec, op.name, section: section)) {
-            _preExistingDependencies.add(index);
+            if (!_addedByPriorInstall(op.name, isDev: op.isDev)) {
+              _preExistingDependencies.add(index);
+            }
             return null;
           }
           if (op.isDev) {
@@ -444,7 +523,9 @@ class InstallTransaction {
           return null;
         case AddPathDependency():
           if (pubspecDeclaresDependency(_pubspecPath(), op.name)) {
-            _preExistingDependencies.add(index);
+            if (!_addedByPriorInstall(op.name, isDev: false)) {
+              _preExistingDependencies.add(index);
+            }
             return null;
           }
           ConfigEditor.addPathDependencyToPubspec(
@@ -1193,17 +1274,17 @@ class InstallTransaction {
     return switch (op) {
       WriteFile(:final targetPath, :final content) => <String, dynamic>{
         'type': 'WriteFile',
-        'targetPath': targetPath,
+        'targetPath': _recordedPath(targetPath),
         'content': content,
       },
       DeleteFile(:final targetPath) => <String, dynamic>{
         'type': 'DeleteFile',
-        'targetPath': targetPath,
+        'targetPath': _recordedPath(targetPath),
       },
       CopyFile(:final sourcePath, :final targetPath) => <String, dynamic>{
         'type': 'CopyFile',
-        'sourcePath': sourcePath,
-        'targetPath': targetPath,
+        'sourcePath': _recordedPath(sourcePath),
+        'targetPath': _recordedPath(targetPath),
       },
       PublishFile(
         :final sourceStubName,
@@ -1213,7 +1294,7 @@ class InstallTransaction {
         <String, dynamic>{
           'type': 'PublishFile',
           'sourceStubName': sourceStubName,
-          'targetPath': targetPath,
+          'targetPath': _recordedPath(targetPath),
           'replacements': replacements,
         },
       AddDependency(:final name, :final version, :final isDev) =>
@@ -1238,7 +1319,7 @@ class InstallTransaction {
       },
       MergeJson(:final targetPath, :final additive) => <String, dynamic>{
         'type': 'MergeJson',
-        'targetPath': targetPath,
+        'targetPath': _recordedPath(targetPath),
         'additive': additive,
       },
       InjectImport(:final targetFile, :final importStatement) =>
@@ -1359,6 +1440,17 @@ class InstallTransaction {
     };
   }
 
+  /// [path] as the record stores it: an absolute path inside the project
+  /// becomes a project-relative [installRecordKey], since [readInstallRecord]
+  /// refuses absolute paths; anything else is kept, so a path outside the
+  /// project still gets the record refused.
+  String _recordedPath(String path) {
+    if (!p.isAbsolute(path) || !p.isWithin(_ctx.projectRoot, path)) {
+      return path;
+    }
+    return installRecordKey(_ctx.projectRoot, path);
+  }
+
   String _encodeJson(Map<String, dynamic> data) {
     const encoder = JsonEncoder.withIndent('  ');
     return encoder.convert(data);
@@ -1425,15 +1517,13 @@ final class InstallConflict extends TransactionResult {
 }
 
 /// A write failed, an unimplemented op was encountered, or a post-rename step
-/// raised. [rolledBack] reflects whether the `.tmp` cleanup ran.
+/// raised. [rolledBack] says whether anything the transaction wrote remains.
 final class InstallError extends TransactionResult {
   /// Human-readable error description (typically the underlying exception
   /// message).
   final String error;
 
-  /// `true` when the `.tmp` cleanup ran (failure happened during the atomic
-  /// write phase); `false` when the failure was earlier (unimplemented op)
-  /// or later (post-rename) so no rollback was needed or possible.
+  /// `true` only when nothing this transaction wrote remains.
   final bool rolledBack;
 
   /// Creates an [InstallError] result.

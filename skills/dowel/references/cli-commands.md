@@ -32,7 +32,7 @@ Scaffolds the consumer: `bin/dispatcher.dart`, `lib/app/_plugins.g.dart` and `li
 
 ## make:fast-cli
 
-Wires `bin/dowel` and compiles the AOT bundle. It stops before compiling when `bin/dowel` already exists, unless `--force` is passed. Exit 1 when `pubspec.yaml` or `bin/dispatcher.dart` is missing. It adds only the cache to `.gitignore` (`.dowel/cli-bundle/`, `.dowel/build.stamp`, `.dowel/.dowel.lock/`) and replaces a bare `.dowel/` line with those entries, so `.dowel/plugins.json` and `.dowel/installed/` can be committed; it does so even when it skips the compile.
+Wires `bin/dowel` and compiles the AOT bundle. It stops before compiling when `bin/dowel` already exists, unless `--force` is passed. Exit 1 when `pubspec.yaml` or `bin/dispatcher.dart` is missing. It adds only the cache to `.gitignore` (`.dowel/cli-bundle*`, `.dowel/build.stamp*`, `.dowel/.dowel.lock/`) and replaces a bare `.dowel/` line with those entries, so `.dowel/plugins.json` and `.dowel/installed/` can be committed; it does so even when it skips the compile.
 
 ## make:plugin
 

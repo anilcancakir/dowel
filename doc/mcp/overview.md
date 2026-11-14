@@ -62,7 +62,7 @@ the server sends no `notifications/tools/list_changed`.
 | `dowel_start` | `start` | Launch the Flutter app via `flutter run` and write `state.json` |
 | `dowel_stop` | `stop` | Stop the running Flutter process group, wait until it is gone, and delete `state.json` |
 | `dowel_status` | `status` | Read `state.json` and return the current process metadata as JSON |
-| `dowel_logs` | `logs` | Return the whole log captured from `flutter run` in the tool result (`follow` tails it and never returns a result: use it from the CLI) |
+| `dowel_logs` | `logs` | Return the whole log captured from `flutter run` in the tool result, once; following it is a CLI feature (`logs --follow`) |
 | `dowel_restart` | `restart` | Stop the running app and start it again, carrying the prior session's device, ports, build mode and `flutter run` arguments across unless an option changes one (not the `R` hot restart, which is `dowel_hot_restart`) |
 | `dowel_reload` | `reload` | Hot reload (sends `r` to `flutter run`) without losing widget state |
 | `dowel_hot_restart` | `hot-restart` | Hot restart (sends `R` to `flutter run`), resetting ephemeral state |

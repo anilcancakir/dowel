@@ -452,6 +452,7 @@ void main() {
       expect(description, isNot(contains('Returns empty')));
       expect(description, contains('exits 1'));
       expect(description, contains('dowel_start'));
+      expect(description, isNot(contains('follow: true')));
     });
 
     test(
@@ -1100,6 +1101,33 @@ void main() {
       },
     );
 
+    test('dowel_logs refuses follow instead of tailing forever', () async {
+      Directory('${tempHome.path}/.dowel').createSync(recursive: true);
+      File('${tempHome.path}/.dowel/flutter-dev.log')
+          .writeAsStringSync('line one\n');
+      final registry = DowelRegistry()
+        ..registerAll(<DowelCommand>[LogsCommand()], providerName: 'dowel');
+      final harness = await _TestHarness.build(
+        registry: registry,
+        filter: McpFilterConfig.empty(),
+      );
+      addTearDown(harness.dispose);
+
+      final result = await harness.connection
+          .callTool(
+            CallToolRequest(
+              name: 'dowel_logs',
+              arguments: const {'follow': true},
+            ),
+          )
+          .timeout(const Duration(seconds: 5));
+
+      expect(result.isError, isTrue);
+      final text = (result.content.single as TextContent).text;
+      expect(text, contains('logs --follow'));
+      expect(text, isNot(contains('line one')));
+    });
+
     test(
       'dowel_tinker rejects a blank eval instead of reading stdin',
       () async {
@@ -1193,6 +1221,13 @@ void main() {
         };
         expect(tools, hasLength(10));
 
+        // Options a tool leaves out on purpose, because the tool cannot honour
+        // them: `logs --follow` never ends, and a tool call answers only when
+        // the command does.
+        const cliOnly = <String, Set<String>>{
+          'logs': <String>{'follow'},
+        };
+
         for (final command in registry.all()) {
           final toolName = 'dowel_${command.name.replaceAll('-', '_')}';
           final properties = Map<String, dynamic>.from(
@@ -1201,7 +1236,14 @@ void main() {
           final parser = ArgParser();
           command.configure(parser);
 
+          final skipped = cliOnly[command.name] ?? const <String>{};
+          expect(
+            properties.keys,
+            everyElement(isNot(isIn(skipped))),
+            reason: '$toolName advertises a CLI-only option',
+          );
           for (final option in parser.options.values) {
+            if (skipped.contains(option.name)) continue;
             final expectedType = option.isFlag
                 ? 'boolean'
                 : option.isMultiple

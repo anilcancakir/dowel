@@ -154,6 +154,45 @@ class _FailingPathFs implements VirtualFs {
   String md5(String absPath) => inner.md5(absPath);
 }
 
+/// Delegates to [inner] and throws on any `rename` onto a path that contains
+/// [failingPath], so a test can fail one swap after every temp was written.
+class _FailingRenameFs implements VirtualFs {
+  _FailingRenameFs(this.inner, {required this.failingPath});
+
+  final VirtualFs inner;
+  final String failingPath;
+
+  @override
+  bool exists(String absPath) => inner.exists(absPath);
+
+  @override
+  String readAsString(String absPath) => inner.readAsString(absPath);
+
+  @override
+  void writeAsString(String absPath, String content) =>
+      inner.writeAsString(absPath, content);
+
+  @override
+  void delete(String absPath) => inner.delete(absPath);
+
+  @override
+  void copy(String fromAbs, String toAbs) => inner.copy(fromAbs, toAbs);
+
+  @override
+  void rename(String fromAbs, String toAbs) {
+    if (toAbs.contains(failingPath)) {
+      throw FileSystemException('rename refused', toAbs);
+    }
+    inner.rename(fromAbs, toAbs);
+  }
+
+  @override
+  List<String> listSync(String absDir) => inner.listSync(absDir);
+
+  @override
+  String md5(String absPath) => inner.md5(absPath);
+}
+
 /// Delegates to [inner] and records the path of every `writeAsString`.
 class _RecordingFs implements VirtualFs {
   _RecordingFs(this.inner);
@@ -1256,6 +1295,123 @@ class RouteServiceProvider {
       expect(ops.map((op) => op['type']), <String>['AddDependency']);
       expect(ops.single['preExisting'], isFalse);
       expect((record['stubHashes'] as Map).keys, <String>['pubspec.yaml']);
+    });
+
+    test(
+      'a failed reinstall keeps the ops and hashes of the record it replaces',
+      () async {
+        final root = _tempProject('dowel_tx_partial_reinstall_');
+        File(p.join(root.path, 'lib', 'main.dart'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('void main() {}\n');
+        const published = WriteFile(
+          targetPath: 'lib/config/demo.dart',
+          content: 'const demo = 1;\n',
+        );
+        const injectImport = InjectImport(
+          targetFile: 'lib/main.dart',
+          importStatement: "import 'package:demo/demo.dart';",
+        );
+        final first = InstallTransaction(_realCtx(root), pluginName: 'demo')
+          ..stage(published)
+          ..stage(injectImport);
+        expect(await first.commit(), isA<InstallSuccess>());
+
+        // The reinstall edits main.dart, then fails the published file's temp.
+        final fs = _FailingPathFs(const RealFs(), failingPath: 'config/demo');
+        final second =
+            InstallTransaction(_realCtx(root, fs: fs), pluginName: 'demo')
+              ..stage(published)
+              ..stage(injectImport);
+        final result = await second.commit();
+
+        expect(result, isA<InstallError>());
+        final record = _readRecord(root, 'demo');
+        expect(record['partial'], isTrue);
+        final ops = (record['ops'] as List).cast<Map<String, dynamic>>();
+        expect(ops.map((op) => op['type']), <String>[
+          'WriteFile',
+          'InjectImport',
+        ]);
+        expect(ops.first['targetPath'], 'lib/config/demo.dart');
+        expect(
+          (record['stubHashes'] as Map).keys,
+          unorderedEquals(<String>['lib/config/demo.dart', 'lib/main.dart']),
+        );
+      },
+    );
+  });
+
+  group('record paths', () {
+    test('an absolute path inside the project is recorded relative', () async {
+      final root = _tempProject('dowel_tx_record_relative_');
+      File(p.join(root.path, 'lib', 'source.dart'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('s');
+      final tx = InstallTransaction(_realCtx(root), pluginName: 'demo')
+        ..stage(
+          WriteFile(
+            targetPath: p.join(root.path, 'lib', 'config', 'demo.dart'),
+            content: 'a',
+          ),
+        )
+        ..stage(
+          CopyFile(
+            sourcePath: p.join(root.path, 'lib', 'source.dart'),
+            targetPath: p.join(root.path, 'lib', 'copy.dart'),
+          ),
+        );
+
+      expect(await tx.commit(), isA<InstallSuccess>());
+
+      final ops = (_readRecord(root, 'demo')['ops'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(ops.first['targetPath'], 'lib/config/demo.dart');
+      expect(ops.last['sourcePath'], 'lib/source.dart');
+      expect(ops.last['targetPath'], 'lib/copy.dart');
+    });
+  });
+
+  group('a rename that fails after helper edits', () {
+    test('reports no rollback and records what landed', () async {
+      final root = _tempProject('dowel_tx_rename_fail_');
+      File(p.join(root.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: app\ndependencies:\n  http: ^1.0.0\n');
+      final fs = _FailingRenameFs(const RealFs(), failingPath: 'a.dart');
+      final tx = InstallTransaction(_realCtx(root, fs: fs), pluginName: 'demo');
+      tx.stage(const AddDependency(name: 'intl', version: '^0.20.0'));
+      tx.stage(const WriteFile(targetPath: 'lib/a.dart', content: 'a'));
+
+      final result = await tx.commit();
+
+      expect(result, isA<InstallError>());
+      expect((result as InstallError).rolledBack, isFalse);
+      expect(result.error, contains('partial install record'));
+      final record = _readRecord(root, 'demo');
+      expect(record['partial'], isTrue);
+      final ops = (record['ops'] as List).cast<Map<String, dynamic>>();
+      expect(ops.map((op) => op['type']), <String>['AddDependency']);
+    });
+  });
+
+  group('a dependency the previous install added', () {
+    test('stays recorded as added by the plugin on a reinstall', () async {
+      final root = _tempProject('dowel_tx_dep_reinstall_');
+      File(p.join(root.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: app\ndependencies:\n  http: ^1.0.0\n');
+      const dependency = AddDependency(name: 'foo_sdk', version: '^1.0.0');
+      final first = InstallTransaction(_realCtx(root), pluginName: 'demo')
+        ..stage(dependency);
+      await first.commit();
+
+      final second = InstallTransaction(_realCtx(root), pluginName: 'demo')
+        ..stage(dependency);
+      final result = await second.commit(force: true);
+
+      expect(result, isA<InstallSuccess>());
+      final ops = (_readRecord(root, 'demo')['ops'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(ops.single['preExisting'], isFalse);
     });
   });
 

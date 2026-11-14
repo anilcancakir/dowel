@@ -642,12 +642,12 @@ final class McpServer extends MCPServer with ToolsSupport {
         return 'Read the captured `flutter run` log output.\n'
             '\n'
             'Reads the stdout/stderr captured by the background Flutter '
-            'process started via `dowel_start`. Returns the whole captured '
-            'log OR tails the live stream with `follow: true`.\n'
+            'process started via `dowel_start` and returns the whole log '
+            'captured since the app started, once.\n'
             '\n'
             'Usage:\n'
-            '- Pass `follow: true` to tail until interrupted; default '
-            'returns the whole log captured since the app started.\n'
+            '- Following the log is a CLI feature: run '
+            '`./bin/dowel logs --follow` from a shell.\n'
             '- When no log exists yet the command warns and exits 1; run '
             '`dowel_start` first.';
 
@@ -765,8 +765,10 @@ final class McpServer extends MCPServer with ToolsSupport {
   /// Per-command JSON Schema for the 10 allowlisted commands. Each schema has
   /// one property per option the command's `configure(ArgParser)` declares,
   /// typed the way the dispatcher hands it to the command: an option is a
-  /// string, a flag a boolean, a multi-option an array of strings. A parity
-  /// test in `test/mcp/mcp_server_test.dart` fails when the two drift.
+  /// string, a flag a boolean, a multi-option an array of strings, except an
+  /// option no tool call can honour (`logs --follow`). A parity test in
+  /// `test/mcp/mcp_server_test.dart` fails when the two drift, and lists
+  /// those CLI-only options.
   Map<String, dynamic> _commandInputSchema(DowelCommand command) {
     switch (command.name) {
       case 'start':
@@ -887,21 +889,9 @@ final class McpServer extends MCPServer with ToolsSupport {
             },
           },
         };
+      // `logs` has no property: its only option, --follow, never ends and is
+      // refused by the dispatcher.
       case 'logs':
-        // Mirrors `LogsCommand.configure`: only the --follow flag exists.
-        return <String, dynamic>{
-          'type': 'object',
-          'properties': <String, dynamic>{
-            'follow': <String, dynamic>{
-              'type': 'boolean',
-              'description':
-                  'When `true`, tail the live log stream until '
-                  'the client disconnects (`-f` short form on the CLI). '
-                  'When `false` or omitted, return the whole captured log '
-                  'and exit immediately. Default `false`.',
-            },
-          },
-        };
       case 'stop':
       case 'status':
       case 'reload':
@@ -965,6 +955,20 @@ final class McpServer extends MCPServer with ToolsSupport {
           in (request.arguments ?? const <String, Object?>{}).entries)
         key: value is List ? List<String>.from(value) : value,
     };
+    // `logs --follow` tails until it is interrupted, and a tool call answers
+    // only when the command ends, so the call would never return.
+    if (commandName == 'logs' && args['follow'] == true) {
+      return CallToolResult(
+        isError: true,
+        content: [
+          TextContent(
+            text:
+                '### Error\n`dowel_logs` returns the log once; following it '
+                'needs the CLI. Run `./bin/dowel logs --follow` from a shell.',
+          ),
+        ],
+      );
+    }
     final output = BufferedOutput();
     final input = MapInput(args);
 

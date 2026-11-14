@@ -680,6 +680,14 @@ void main() {
       final out = (ctx.output as BufferedOutput).content;
       expect(out, contains('.dowel/plugins.json'));
       expect(out, contains('package:tapir/cli.dart'));
+      expect(
+        out,
+        contains(
+          'Or delete lib/app/_plugins.g.dart, run `dart run dowel install` '
+          'to write an empty one, and run plugin:install again for each '
+          'plugin.',
+        ),
+      );
     });
 
     test(
