@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 /// Minimal no-op [PromptDriver] used in transaction tests; the orchestrator
@@ -116,6 +117,105 @@ class _FailingFs implements VirtualFs {
   String md5(String absPath) => inner.md5(absPath);
 }
 
+/// Delegates to [inner] and throws on any `writeAsString` whose path contains
+/// [failingPath], so a test can fail one specific `.tmp` write on a real disk.
+class _FailingPathFs implements VirtualFs {
+  _FailingPathFs(this.inner, {required this.failingPath});
+
+  final VirtualFs inner;
+  final String failingPath;
+
+  @override
+  bool exists(String absPath) => inner.exists(absPath);
+
+  @override
+  String readAsString(String absPath) => inner.readAsString(absPath);
+
+  @override
+  void writeAsString(String absPath, String content) {
+    if (absPath.contains(failingPath)) {
+      throw FileSystemException('disk full', absPath);
+    }
+    inner.writeAsString(absPath, content);
+  }
+
+  @override
+  void delete(String absPath) => inner.delete(absPath);
+
+  @override
+  void copy(String fromAbs, String toAbs) => inner.copy(fromAbs, toAbs);
+
+  @override
+  void rename(String fromAbs, String toAbs) => inner.rename(fromAbs, toAbs);
+
+  @override
+  List<String> listSync(String absDir) => inner.listSync(absDir);
+
+  @override
+  String md5(String absPath) => inner.md5(absPath);
+}
+
+/// Delegates to [inner] and records the path of every `writeAsString`.
+class _RecordingFs implements VirtualFs {
+  _RecordingFs(this.inner);
+
+  final VirtualFs inner;
+  final List<String> writes = <String>[];
+
+  @override
+  bool exists(String absPath) => inner.exists(absPath);
+
+  @override
+  String readAsString(String absPath) => inner.readAsString(absPath);
+
+  @override
+  void writeAsString(String absPath, String content) {
+    writes.add(absPath);
+    inner.writeAsString(absPath, content);
+  }
+
+  @override
+  void delete(String absPath) => inner.delete(absPath);
+
+  @override
+  void copy(String fromAbs, String toAbs) => inner.copy(fromAbs, toAbs);
+
+  @override
+  void rename(String fromAbs, String toAbs) => inner.rename(fromAbs, toAbs);
+
+  @override
+  List<String> listSync(String absDir) => inner.listSync(absDir);
+
+  @override
+  String md5(String absPath) => inner.md5(absPath);
+}
+
+/// A temp project directory removed after the test.
+Directory _tempProject(String prefix) {
+  final root = Directory.systemTemp.createTempSync(prefix);
+  addTearDown(() {
+    if (root.existsSync()) root.deleteSync(recursive: true);
+  });
+  return root;
+}
+
+/// An [InstallContext] over a real directory, for ops whose editors write
+/// through `dart:io`.
+InstallContext _realCtx(Directory root, {VirtualFs fs = const RealFs()}) {
+  return InstallContext.test(
+    fs: fs,
+    prompt: _SilentPromptDriver(),
+    stubs: _SilentStubDriver(),
+    projectRoot: root.path,
+  );
+}
+
+/// The decoded install record of [plugin] under [root].
+Map<String, dynamic> _readRecord(Directory root, String plugin) {
+  final file = File(p.join(root.path, '.dowel', 'installed', '$plugin.json'));
+  return jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+}
+
 /// Smallest `project.pbxproj` the Xcode arm can act on: one application
 /// target, its configuration list and three build configurations. Xcode's own
 /// tab indentation and comment shapes are irrelevant here (the parser ignores
@@ -216,8 +316,8 @@ void main() {
     });
   });
 
-  group('commit() — empty + Success', () {
-    test('empty op list returns Success(opCount: 0)', () async {
+  group('commit() — empty + InstallSuccess', () {
+    test('empty op list returns InstallSuccess(opCount: 0)', () async {
       final fs = InMemoryFs();
       final tx = InstallTransaction(
         _makeCtx(fs: fs, fixedTime: DateTime.utc(2025, 1, 1)),
@@ -226,8 +326,8 @@ void main() {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>());
-      final success = result as Success;
+      expect(result, isA<InstallSuccess>());
+      final success = result as InstallSuccess;
       expect(success.opCount, 0);
       expect(success.recordPath, '/proj/.dowel/installed/demo.json');
     });
@@ -244,8 +344,8 @@ void main() {
 
       final result = await tx.commit(dryRun: true);
 
-      expect(result, isA<DryRun>());
-      expect((result as DryRun).opCount, 2);
+      expect(result, isA<InstallDryRun>());
+      expect((result as InstallDryRun).opCount, 2);
       expect(fs.snapshot, isEmpty);
 
       final out = (ctx.dowelContext.output as BufferedOutput).content;
@@ -278,11 +378,11 @@ void main() {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(fs.readAsString('/proj/lib/hello.dart'), 'print("hi");');
     });
 
-    test('WriteFile leaves no .tmp file behind after Success', () async {
+    test('WriteFile leaves no .tmp file behind after InstallSuccess', () async {
       final fs = InMemoryFs();
       final tx = InstallTransaction(_makeCtx(fs: fs), pluginName: 'demo');
       tx.stage(
@@ -306,7 +406,7 @@ void main() {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(fs.exists('/proj/lib/old.dart'), isFalse);
     });
   });
@@ -326,7 +426,7 @@ void main() {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(fs.readAsString('/proj/assets/tpl.dart'), 'template body');
       expect(fs.readAsString('/proj/lib/copied.dart'), 'template body');
     });
@@ -345,12 +445,13 @@ void main() {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final recordPath = '/proj/.dowel/installed/magic_logger.json';
       expect(fs.exists(recordPath), isTrue);
 
       final record =
           jsonDecode(fs.readAsString(recordPath)) as Map<String, dynamic>;
+      expect(record['version'], 1);
       expect(record['plugin'], 'magic_logger');
       expect(record['installedAt'], '2025-03-01T10:30:00.000Z');
 
@@ -361,8 +462,9 @@ void main() {
       expect((ops.first as Map<String, dynamic>)['content'], 'hello');
 
       final hashes = record['stubHashes'] as Map<String, dynamic>;
-      expect(hashes['/proj/lib/x.dart'], isA<String>());
-      expect((hashes['/proj/lib/x.dart'] as String).length, 32);
+      // Project-relative keys, so the record survives a moved checkout.
+      expect(hashes.keys, <String>['lib/x.dart']);
+      expect((hashes['lib/x.dart'] as String).length, 32);
     });
 
     test('plugin name threads into the record file path', () async {
@@ -375,14 +477,15 @@ void main() {
       final result = await tx.commit();
 
       expect(
-        (result as Success).recordPath,
+        (result as InstallSuccess).recordPath,
         '/proj/.dowel/installed/firebase_messaging.json',
       );
     });
   });
 
   group('commit() — conflict branch (Step 7 hook)', () {
-    test('force = false with non-empty conflict stub returns Conflict result',
+    test(
+        'force = false with non-empty conflict stub returns InstallConflict result',
         () async {
       final fs = InMemoryFs();
       final tx = InstallTransaction(_makeCtx(fs: fs), pluginName: 'demo');
@@ -394,8 +497,8 @@ void main() {
 
       final result = await tx.commit();
 
-      expect(result, isA<Conflict>());
-      final conflict = result as Conflict;
+      expect(result, isA<InstallConflict>());
+      final conflict = result as InstallConflict;
       expect(conflict.conflicts, hasLength(1));
       expect(conflict.conflicts.first.absPath, '/proj/lib/a.dart');
       // No write should have happened, no record should exist.
@@ -403,7 +506,8 @@ void main() {
       expect(fs.exists('/proj/.dowel/installed/demo.json'), isFalse);
     });
 
-    test('force = true bypasses conflicts and proceeds to Success', () async {
+    test('force = true bypasses conflicts and proceeds to InstallSuccess',
+        () async {
       final fs = InMemoryFs();
       final tx = InstallTransaction(_makeCtx(fs: fs), pluginName: 'demo');
       tx.debugSetConflictsForTest(const [
@@ -414,7 +518,7 @@ void main() {
 
       final result = await tx.commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(fs.readAsString('/proj/lib/a.dart'), 'new');
     });
   });
@@ -431,8 +535,8 @@ void main() {
 
       final result = await tx.commit();
 
-      expect(result, isA<Error>());
-      final err = result as Error;
+      expect(result, isA<InstallError>());
+      final err = result as InstallError;
       expect(err.rolledBack, isTrue);
       expect(err.error, contains('disk full'));
 
@@ -448,16 +552,29 @@ void main() {
     });
   });
 
+  group('result names', () {
+    test('importing the barrel leaves dart:core Error catchable', () {
+      var caught = false;
+      try {
+        throw StateError('x');
+      } on Error {
+        caught = true;
+      }
+
+      expect(caught, isTrue);
+    });
+  });
+
   group('commit() — exhaustive sealed dispatch', () {
     test(
-        'pattern matching exhaustively covers Success / DryRun / Conflict / Error',
+        'pattern matching exhaustively covers InstallSuccess / InstallDryRun / InstallConflict / InstallError',
         () async {
       String tag(TransactionResult r) {
         return switch (r) {
-          Success() => 'success',
-          DryRun() => 'dry',
-          Conflict() => 'conflict',
-          Error() => 'error',
+          InstallSuccess() => 'success',
+          InstallDryRun() => 'dry',
+          InstallConflict() => 'conflict',
+          InstallError() => 'error',
         };
       }
 
@@ -498,7 +615,7 @@ void main() {
   group('dispatcher — platform-detection no-op', () {
     test(
         'InjectAndroidPermission on a non-Android project is a silent skip '
-        '(returns Success, writes nothing platform-related)', () async {
+        '(returns InstallSuccess, writes nothing platform-related)', () async {
       // No android/ directory under projectRoot, so the dispatcher must
       // emit an info-level skip line and complete the install without
       // touching any android files.
@@ -511,7 +628,7 @@ void main() {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       // The only artefact is the install record under .dowel/installed/.
       final manifestlike = fs.snapshot.keys
           .where((k) => k.contains('AndroidManifest.xml'))
@@ -570,7 +687,8 @@ void main() {
       ));
 
       final result = await tx.commit();
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
 
       final op = (recordFor(root, 'demo')['ops'] as List).single
           as Map<String, dynamic>;
@@ -593,7 +711,8 @@ void main() {
       // unmanaged on first install. The post-install record will hash it so
       // a subsequent install passes cleanly.
       final result = await tx.commit(force: true);
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
 
       final ops =
           (recordFor(root, 'demo')['ops'] as List).cast<Map<String, dynamic>>();
@@ -601,13 +720,15 @@ void main() {
         'type': 'AddDependency',
         'name': 'intl',
         'version': '^0.20.0',
-        'isDev': false
+        'isDev': false,
+        'preExisting': false,
       });
       expect(ops[1], {
         'type': 'AddDependency',
         'name': 'mocktail',
         'version': '^1.0.0',
-        'isDev': true
+        'isDev': true,
+        'preExisting': false,
       });
     });
 
@@ -621,8 +742,12 @@ void main() {
 
       final op = (recordFor(root, 'demo')['ops'] as List).single
           as Map<String, dynamic>;
-      expect(op,
-          {'type': 'AddPathDependency', 'name': 'my_lib', 'path': '../my_lib'});
+      expect(op, {
+        'type': 'AddPathDependency',
+        'name': 'my_lib',
+        'path': '../my_lib',
+        'preExisting': false,
+      });
     });
 
     test('RemoveDependency serializes name', () async {
@@ -699,7 +824,8 @@ void main() {
       tx.stage(const RunShell(command: 'true', args: []));
 
       final result = await tx.commit();
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
 
       final ops =
           (recordFor(root, 'demo')['ops'] as List).cast<Map<String, dynamic>>();
@@ -762,7 +888,8 @@ void main() {
       ));
 
       final result = await tx.commit();
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
 
       final ops =
           (recordFor(root, 'demo')['ops'] as List).cast<Map<String, dynamic>>();
@@ -790,7 +917,8 @@ void main() {
       ));
 
       final result = await tx.commit();
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
 
       final op = (recordFor(root, 'demo')['ops'] as List).single
           as Map<String, dynamic>;
@@ -833,7 +961,8 @@ class RouteServiceProvider {
       // unmanaged on first install; the post-write hash is recorded so a
       // subsequent install passes cleanly.
       final result = await tx.commit(force: true);
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
 
       final ops =
           (recordFor(root, 'demo')['ops'] as List).cast<Map<String, dynamic>>();
@@ -941,11 +1070,10 @@ class RouteServiceProvider {
       final record = jsonDecode(File('${root.path}/.dowel/installed/demo.json')
           .readAsStringSync()) as Map<String, dynamic>;
       final hashes = record['stubHashes'] as Map<String, dynamic>;
-      final pubspecAbs = '${root.path}/pubspec.yaml';
-      expect(hashes[pubspecAbs], isA<String>(),
+      expect(hashes['pubspec.yaml'], isA<String>(),
           reason: 'helper-backed write must be hashed in the record so '
               'ConflictDetector treats a re-install as clean');
-      expect((hashes[pubspecAbs] as String).length, 32);
+      expect((hashes['pubspec.yaml'] as String).length, 32);
     });
 
     test('InjectEnvVar hashes the post-write .env file', () async {
@@ -957,7 +1085,7 @@ class RouteServiceProvider {
       final record = jsonDecode(File('${root.path}/.dowel/installed/demo.json')
           .readAsStringSync()) as Map<String, dynamic>;
       final hashes = record['stubHashes'] as Map<String, dynamic>;
-      expect(hashes['${root.path}/.env'], isA<String>());
+      expect(hashes['.env'], isA<String>());
     });
   });
 
@@ -980,8 +1108,8 @@ class RouteServiceProvider {
 
       final result = await tx.commit();
 
-      expect(result, isA<Error>(),
-          reason: 'shell op exit 1 must surface as Error');
+      expect(result, isA<InstallError>(),
+          reason: 'shell op exit 1 must surface as InstallError');
       // CRITICAL: record must already exist so uninstall can clean up.
       final recordPath = '${tmp.path}/.dowel/installed/demo.json';
       expect(File(recordPath).existsSync(), isTrue,
@@ -989,6 +1117,122 @@ class RouteServiceProvider {
               'failure leaves the install state recoverable via uninstall');
       // File written before shell phase should also be on disk.
       expect(File('${tmp.path}/lib/a.dart').existsSync(), isTrue);
+    });
+  });
+
+  group('helper edits before a failed .tmp write', () {
+    test('reports no rollback and records what landed', () async {
+      final root = _tempProject('dowel_tx_partial_');
+      File(p.join(root.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: app\ndependencies:\n  http: ^1.0.0\n');
+      final fs = _FailingPathFs(const RealFs(), failingPath: 'b.dart');
+      final tx = InstallTransaction(_realCtx(root, fs: fs), pluginName: 'demo');
+      tx.stage(const AddDependency(name: 'intl', version: '^0.20.0'));
+      tx.stage(const WriteFile(targetPath: 'lib/a.dart', content: 'a'));
+      tx.stage(const WriteFile(targetPath: 'lib/b.dart', content: 'b'));
+
+      final result = await tx.commit();
+
+      // 1. The pubspec edit is on disk, so nothing was rolled back.
+      expect(result, isA<InstallError>());
+      expect((result as InstallError).rolledBack, isFalse);
+      expect(
+        File(p.join(root.path, 'pubspec.yaml')).readAsStringSync(),
+        contains('intl: ^0.20.0'),
+      );
+
+      // 2. The whole-file writes did not land and left no temp behind.
+      expect(File(p.join(root.path, 'lib', 'a.dart')).existsSync(), isFalse);
+      expect(Directory(p.join(root.path, 'lib')).listSync(), isEmpty);
+
+      // 3. A record lists the edit that landed, so uninstall can reverse it.
+      final record = _readRecord(root, 'demo');
+      expect(record['version'], 1);
+      expect(record['partial'], isTrue);
+      final ops = (record['ops'] as List).cast<Map<String, dynamic>>();
+      expect(ops.map((op) => op['type']), <String>['AddDependency']);
+      expect(ops.single['preExisting'], isFalse);
+      expect((record['stubHashes'] as Map).keys, <String>['pubspec.yaml']);
+    });
+  });
+
+  group('install record write', () {
+    test('a failed record write returns an InstallError instead of throwing',
+        () async {
+      final root = _tempProject('dowel_tx_record_fail_');
+      // A directory at the record path makes the rename fail on POSIX.
+      Directory(p.join(root.path, '.dowel', 'installed', 'demo.json'))
+          .createSync(recursive: true);
+      final tx = InstallTransaction(_realCtx(root), pluginName: 'demo');
+      tx.stage(const WriteFile(targetPath: 'lib/a.dart', content: 'a'));
+
+      final result = await tx.commit();
+
+      expect(result, isA<InstallError>());
+      final error = result as InstallError;
+      expect(error.rolledBack, isFalse);
+      expect(error.error, contains('demo.json'));
+      expect(File(p.join(root.path, 'lib', 'a.dart')).existsSync(), isTrue);
+      expect(
+        Directory(p.join(root.path, '.dowel', 'installed'))
+            .listSync()
+            .where((entry) => entry.path.endsWith('.tmp')),
+        isEmpty,
+      );
+    });
+
+    test('every staged temp file carries the process id', () async {
+      final fs = _RecordingFs(InMemoryFs());
+      final tx = InstallTransaction(_makeCtx(fs: fs), pluginName: 'demo');
+      tx.stage(const WriteFile(targetPath: 'lib/a.dart', content: 'a'));
+
+      await tx.commit();
+
+      final temps = fs.writes.where((path) => path.endsWith('.tmp')).toList();
+      expect(temps, hasLength(2), reason: 'one file plus the record');
+      expect(temps, everyElement(endsWith('.$pid.tmp')));
+    });
+  });
+
+  group('dependencies the user already declared', () {
+    test('an existing constraint survives and is recorded as pre-existing',
+        () async {
+      final root = _tempProject('dowel_tx_dep_kept_');
+      final pubspec = File(p.join(root.path, 'pubspec.yaml'))
+        ..writeAsStringSync('name: app\ndependencies:\n  intl: ^0.19.0\n');
+      final tx = InstallTransaction(_realCtx(root), pluginName: 'demo');
+      tx.stage(const AddDependency(name: 'intl', version: '^0.20.0'));
+      tx.stage(const AddDependency(name: 'http', version: '^1.0.0'));
+      tx.stage(const AddPathDependency(name: 'intl', path: '../intl'));
+
+      final result = await tx.commit();
+
+      expect(result, isA<InstallSuccess>());
+      final content = pubspec.readAsStringSync();
+      expect(content, contains('intl: ^0.19.0'));
+      expect(content, isNot(contains('../intl')));
+      expect(content, contains('http: ^1.0.0'));
+
+      final ops = (_readRecord(root, 'demo')['ops'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(ops.map((op) => op['preExisting']), <bool>[true, false, true]);
+    });
+
+    test('a dev dependency is looked up under dev_dependencies', () async {
+      final root = _tempProject('dowel_tx_dev_dep_');
+      final pubspec = File(p.join(root.path, 'pubspec.yaml'))
+        ..writeAsStringSync('name: app\ndev_dependencies:\n  test: ^1.24.0\n');
+      final tx = InstallTransaction(_realCtx(root), pluginName: 'demo');
+      tx.stage(
+        const AddDependency(name: 'test', version: '^1.25.0', isDev: true),
+      );
+
+      await tx.commit();
+
+      expect(pubspec.readAsStringSync(), contains('test: ^1.24.0'));
+      final ops = (_readRecord(root, 'demo')['ops'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(ops.single['preExisting'], isTrue);
     });
   });
 
@@ -1039,7 +1283,8 @@ class RouteServiceProvider {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
       // The plist write is the pre-existing half; the build setting is what
       // makes Xcode read that file at all.
       expect(
@@ -1072,7 +1317,7 @@ class RouteServiceProvider {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(pbxprojOf(root), before, reason: 'must not repoint the signing');
       expect(
         File('${root.path}/ios/Runner/Custom.entitlements').readAsStringSync(),
@@ -1096,7 +1341,7 @@ class RouteServiceProvider {
         value: 'development',
       ));
 
-      expect(await tx.commit(), isA<Success>());
+      expect(await tx.commit(), isA<InstallSuccess>());
     });
 
     test('a project the round-trip guard refuses warns and keeps installing',
@@ -1125,7 +1370,8 @@ class RouteServiceProvider {
       // Assert what the operator is left with: a finished install carrying one
       // warning, not an abort stacked on top of the writes that already landed
       // and cannot be rolled back.
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
       expect(
         File('${root.path}/lib/after.dart').existsSync(),
         isTrue,
@@ -1163,7 +1409,8 @@ class RouteServiceProvider {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
       expect(
         File('${root.path}/ios/Runner/Runner.entitlements')
             .readAsStringSync()
@@ -1194,7 +1441,7 @@ class RouteServiceProvider {
         value: <String>['webcredentials:example.com'],
       ));
 
-      expect(await tx.commit(), isA<Success>());
+      expect(await tx.commit(), isA<InstallSuccess>());
 
       final plist = File('${root.path}/ios/Runner/Runner.entitlements')
           .readAsStringSync();
@@ -1202,7 +1449,7 @@ class RouteServiceProvider {
       expect(plist, contains('webcredentials:example.com'));
     });
 
-    test('a list holding a non-string is an Error and writes nothing',
+    test('a list holding a non-string is an InstallError and writes nothing',
         () async {
       final root = seedIosProject();
       final before = pbxprojOf(root);
@@ -1215,8 +1462,9 @@ class RouteServiceProvider {
 
       final result = await tx.commit();
 
-      expect(result, isA<Error>());
-      expect((result as Error).error, contains('unsupported value type'));
+      expect(result, isA<InstallError>());
+      expect(
+          (result as InstallError).error, contains('unsupported value type'));
       expect(pbxprojOf(root), before);
       expect(
         File('${root.path}/ios/Runner/Runner.entitlements').readAsStringSync(),
@@ -1268,7 +1516,8 @@ class RouteServiceProvider {
 
         final result = await tx.commit();
 
-        expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+        expect(result, isA<InstallSuccess>(),
+            reason: 'Got: ${result.describe()}');
         for (final name in const [
           'Runner.entitlements',
           'RunnerRelease.entitlements',
@@ -1293,7 +1542,7 @@ class RouteServiceProvider {
           value: 'production',
         ));
 
-        expect(await tx.commit(), isA<Success>());
+        expect(await tx.commit(), isA<InstallSuccess>());
 
         expect(plistOf(root, 'RunnerRelease.entitlements'),
             contains('aps-environment'));
@@ -1309,7 +1558,7 @@ class RouteServiceProvider {
           value: true,
         ));
 
-        expect(await tx.commit(), isA<Success>());
+        expect(await tx.commit(), isA<InstallSuccess>());
 
         expect(pbxprojOf(root), split);
         expect(
@@ -1363,7 +1612,8 @@ class RouteServiceProvider {
 
           final result = await tx.commit();
 
-          expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+          expect(result, isA<InstallSuccess>(),
+              reason: 'Got: ${result.describe()}');
           expect(
             File('${root.path}/ios/Runner/Runner.entitlements')
                 .readAsStringSync(),
@@ -1393,7 +1643,8 @@ class RouteServiceProvider {
 
         final result = await tx.commit();
 
-        expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+        expect(result, isA<InstallSuccess>(),
+            reason: 'Got: ${result.describe()}');
         expect(
           (ctx.dowelContext.output as BufferedOutput).content,
           contains(r'$(TARGET_NAME)/x.entitlements'),
@@ -1410,7 +1661,8 @@ class RouteServiceProvider {
       });
     });
 
-    test('a malformed project surfaces as an Error and is left untouched',
+    test(
+        'a malformed project surfaces as an InstallError and is left untouched',
         () async {
       final malformed = _miniPbxproj.replaceFirst(
         'objectVersion = 54;',
@@ -1426,8 +1678,8 @@ class RouteServiceProvider {
 
       final result = await tx.commit();
 
-      expect(result, isA<Error>());
-      expect((result as Error).error, contains('InjectEntitlement'));
+      expect(result, isA<InstallError>());
+      expect((result as InstallError).error, contains('InjectEntitlement'));
       expect(pbxprojOf(root), malformed);
     });
   });
@@ -1468,7 +1720,8 @@ class RouteServiceProvider {
 
       final result = await tx.commit();
 
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
       final plist =
           File('${root.path}/macos/Runner/Info.plist').readAsStringSync();
       expect(plist, contains('<key>CFBundleURLTypes</key>'));
@@ -1481,11 +1734,11 @@ class RouteServiceProvider {
       tx.stage(const InjectInfoPlistUrlScheme(
           scheme: 'com.example.app', platform: 'macos'));
 
-      expect(await tx.commit(), isA<Success>());
+      expect(await tx.commit(), isA<InstallSuccess>());
       expect(Directory('${root.path}/macos').existsSync(), isFalse);
     });
 
-    test('a malformed CFBundleURLTypes surfaces as an Error', () async {
+    test('a malformed CFBundleURLTypes surfaces as an InstallError', () async {
       final root = seedProject(
         'ios',
         plist: '''
@@ -1503,8 +1756,9 @@ class RouteServiceProvider {
 
       final result = await tx.commit();
 
-      expect(result, isA<Error>());
-      expect((result as Error).error, contains('InjectInfoPlistUrlScheme'));
+      expect(result, isA<InstallError>());
+      expect(
+          (result as InstallError).error, contains('InjectInfoPlistUrlScheme'));
     });
   });
 
@@ -1537,7 +1791,8 @@ class RouteServiceProvider {
         line: "pod 'OneSignalXCFramework', '5.2.7'",
       ));
       final result = await tx.commit();
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+      expect(result, isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}');
 
       final podfile = File('${root.path}/$platform/Podfile');
       expect(
@@ -1592,19 +1847,33 @@ end
   group('TransactionResult.describe()', () {
     test('each subclass produces a non-empty human-readable describe', () {
       expect(
-        const Success(opCount: 3, recordPath: '/x/y.json').describe(),
+        const InstallSuccess(opCount: 3, recordPath: '/x/y.json').describe(),
         contains('3'),
       );
-      expect(const DryRun(opCount: 5).describe(), contains('5'));
+      expect(const InstallDryRun(opCount: 5).describe(), contains('5'));
       expect(
-        const Conflict(conflicts: [
+        const InstallConflict(conflicts: [
           FileConflict(absPath: '/x/a', reason: 'modified-since-install'),
         ]).describe(),
         contains('1'),
       );
       expect(
-        const Error(error: 'boom', rolledBack: true).describe(),
+        const InstallError(error: 'boom', rolledBack: true).describe(),
         contains('boom'),
+      );
+    });
+
+    test('a conflict names each file and its reason', () {
+      final described = const InstallConflict(conflicts: [
+        FileConflict(
+          absPath: '/x/.dowel/installed/demo.json',
+          reason: 'unsupported-install-record',
+        ),
+      ]).describe();
+
+      expect(
+        described,
+        contains('/x/.dowel/installed/demo.json (unsupported-install-record)'),
       );
     });
   });

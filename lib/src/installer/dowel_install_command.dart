@@ -53,7 +53,7 @@ import 'install_context.dart';
 ///       dryRun: isDryRun(ctx),
 ///       force: isForce(ctx),
 ///     );
-///     return result is Success ? 0 : 1;
+///     return result is InstallSuccess ? 0 : 1;
 ///   }
 /// }
 /// ```

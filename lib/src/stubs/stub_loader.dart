@@ -162,14 +162,11 @@ class StubLoader {
             if (entry['name'] == _pkgName) {
               final rootUri = entry['rootUri'] as String;
 
-              // rootUri can be absolute (file:///) or relative (../)
-              if (rootUri.startsWith('file://')) {
-                return Uri.parse(rootUri).toFilePath();
-              }
-
-              // Relative paths are resolved from .dart_tool/ parent
+              // rootUri is an absolute `file:` URI or a reference relative to
+              // `.dart_tool/`, percent-encoded either way. Resolving it as a
+              // URI decodes it; a path join kept `%20` literally.
               return path.normalize(
-                path.join(current.path, '.dart_tool', rootUri),
+                configFile.parent.absolute.uri.resolve(rootUri).toFilePath(),
               );
             }
           }

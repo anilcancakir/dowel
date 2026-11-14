@@ -149,7 +149,11 @@ class MakeFooCommand extends DowelGeneratorCommand {}
         ),
       ]);
       expect(out, contains("import 'foo.dart';"));
-      expect(out, contains('  FooCommand(),'));
+      expect(
+        out,
+        contains(
+            'List<DowelCommand> get commands => <DowelCommand>[FooCommand()];'),
+      );
     });
 
     test('deduplicates imports when a file has multiple commands', () {
@@ -158,8 +162,36 @@ class MakeFooCommand extends DowelGeneratorCommand {}
         DiscoveredCommand(className: 'BarCommand', fileName: 'multi.dart'),
       ]);
       expect("'multi.dart'".allMatches(out).length, 1);
-      expect(out, contains('  FooCommand(),'));
-      expect(out, contains('  BarCommand(),'));
+      expect(out, contains('[FooCommand(), BarCommand()]'));
+    });
+
+    test('ends on the closing line, with no trailing blank line', () {
+      // dart format drops the blank line, so a consumer running
+      // `dart format --set-exit-if-changed .` failed on the generated file.
+      expect(
+        renderCommandsIndex(const []),
+        endsWith(
+            '\nList<DowelCommand> get commands => const <DowelCommand>[];\n'),
+      );
+    });
+
+    test('a list longer than 80 columns splits one entry per line', () {
+      final out = renderCommandsIndex(const [
+        DiscoveredCommand(
+            className: 'GreetEveryoneCommand', fileName: 'g.dart'),
+        DiscoveredCommand(
+            className: 'CleanTheCacheCommand', fileName: 'c.dart'),
+      ]);
+
+      expect(
+        out,
+        endsWith(
+          '\nList<DowelCommand> get commands => <DowelCommand>[\n'
+          '  GreetEveryoneCommand(),\n'
+          '  CleanTheCacheCommand(),\n'
+          '];\n',
+        ),
+      );
     });
 
     test('sorts imports alphabetically', () {

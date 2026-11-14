@@ -4,4 +4,4 @@
 
 import 'package:dowel/dowel.dart';
 
-List<DowelCommand> get commands => <DowelCommand>[];
+List<DowelCommand> get commands => const <DowelCommand>[];

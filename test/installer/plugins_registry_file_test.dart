@@ -1,7 +1,19 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
+
+/// [InMemoryFs] that records the path of every `writeAsString`.
+class _RecordingFs extends InMemoryFs {
+  final List<String> writes = <String>[];
+
+  @override
+  void writeAsString(String absPath, String content) {
+    writes.add(absPath);
+    super.writeAsString(absPath, content);
+  }
+}
 
 void main() {
   group('PluginEntry', () {
@@ -136,8 +148,8 @@ void main() {
 
       // The temporary file must be gone and the target must exist.
       expect(
-        fs.exists('/proj/.dowel/plugins.json.tmp'),
-        isFalse,
+        fs.snapshot.keys.where((path) => path.endsWith('.tmp')),
+        isEmpty,
         reason: '.tmp file must not survive after successful rename',
       );
       expect(
@@ -145,6 +157,17 @@ void main() {
         isTrue,
         reason: 'Target file must exist after write',
       );
+    });
+
+    test('the temp file carries the process id', () async {
+      // Two installs in one project at once both staged `plugins.json.tmp`,
+      // and one rename threw on the other's file.
+      final fs = _RecordingFs();
+      final registryFile = PluginsRegistryFile(fs, '/proj');
+
+      await registryFile.write(PluginsRegistry.empty());
+
+      expect(fs.writes, <String>['/proj/.dowel/plugins.json.$pid.tmp']);
     });
   });
 

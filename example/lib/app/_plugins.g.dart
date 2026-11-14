@@ -7,8 +7,5 @@ import 'package:dowel/dowel.dart';
 import 'package:awesome_plugin/cli.dart' show AwesomePluginDowelProvider;
 
 List<DowelServiceProvider> autoDiscoveredProviders() {
-  return <DowelServiceProvider>[
-    AwesomePluginDowelProvider(),
-  ];
+  return <DowelServiceProvider>[AwesomePluginDowelProvider()];
 }
-

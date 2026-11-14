@@ -301,6 +301,75 @@ void main() {
       });
     });
 
+    group('fluttersdk_artisan leftovers', () {
+      late Directory tempDir;
+
+      setUp(() {
+        tempDir = Directory.systemTemp.createTempSync('doctor_artisan_');
+      });
+
+      tearDown(() => tempDir.deleteSync(recursive: true));
+
+      void seed(String relative, String content) {
+        File('${tempDir.path}/$relative')
+          ..createSync(recursive: true)
+          ..writeAsStringSync(content);
+      }
+
+      test('names every leftover and the migration steps', () async {
+        seed('bin/fsa', '#!/bin/sh\n');
+        seed('.artisan/plugins.json', '{}');
+        seed(
+          'lib/app/commands/greet_command.dart',
+          'class GreetCommand extends ArtisanCommand {}\n',
+        );
+        seed('lib/app/commands/clean_command.dart', 'class Clean {}\n');
+        seed(
+          '.dowel/plugins.json',
+          '{"version": 1, "plugins": [{"name": "fluttersdk_dusk"}]}',
+        );
+        seed(
+          'bin/dispatcher.dart',
+          "import 'package:fluttersdk_artisan/artisan.dart';\n",
+        );
+        final output = BufferedOutput();
+
+        await DoctorCommand(workingDir: tempDir.path).handle(
+          DowelContext.bare(MapInput(const {}), output),
+        );
+
+        final content = output.content;
+        expect(content, contains('WARN: fluttersdk_artisan leftovers'));
+        for (final leftover in <String>[
+          'bin/fsa',
+          '.artisan/',
+          'lib/app/commands/greet_command.dart',
+          '.dowel/plugins.json',
+          'bin/dispatcher.dart',
+        ]) {
+          expect(content, contains('  $leftover'));
+        }
+        expect(content, isNot(contains('clean_command.dart')));
+        expect(content, contains('dart pub remove fluttersdk_artisan'));
+        expect(content, contains('dart run dowel mcp:install'));
+      });
+
+      test('a clean dowel project gets no leftover warning', () async {
+        seed('bin/dispatcher.dart', "import 'package:dowel/dowel.dart';\n");
+        seed(
+          '.dowel/plugins.json',
+          '{"version": 1, "plugins": [{"name": "tapir"}]}',
+        );
+        final output = BufferedOutput();
+
+        await DoctorCommand(workingDir: tempDir.path).handle(
+          DowelContext.bare(MapInput(const {}), output),
+        );
+
+        expect(output.content, isNot(contains('fluttersdk_artisan leftovers')));
+      });
+    });
+
     // -------------------------------------------------------------------------
     // Flutter SDK version check
     // -------------------------------------------------------------------------

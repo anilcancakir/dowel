@@ -382,7 +382,7 @@ void main() {
           .injectAndroidPermission('android.permission.INTERNET');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final manifest = File(p.join(tempDir.path, 'android', 'app', 'src',
               'main', 'AndroidManifest.xml'))
           .readAsStringSync();
@@ -394,7 +394,7 @@ void main() {
           .injectAndroidMetaData(name: 'io.icon', value: '@mipmap/ic');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final manifest = File(p.join(tempDir.path, 'android', 'app', 'src',
               'main', 'AndroidManifest.xml'))
           .readAsStringSync();
@@ -408,7 +408,7 @@ void main() {
               pluginId: 'com.google.gms.google-services', version: '4.4.2');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final gradle =
           File(p.join(tempDir.path, 'android', 'app', 'build.gradle.kts'))
               .readAsStringSync();
@@ -423,7 +423,7 @@ void main() {
               scope: 'implementation', notation: 'com.x:y:1.0');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final gradle =
           File(p.join(tempDir.path, 'android', 'app', 'build.gradle.kts'))
               .readAsStringSync();
@@ -451,7 +451,7 @@ void main() {
       );
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final plist = File(p.join(tempDir.path, 'ios', 'Runner', 'Info.plist'))
           .readAsStringSync();
       expect(plist, contains('NSCameraUsageDescription'));
@@ -466,21 +466,22 @@ void main() {
       );
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final plist = File(p.join(tempDir.path, 'ios', 'Runner', 'Info.plist'))
           .readAsStringSync();
       expect(plist, contains('UIRequiresFullScreen'));
       expect(plist, contains('<true/>'));
     });
 
-    test('injectInfoPlistKey returns Error for unsupported value type',
+    test('injectInfoPlistKey returns InstallError for unsupported value type',
         () async {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectInfoPlistKey(key: 'Bad', value: 42);
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Error>());
-      expect((result as Error).error, contains('unsupported value type'));
+      expect(result, isA<InstallError>());
+      expect(
+          (result as InstallError).error, contains('unsupported value type'));
     });
 
     test('injectEntitlement writes bool key to Runner.entitlements', () async {
@@ -492,7 +493,7 @@ void main() {
       );
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final entitlements =
           File(p.join(tempDir.path, 'ios', 'Runner', 'Runner.entitlements'))
               .readAsStringSync();
@@ -505,7 +506,7 @@ void main() {
           .injectPodfileLine(line: "pod 'Firebase/Core'");
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final podfile =
           File(p.join(tempDir.path, 'ios', 'Podfile')).readAsStringSync();
       expect(podfile, contains("pod 'Firebase/Core'"));
@@ -539,7 +540,7 @@ void main() {
 
       final result = await installerFor(_ctxFor(tempDir)).commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final manifest = _readManifest(tempDir);
       expect(_callbackActivityCount(manifest), 1);
       // The original text is intact on both sides of the new block.
@@ -567,7 +568,7 @@ void main() {
 
       final result = await installerFor(ctx).commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(_readManifest(tempDir), handEdited);
       final output = (ctx.dowelContext.output as BufferedOutput).content;
       expect(output, contains(_callbackName));
@@ -580,7 +581,7 @@ void main() {
     test('a project without android/ is a no-op', () async {
       final result = await installerFor(_ctxFor(tempDir)).commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(Directory(p.join(tempDir.path, 'android')).existsSync(), isFalse);
     });
   });
@@ -643,7 +644,8 @@ void main() {
           taskAffinity: '',
           intentFilters: const [_callbackFilter],
         ).commit(force: true);
-        expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
+        expect(result, isA<InstallSuccess>(),
+            reason: 'Got: ${result.describe()}');
       }
 
       await run();
@@ -689,32 +691,35 @@ void main() {
       if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
     });
 
-    test('injectAndroidPermission on non-Android project commits Success',
+    test(
+        'injectAndroidPermission on non-Android project commits InstallSuccess',
         () async {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectAndroidPermission('android.permission.INTERNET');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       // No android/ dir created as a side effect.
       expect(Directory(p.join(tempDir.path, 'android')).existsSync(), isFalse);
     });
 
-    test('injectInfoPlistKey on non-iOS project commits Success', () async {
+    test('injectInfoPlistKey on non-iOS project commits InstallSuccess',
+        () async {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectInfoPlistKey(key: 'NSCameraUsageDescription', value: 'X');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(Directory(p.join(tempDir.path, 'ios')).existsSync(), isFalse);
     });
 
-    test('injectPodfileLine on non-iOS project commits Success', () async {
+    test('injectPodfileLine on non-iOS project commits InstallSuccess',
+        () async {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectPodfileLine(line: "pod 'Firebase/Core'");
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
     });
   });
 }

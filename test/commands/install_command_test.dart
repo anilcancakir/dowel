@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 // Public barrel: must surface InstallDowelCommand. This is the import path the
@@ -10,6 +11,7 @@ import 'package:dowel/dowel.dart';
 // MakeFastCliCommand). InstallDowelCommand itself MUST be reachable via the
 // public barrel above.
 import 'package:dowel/src/commands/make_fast_cli_command.dart';
+import 'package:dowel/src/console/dowel_version.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -179,7 +181,7 @@ void main() {
       expect(content, contains('List<DowelCommand>'));
     });
 
-    test('injects dowel into pubspec dependencies (version any)', () async {
+    test('injects dowel with a caret on the running version', () async {
       // No .dart_tool/package_config.json seeded → path-dep branch returns
       // null, so the version-constraint branch fires.
       await InstallDowelCommand.scaffoldInto(
@@ -190,12 +192,81 @@ void main() {
 
       final pubspecContent =
           File(p.join(tempRoot.path, 'pubspec.yaml')).readAsStringSync();
-      expect(pubspecContent.contains('dowel'), isTrue);
-      // Version-constraint form (NOT path-dep form) is expected here.
-      expect(
-        RegExp(r'dowel:\s*any', multiLine: true).hasMatch(pubspecContent),
-        isTrue,
+      expect(pubspecContent, contains('dowel: ^$dowelVersion'));
+      expect(pubspecContent, isNot(contains('dowel: any')));
+    });
+
+    test('keeps the dowel constraint the project already declares', () async {
+      // `dart pub add dowel` wrote a caret before `install` ran.
+      final pubspec = File(p.join(tempRoot.path, 'pubspec.yaml'));
+      pubspec.writeAsStringSync(
+        '${pubspec.readAsStringSync()}  dowel: ^0.0.9\n',
       );
+
+      await InstallDowelCommand.scaffoldInto(
+        root: tempRoot.path,
+        force: false,
+        ctx: _ctx(),
+      );
+
+      final content = pubspec.readAsStringSync();
+      expect(content, contains('dowel: ^0.0.9'));
+      expect(RegExp(r'^\s+dowel:', multiLine: true).allMatches(content),
+          hasLength(1));
+    });
+
+    test('decodes a percent-encoded rootUri with a trailing slash', () async {
+      // pub writes a relative rootUri percent-encoded; joined as a plain path
+      // it named a directory that does not exist.
+      Directory(p.join(tempRoot.path, '.dart_tool')).createSync();
+      File(p.join(tempRoot.path, '.dart_tool', 'package_config.json'))
+          .writeAsStringSync(jsonEncode(<String, dynamic>{
+        'configVersion': 2,
+        'packages': <Map<String, String>>[
+          <String, String>{
+            'name': 'dowel',
+            'rootUri': '../../plug%20%C4%B1/',
+            'packageUri': 'lib/',
+          },
+        ],
+      }));
+
+      await InstallDowelCommand.scaffoldInto(
+        root: tempRoot.path,
+        force: false,
+        ctx: _ctx(),
+      );
+
+      final content =
+          File(p.join(tempRoot.path, 'pubspec.yaml')).readAsStringSync();
+      expect(content, contains('path: ../plug ı'));
+    });
+
+    test('stops on a dispatcher fluttersdk_artisan generated', () async {
+      final dispatcher = File(p.join(tempRoot.path, 'bin', 'dispatcher.dart'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          "import 'package:fluttersdk_artisan/artisan.dart';\n\n"
+          'Future<void> main(List<String> args) async {\n'
+          '  exitCode = await runArtisan(args);\n'
+          '}\n',
+        );
+      final ctx = _ctx();
+
+      final result = await InstallDowelCommand.scaffoldInto(
+        root: tempRoot.path,
+        force: false,
+        ctx: ctx,
+      );
+
+      expect(result, 1);
+      expect(dispatcher.readAsStringSync(), contains('fluttersdk_artisan'));
+      final out = (ctx.output as BufferedOutput).content;
+      expect(out, contains('bin/dispatcher.dart'));
+      expect(out, contains('dart pub remove fluttersdk_artisan'));
+      expect(out, contains('dart run dowel install'));
+      expect(out, contains('dart run dowel commands:refresh'));
+      expect(runner.calls, isEmpty, reason: 'nothing may build on it');
     });
 
     test(

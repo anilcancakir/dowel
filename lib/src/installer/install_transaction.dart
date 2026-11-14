@@ -13,6 +13,7 @@ import '../helpers/main_dart_editor.dart';
 import '../helpers/platform_helper.dart';
 import '../helpers/plist_writer.dart';
 import '../helpers/podfile_editor.dart';
+import '../helpers/pubspec_dependency.dart';
 import '../helpers/route_registry_editor.dart';
 import '../helpers/xcode_project_editor.dart';
 import '../helpers/xml_editor.dart';
@@ -21,6 +22,7 @@ import 'conflict_detector.dart';
 import 'dry_run_renderer.dart';
 import 'install_context.dart';
 import 'install_operation.dart';
+import 'install_record.dart';
 
 /// Orchestrator that stages a list of [InstallOperation]s and either applies
 /// them atomically to disk, renders a dry-run preview, or refuses to write
@@ -32,7 +34,7 @@ import 'install_operation.dart';
 /// 1. Every file write lands on `<absPath>.tmp` first via [InstallContext.fs].
 /// 2. Only after every `.tmp` write succeeds do the renames + deletes apply.
 /// 3. If any `.tmp` write throws, every staged `.tmp` is removed and the
-///    method returns an [Error] with `rolledBack: true`.
+///    method returns an [InstallError] with `rolledBack: true`.
 ///
 /// One-shot: each [InstallTransaction] instance commits exactly once. A
 /// second [commit] throws [StateError] so callers cannot replay operations
@@ -47,13 +49,13 @@ import 'install_operation.dart';
 ///
 /// final result = await tx.commit();
 /// switch (result) {
-///   case Success(:final opCount, :final recordPath):
+///   case InstallSuccess(:final opCount, :final recordPath):
 ///     ctx.dowelContext.output.success('Installed $opCount ops; record: $recordPath');
-///   case DryRun(:final opCount):
+///   case InstallDryRun(:final opCount):
 ///     ctx.dowelContext.output.info('Previewed $opCount ops; nothing written');
-///   case Conflict(:final conflicts):
+///   case InstallConflict(:final conflicts):
 ///     ctx.dowelContext.output.warning('${conflicts.length} conflicts; pass --force to override');
-///   case Error(:final error, :final rolledBack):
+///   case InstallError(:final error, :final rolledBack):
 ///     ctx.dowelContext.output.error('Failed: $error (rolled back: $rolledBack)');
 /// }
 /// ```
@@ -100,6 +102,11 @@ class InstallTransaction {
   /// "unmanaged-file" conflict from [ConflictDetector].
   final Set<String> _helperWrittenTargets = <String>{};
 
+  /// Indexes into [_ops] of the dependency additions the pubspec already
+  /// declared. They are recorded as `preExisting` so uninstall never removes
+  /// a dependency that was the user's before the install.
+  final Set<int> _preExistingDependencies = <int>{};
+
   /// Conflict list injected by tests via [debugSetConflictsForTest]. Until
   /// Step 7's `ConflictDetector` lands, the production code path treats this
   /// as the authoritative pre-flight conflict source.
@@ -144,7 +151,7 @@ class InstallTransaction {
 
   /// Executes the staged operations.
   ///
-  /// @param dryRun  When `true`, prints the staged ops and returns [DryRun]
+  /// @param dryRun  When `true`, prints the staged ops and returns [InstallDryRun]
   ///                without touching disk.
   /// @param force   When `true`, bypasses the conflict pre-flight so the
   ///                transaction commits over user-modified files.
@@ -165,7 +172,7 @@ class InstallTransaction {
     // 1. Dry-run short-circuit: print the preview, return without touching disk.
     if (dryRun) {
       _renderDryRun();
-      return DryRun(opCount: _ops.length);
+      return InstallDryRun(opCount: _ops.length);
     }
 
     // 2. Conflict pre-flight. Until Step 7 wires the real ConflictDetector,
@@ -173,13 +180,13 @@ class InstallTransaction {
     //    production). The `force` flag bypasses this gate.
     final conflicts = _detectConflicts();
     if (conflicts.isNotEmpty && !force) {
-      return Conflict(conflicts: conflicts);
+      return InstallConflict(conflicts: conflicts);
     }
 
     // 3. Stage every op into an in-memory write plan. A `null` value marks a
     //    delete; a non-null value carries the final UTF-8 content to write.
     //    Unknown / not-yet-implemented op types short-circuit the whole commit
-    //    with an [Error] (no disk side effects yet, so rolledBack is false).
+    //    with an [InstallError] (no disk side effects yet, so rolledBack is false).
     // 3a. Refuse a pattern injection that cannot land, BEFORE anything is
     //     staged. The ordering is the whole point: helper-backed ops write
     //     through `dart:io` during the stage loop below and sit outside the
@@ -193,48 +200,53 @@ class InstallTransaction {
     }
 
     final stagedWrites = <String, String?>{};
-    for (final op in _ops) {
-      final stageError = _stageOp(op, stagedWrites);
+    for (final (index, op) in _ops.indexed) {
+      final stageError = _stageOp(index, op, stagedWrites);
       if (stageError != null) {
-        return stageError;
+        return _failAfterHelperEdits(stageError, stagedOps: index);
       }
     }
 
-    // 4. Atomic disk flush. Write every non-null entry to `<absPath>.tmp`
-    //    first. If any single write throws, loop the successful temps and
-    //    delete them all before returning an [Error] with rolledBack=true.
+    // 4. Atomic disk flush. Write every non-null entry to a pid-suffixed
+    //    `.tmp` first, so two concurrent installs never share a temp. If any
+    //    single write throws, delete the successful temps. That rolls back
+    //    every whole-file write, but not the helper edits phase 3 already
+    //    made, which a partial record then lists for `plugin:uninstall`.
     final committedTemps = <String>[];
     try {
       for (final entry in stagedWrites.entries) {
         final content = entry.value;
         if (content == null) continue;
-        final tmpPath = '${entry.key}.tmp';
+        final tmpPath = _tmpPathFor(entry.key);
         _ctx.fs.writeAsString(tmpPath, content);
         committedTemps.add(tmpPath);
       }
-    } catch (e) {
+    } on FileSystemException catch (e) {
       for (final tmp in committedTemps) {
         _ctx.fs.delete(tmp);
       }
-      return Error(error: e.toString(), rolledBack: true);
+      return _failAfterHelperEdits(
+        InstallError(error: e.toString(), rolledBack: true),
+        stagedOps: _ops.length,
+      );
     }
 
     // 5. All `.tmp` writes succeeded. Rename each one over its target, and
     //    apply pending deletes. Rename + delete failures here are not rolled
     //    back: the .tmp swap is the atomic boundary on POSIX. Any partial
-    //    failure past this point is surfaced as an [Error] with rolledBack
-    //    false so the operator can inspect manually.
+    //    failure past this point is surfaced as an [InstallError] with
+    //    rolledBack false so the operator can inspect manually.
     try {
       for (final entry in stagedWrites.entries) {
         final absPath = entry.key;
         if (entry.value == null) {
           _ctx.fs.delete(absPath);
         } else {
-          _ctx.fs.rename('$absPath.tmp', absPath);
+          _ctx.fs.rename(_tmpPathFor(absPath), absPath);
         }
       }
     } catch (e) {
-      return Error(error: e.toString(), rolledBack: false);
+      return InstallError(error: e.toString(), rolledBack: false);
     }
 
     // 6. Persist the install record BEFORE running shell ops. The atomic
@@ -243,18 +255,21 @@ class InstallTransaction {
     //    so a downstream shell failure leaves an uninstallable state instead
     //    of orphaning the changes. Subsequent shell failures are independent
     //    of install-state durability.
-    final recordPath = p.join(
-      _ctx.projectRoot,
-      '.dowel',
-      'installed',
-      '$_pluginName.json',
+    final recordPath = installRecordPath(_ctx.projectRoot, _pluginName);
+    final recordError = _writeRecord(
+      _buildRecord(stagedWrites, ops: _ops.indexed),
     );
-    final record = _buildRecord(stagedWrites);
-    _ctx.fs.writeAsString(recordPath, _encodeJson(record));
+    if (recordError != null) {
+      return InstallError(
+        error: 'Every file landed, but $recordError plugin:uninstall cannot '
+            'reverse this install until it is re-run.',
+        rolledBack: false,
+      );
+    }
 
     // 7. Run deferred shell ops (RunShell). These execute AFTER every file
     //    mutation has landed so a hook like `flutter pub get` observes the
-    //    final on-disk state. A non-zero exit surfaces as Error; the
+    //    final on-disk state. A non-zero exit surfaces as InstallError; the
     //    install record from phase 6 stays on disk so the operator can
     //    `plugin:uninstall` to roll back if the shell precondition cannot
     //    be satisfied.
@@ -263,7 +278,75 @@ class InstallTransaction {
       return shellError;
     }
 
-    return Success(opCount: _ops.length, recordPath: recordPath);
+    return InstallSuccess(opCount: _ops.length, recordPath: recordPath);
+  }
+
+  /// The temp file [absPath] is staged through. The pid suffix keeps two
+  /// concurrent installs into one project from overwriting each other's temp,
+  /// the same reason [StateFile] names its temp this way.
+  String _tmpPathFor(String absPath) => '$absPath.$pid.tmp';
+
+  /// Writes [record] to the plugin's install record through a pid-suffixed
+  /// temp and a rename, so a reader never sees half a record.
+  ///
+  /// @return `null` once the record is in place, or a sentence naming the
+  ///         record and the failure; the temp is removed in that case.
+  String? _writeRecord(Map<String, dynamic> record) {
+    final recordPath = installRecordPath(_ctx.projectRoot, _pluginName);
+    final tmpPath = _tmpPathFor(recordPath);
+    try {
+      _ctx.fs.writeAsString(tmpPath, _encodeJson(record));
+      _ctx.fs.rename(tmpPath, recordPath);
+      return null;
+    } on FileSystemException catch (e) {
+      if (_ctx.fs.exists(tmpPath)) _ctx.fs.delete(tmpPath);
+      return 'the install record $recordPath could not be written ($e).';
+    }
+  }
+
+  /// Turns [failure] into the result for a commit that stopped after the
+  /// first [stagedOps] operations were staged.
+  ///
+  /// Helper-backed operations write through `dart:io` while staging and no
+  /// `.tmp` rollback reaches them. When any of them changed a file, the result
+  /// says nothing was rolled back, and a partial record lists those
+  /// operations so `plugin:uninstall` can reverse what it can. With no helper
+  /// edit on disk, [failure] stands as it is.
+  TransactionResult _failAfterHelperEdits(
+    InstallError failure, {
+    required int stagedOps,
+  }) {
+    if (_helperWrittenTargets.isEmpty) return failure;
+
+    final landed = <(int, InstallOperation)>[
+      for (final (index, op) in _ops.indexed.take(stagedOps))
+        if (_isHelperBacked(op)) (index, op),
+    ];
+    final record = _buildRecord(
+      const <String, String?>{},
+      ops: landed,
+      partial: true,
+    );
+    final recordError = _writeRecord(record);
+
+    return InstallError(
+      error: '${failure.error}\nEarlier edits (pubspec, native files, '
+          'main.dart) were already applied and stay on disk. '
+          '${recordError == null ? 'A partial install record lists them, so '
+              'plugin:uninstall reverses what it can.' : 'Also, $recordError'}',
+      rolledBack: false,
+    );
+  }
+
+  /// Whether [op] edits a consumer file through an editor while staging,
+  /// outside the `.tmp` swap. Whole-file operations ride the swap, and
+  /// [RunShell] runs after it.
+  bool _isHelperBacked(InstallOperation op) {
+    return switch (op) {
+      WriteFile() || DeleteFile() || CopyFile() || PublishFile() => false,
+      RunShell() => false,
+      _ => true,
+    };
   }
 
   /// Resolves [relPath] against [InstallContext.projectRoot]. Absolute paths
@@ -303,7 +386,8 @@ class InstallTransaction {
   ///    "Limitations" docblock for the V1 trade-off.
   /// 3. [RunShell] is deferred until phase 5 (`_runShellOps`) so commands
   ///    only fire after every file mutation succeeded.
-  TransactionResult? _stageOp(
+  InstallError? _stageOp(
+    int index,
     InstallOperation op,
     Map<String, String?> stagedWrites,
   ) {
@@ -332,8 +416,15 @@ class InstallTransaction {
           return null;
 
         // ---------- Pubspec ----------
+        // A dependency the user already declared keeps its constraint, and
+        // the record marks it so uninstall leaves it in place.
         case AddDependency():
           final pubspec = _pubspecPath();
+          final section = op.isDev ? 'dev_dependencies' : 'dependencies';
+          if (pubspecDeclaresDependency(pubspec, op.name, section: section)) {
+            _preExistingDependencies.add(index);
+            return null;
+          }
           if (op.isDev) {
             ConfigEditor.addDevDependencyToPubspec(
               pubspecPath: pubspec,
@@ -350,6 +441,10 @@ class InstallTransaction {
           _helperWrittenTargets.add(pubspec);
           return null;
         case AddPathDependency():
+          if (pubspecDeclaresDependency(_pubspecPath(), op.name)) {
+            _preExistingDependencies.add(index);
+            return null;
+          }
           ConfigEditor.addPathDependencyToPubspec(
             pubspecPath: _pubspecPath(),
             name: op.name,
@@ -396,11 +491,11 @@ class InstallTransaction {
           _helperWrittenTargets.add(target);
           return null;
         // Both pattern injections FAIL the install when neither their pattern
-        // nor their fallback matched, rather than reporting Success over a
+        // nor their fallback matched, rather than reporting InstallSuccess over a
         // file they never touched. Measured in a consumer app: a plugin whose
         // `injectProvider` regex did not fit the host's `app.dart` never
         // registered its provider, never booted, and `plugin:install` printed
-        // Success.
+        // InstallSuccess.
         //
         // Reaching this arm at all means `_assertPatternsResolvable` let it
         // through, since that runs over the same files before anything is
@@ -540,7 +635,7 @@ class InstallTransaction {
             _helperWrittenTargets.add(plistPath);
             return null;
           }
-          return Error(
+          return InstallError(
             error:
                 'InjectInfoPlistKey: unsupported value type ${value.runtimeType} '
                 'for key ${op.key} (expected String, bool, or List<String>).',
@@ -564,7 +659,7 @@ class InstallTransaction {
           }
           final value = op.value;
           if (!_isEntitlementValue(value)) {
-            return Error(
+            return InstallError(
               error:
                   'InjectEntitlement: unsupported value type ${value.runtimeType} '
                   'for key ${op.key} (expected String, bool, or List<String>).',
@@ -644,9 +739,9 @@ class InstallTransaction {
       }
     } catch (e) {
       // Helper-backed ops can throw (missing files, malformed YAML, missing
-      // anchors). Surface as a stage-time Error so the transaction halts
+      // anchors). Surface as a stage-time InstallError so the transaction halts
       // before the .tmp swap touches anything.
-      return Error(
+      return InstallError(
         error: '${op.runtimeType} dispatch failed: $e',
         rolledBack: false,
       );
@@ -790,7 +885,7 @@ class InstallTransaction {
   /// Case 3 continues rather than aborting because by the time this method
   /// runs the entitlements plist and every earlier helper-backed write
   /// (`pubspec.yaml`, the gradle files, `Info.plist`, `.env`) have already
-  /// landed and none of them roll back. Returning an [Error] would abandon a
+  /// landed and none of them roll back. Returning an [InstallError] would abandon a
   /// half-applied install whose only remaining instruction is an exception
   /// string. What the editor's guard protects is the project FILE, and that
   /// file is untouched in all three cases; it is not what the abort would have
@@ -932,7 +1027,7 @@ class InstallTransaction {
 
     if (problems.isEmpty) return null;
 
-    return Error(
+    return InstallError(
       error: 'Pattern injection cannot land, so nothing was installed:\n  '
           '${problems.join('\n  ')}\n'
           'The plugin expected a different shape in those files. Fix the host '
@@ -950,15 +1045,15 @@ class InstallTransaction {
     return regex.hasMatch(content);
   }
 
-  /// The [Error] a pattern injection returns when it still matched nothing at
+  /// The [InstallError] a pattern injection returns when it still matched nothing at
   /// stage time, past [_assertPatternsResolvable].
   ///
   /// `rolledBack: false` because the helper editors sit outside the `.tmp`
   /// rollback. Unlike the preflight above, this one CAN leave earlier helper
   /// writes on disk, which is exactly why the preflight exists and why this
   /// arm should be unreachable in practice.
-  TransactionResult _patternMissed(String description, String targetFile) {
-    return Error(
+  InstallError _patternMissed(String description, String targetFile) {
+    return InstallError(
       error: '$description matched nothing in $targetFile at stage time, after '
           'the preflight accepted it. An earlier operation in the same install '
           'rewrote that file. Earlier helper writes may remain on disk.',
@@ -970,7 +1065,7 @@ class InstallTransaction {
   /// after every file mutation has landed so a shell hook (e.g.
   /// `flutter pub get`) observes the final on-disk state.
   ///
-  /// Returns the first failure as a non-rolled-back [Error]; subsequent shell
+  /// Returns the first failure as a non-rolled-back [InstallError]; subsequent shell
   /// ops are skipped so the operator sees a single root cause.
   TransactionResult? _runShellOps() {
     for (final op in _ops) {
@@ -982,14 +1077,14 @@ class InstallTransaction {
           workingDirectory: op.workingDir ?? _ctx.projectRoot,
         );
         if (result.exitCode != 0) {
-          return Error(
+          return InstallError(
             error: 'RunShell failed (${op.command} ${op.args.join(' ')}, exit '
                 '${result.exitCode}): ${result.stderr}',
             rolledBack: false,
           );
         }
       } catch (e) {
-        return Error(
+        return InstallError(
           error: 'RunShell threw for ${op.command}: $e',
           rolledBack: false,
         );
@@ -1023,28 +1118,49 @@ class InstallTransaction {
   ///    them here is non-negotiable: without it, ConflictDetector on the
   ///    next install pass treats the helper-touched file as `unmanaged-file`
   ///    and aborts with a false-positive conflict.
-  Map<String, dynamic> _buildRecord(Map<String, String?> stagedWrites) {
+  ///
+  /// Keys are project-relative with forward slashes ([installRecordKey]), so
+  /// the record still matches after the project moves. [ops] pairs each
+  /// recorded operation with its index in [_ops], which is how a dependency
+  /// addition finds its `preExisting` flag. [partial] marks a record written
+  /// for a commit that failed after its helper edits landed.
+  Map<String, dynamic> _buildRecord(
+    Map<String, String?> stagedWrites, {
+    required Iterable<(int, InstallOperation)> ops,
+    bool partial = false,
+  }) {
     final stubHashes = <String, String>{};
     for (final entry in stagedWrites.entries) {
       if (entry.value == null) continue;
       // The file just landed via rename, so md5 reads the freshly-committed
       // content. Tracking the hash here (rather than at write time) makes
       // ConflictDetector's later compare a single read per file.
-      stubHashes[entry.key] = _ctx.fs.md5(entry.key);
+      stubHashes[installRecordKey(_ctx.projectRoot, entry.key)] =
+          _ctx.fs.md5(entry.key);
     }
     for (final path in _helperWrittenTargets) {
-      if (stubHashes.containsKey(path)) continue;
+      final key = installRecordKey(_ctx.projectRoot, path);
+      if (stubHashes.containsKey(key)) continue;
       // The helper may have skipped (file absent or anchor missing). Skip
       // the hash silently in that case; the conflict detector treats absent
       // files as a clean install slot anyway.
       if (!_ctx.fs.exists(path)) continue;
-      stubHashes[path] = _ctx.fs.md5(path);
+      stubHashes[key] = _ctx.fs.md5(path);
     }
 
     return <String, dynamic>{
+      'version': installRecordVersion,
       'plugin': _pluginName,
       'installedAt': _ctx.clock().toUtc().toIso8601String(),
-      'ops': _ops.map(_serializeOp).toList(),
+      if (partial) 'partial': true,
+      'ops': <Map<String, dynamic>>[
+        for (final (index, op) in ops)
+          <String, dynamic>{
+            ..._serializeOp(op),
+            if (op is AddDependency || op is AddPathDependency)
+              'preExisting': _preExistingDependencies.contains(index),
+          },
+      ],
       'stubHashes': stubHashes,
     };
   }
@@ -1240,8 +1356,8 @@ class InstallTransaction {
 
 /// Sealed outcome of [InstallTransaction.commit].
 ///
-/// Four subclasses cover the full result space: [Success], [DryRun],
-/// [Conflict], [Error]. Exhaustive `switch` dispatch is compiler-checked.
+/// Four subclasses cover the full result space: [InstallSuccess], [InstallDryRun],
+/// [InstallConflict], [InstallError]. Exhaustive `switch` dispatch is compiler-checked.
 sealed class TransactionResult {
   /// Allows subclasses to declare `const` constructors.
   const TransactionResult();
@@ -1251,27 +1367,27 @@ sealed class TransactionResult {
 }
 
 /// All staged operations applied; the install record was persisted.
-final class Success extends TransactionResult {
+final class InstallSuccess extends TransactionResult {
   /// Number of operations applied.
   final int opCount;
 
   /// Absolute path of the persisted `.dowel/installed/<plugin>.json` record.
   final String recordPath;
 
-  /// Creates a [Success] result.
-  const Success({required this.opCount, required this.recordPath});
+  /// Creates an [InstallSuccess] result.
+  const InstallSuccess({required this.opCount, required this.recordPath});
 
   @override
   String describe() => 'Success: applied $opCount ops; record at $recordPath';
 }
 
 /// Dry-run completed: ops were rendered but nothing was written.
-final class DryRun extends TransactionResult {
+final class InstallDryRun extends TransactionResult {
   /// Number of operations that would have been applied.
   final int opCount;
 
-  /// Creates a [DryRun] result.
-  const DryRun({required this.opCount});
+  /// Creates an [InstallDryRun] result.
+  const InstallDryRun({required this.opCount});
 
   @override
   String describe() => 'DryRun: previewed $opCount ops; no changes written';
@@ -1279,22 +1395,27 @@ final class DryRun extends TransactionResult {
 
 /// Pre-flight conflict detector flagged one or more user-modified files and
 /// the caller did not pass `force: true`.
-final class Conflict extends TransactionResult {
+final class InstallConflict extends TransactionResult {
   /// The conflict list returned by the detector.
   final List<FileConflict> conflicts;
 
-  /// Creates a [Conflict] result.
-  const Conflict({required this.conflicts});
+  /// Creates an [InstallConflict] result.
+  const InstallConflict({required this.conflicts});
 
+  /// Lists each file with its reason, since the operator has to review them
+  /// before reaching for `--force`.
   @override
-  String describe() =>
-      'Conflict: ${conflicts.length} file(s) modified out-of-band; '
-      'pass --force to override';
+  String describe() => <String>[
+        'Conflict: ${conflicts.length} file(s) modified out-of-band; '
+            'pass --force to override',
+        for (final conflict in conflicts)
+          '  ${conflict.absPath} (${conflict.reason})',
+      ].join('\n');
 }
 
 /// A write failed, an unimplemented op was encountered, or a post-rename step
 /// raised. [rolledBack] reflects whether the `.tmp` cleanup ran.
-final class Error extends TransactionResult {
+final class InstallError extends TransactionResult {
   /// Human-readable error description (typically the underlying exception
   /// message).
   final String error;
@@ -1304,8 +1425,8 @@ final class Error extends TransactionResult {
   /// or later (post-rename) so no rollback was needed or possible.
   final bool rolledBack;
 
-  /// Creates an [Error] result.
-  const Error({required this.error, required this.rolledBack});
+  /// Creates an [InstallError] result.
+  const InstallError({required this.error, required this.rolledBack});
 
   @override
   String describe() => 'Error: $error (rolled back: $rolledBack)';

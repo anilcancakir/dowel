@@ -58,7 +58,8 @@ final class MakeFastCliCommand extends DowelCommand {
   ///
   /// Idempotent across all phases:
   /// - `bin/dowel` write skips when the target already exists unless [force].
-  /// - `.gitignore` append is a no-op when `.dowel/` is already present.
+  /// - `.gitignore` is left alone when it already ignores the `.dowel/`
+  ///   cache entries.
   /// - AOT compile is skipped on subsequent runs when `bin/dowel` exists and
   ///   [force] is false (stamp is written only on first compile).
   ///
@@ -115,22 +116,8 @@ final class MakeFastCliCommand extends DowelCommand {
       }
     }
 
-    // 5. Patch .gitignore: append `.dowel/` if not already present.
-    //    Creates the file from scratch when it does not exist yet.
-    final gitignorePath = p.join(root, '.gitignore');
-    final gitignoreFile = File(gitignorePath);
-    if (gitignoreFile.existsSync()) {
-      final existing = gitignoreFile.readAsStringSync();
-      if (!existing.contains('.dowel/')) {
-        gitignoreFile.writeAsStringSync(
-          existing.endsWith('\n')
-              ? '$existing.dowel/\n'
-              : '$existing\n.dowel/\n',
-        );
-      }
-    } else {
-      gitignoreFile.writeAsStringSync('.dowel/\n');
-    }
+    // 5. Patch .gitignore with the machine-local cache under `.dowel/`.
+    _ignoreCache(File(p.join(root, '.gitignore')));
 
     // When bin/dowel was not rewritten (idempotent skip), skip the expensive
     // compile so repeated runs do not trigger a multi-second dart build cli.
@@ -199,6 +186,41 @@ final class MakeFastCliCommand extends DowelCommand {
     ctx.output
         .success('dowel: ready. Run ./bin/dowel <cmd> for a ~50ms startup.');
     return 0;
+  }
+
+  /// The `.dowel/` entries that are machine-local cache: the AOT bundle, its
+  /// staleness stamp and the build lock directory, all rebuilt on demand by
+  /// `bin/dowel`. The rest of `.dowel/` is source of truth and is committed:
+  /// `plugins.json` regenerates `lib/app/_plugins.g.dart`, `installed/` holds
+  /// the records `plugin:uninstall` reverses, `mcp.json` is the tool filter.
+  static const List<String> _cacheEntries = <String>[
+    '.dowel/cli-bundle/',
+    '.dowel/build.stamp',
+    '.dowel/.dowel.lock/',
+  ];
+
+  /// Adds every missing [_cacheEntries] line to [gitignore], creating the
+  /// file when absent.
+  ///
+  /// A bare `.dowel/` line, which earlier versions wrote, is replaced by the
+  /// cache entries: it ignored `plugins.json` too, so a fresh clone read an
+  /// empty registry and the next `plugin:install` regenerated the barrel with
+  /// that one plugin, dropping every other provider.
+  static void _ignoreCache(File gitignore) {
+    final lines =
+        gitignore.existsSync() ? gitignore.readAsLinesSync() : const <String>[];
+    final kept = <String>[];
+    for (final line in lines) {
+      if (line.trim() != '.dowel/' && line.trim() != '/.dowel/') {
+        kept.add(line);
+        continue;
+      }
+      kept.addAll(_cacheEntries.where((entry) => !lines.contains(entry)));
+    }
+    kept.addAll(_cacheEntries.where((entry) => !kept.contains(entry)));
+    if (kept.join('\n') == lines.join('\n')) return;
+
+    gitignore.writeAsStringSync('${kept.join('\n')}\n');
   }
 
   /// Returns true when [path] does not exist OR [force] is set.

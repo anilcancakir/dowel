@@ -116,10 +116,9 @@ void main() {
           "import 'package:magic_logger/cli.dart' show MagicLoggerDowelProvider;",
         ),
       );
-      expect(generated, contains('MagicLoggerDowelProvider(),'));
       expect(
         generated,
-        contains('return <DowelServiceProvider>['),
+        contains('return <DowelServiceProvider>[MagicLoggerDowelProvider()];'),
       );
     });
 
@@ -390,6 +389,89 @@ void main() {
         isFalse,
         reason:
             'refresh must purge .dowel/build.stamp so needs_build() trips on next call',
+      );
+    });
+  });
+
+  group('PluginsRefreshCommand output is what dart format writes', () {
+    /// Renders the barrel for [entries] (`name` to `providerClass`) through a
+    /// real refresh and returns the file.
+    Future<String> render(Map<String, String> entries) async {
+      final fs = InMemoryFs();
+      _seedLibApp(fs, '/proj');
+      fs.writeAsString(
+        '/proj/.dowel/plugins.json',
+        jsonEncode(<String, dynamic>{
+          'version': 1,
+          'plugins': <Map<String, String>>[
+            for (final MapEntry(:key, :value) in entries.entries)
+              <String, String>{
+                'name': key,
+                'providerImport': 'package:$key/cli.dart',
+                'providerClass': value,
+                'registeredAt': '2026-05-18T09:00:00.000Z',
+              },
+          ],
+        }),
+      );
+      await _cmd(fs, '/proj').handle(_ctx());
+
+      return fs.readAsString('/proj/lib/app/_plugins.g.dart');
+    }
+
+    const header = '// GENERATED: do not edit by hand.\n'
+        '// Regenerate via: dart run dowel plugins:refresh\n'
+        '//\n'
+        '// Source: .dowel/plugins.json\n'
+        '\n'
+        "import 'package:dowel/dowel.dart';\n";
+
+    test('no plugins: an empty list and no trailing blank line', () async {
+      expect(
+        await render(const <String, String>{}),
+        '$header\n'
+        'List<DowelServiceProvider> autoDiscoveredProviders() {\n'
+        '  return <DowelServiceProvider>[];\n'
+        '}\n',
+      );
+    });
+
+    test('a list that fits on one line stays on one line', () async {
+      expect(
+        await render(const <String, String>{'tapir': 'TapirDowelProvider'}),
+        "${header}import 'package:tapir/cli.dart' show TapirDowelProvider;\n"
+        '\n'
+        'List<DowelServiceProvider> autoDiscoveredProviders() {\n'
+        '  return <DowelServiceProvider>[TapirDowelProvider()];\n'
+        '}\n',
+      );
+    });
+
+    test('a list longer than 80 columns splits one entry per line', () async {
+      final generated = await render(const <String, String>{
+        'crumbs': 'CrumbsDowelProvider',
+        'tapir': 'TapirDowelProvider',
+        'magic_notifications': 'MagicNotificationsDowelProvider',
+      });
+
+      expect(
+        generated,
+        endsWith(
+          '  return <DowelServiceProvider>[\n'
+          '    CrumbsDowelProvider(),\n'
+          '    MagicNotificationsDowelProvider(),\n'
+          '    TapirDowelProvider(),\n'
+          '  ];\n'
+          '}\n',
+        ),
+      );
+      // An import past 80 columns breaks before `show`, as the formatter does.
+      expect(
+        generated,
+        contains(
+          "import 'package:magic_notifications/cli.dart'\n"
+          '    show MagicNotificationsDowelProvider;\n',
+        ),
       );
     });
   });

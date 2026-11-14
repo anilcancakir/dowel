@@ -39,7 +39,7 @@
 /// `doc/install_yaml_schema.md` Uninstall section enumerate the limitation
 /// per op type and what manual cleanup is required.
 ///
-/// When the install record file is missing, `uninstall()` returns an `Error`
+/// When the install record file is missing, `uninstall()` returns an `InstallError`
 /// so the operator does not silently believe the plugin was removed.
 ///
 /// ## Usage
@@ -64,6 +64,7 @@ import 'android_intent_filter.dart';
 import 'install_context.dart';
 import 'install_manifest.dart';
 import 'install_operation.dart';
+import 'install_record.dart';
 import 'install_transaction.dart';
 import 'plugin_installer.dart';
 
@@ -115,10 +116,10 @@ class ManifestInstaller {
     final installer = prepare(nonInteractive: nonInteractive);
     final result = await installer.commit(dryRun: dryRun, force: force);
 
-    // Echo the post-install message after a Success so the operator sees the
-    // plugin author's banner text. Dry-run / Conflict / Error short-circuit
+    // Echo the post-install message after an InstallSuccess so the operator sees the
+    // plugin author's banner text. Dry-run / InstallConflict / InstallError short-circuit
     // the message because the install did not actually land.
-    if (result is Success && _manifest.postInstall.message != null) {
+    if (result is InstallSuccess && _manifest.postInstall.message != null) {
       _ctx.dowelContext.output.info(_manifest.postInstall.message!);
     }
 
@@ -164,12 +165,15 @@ class ManifestInstaller {
   /// those, this method logs a skip warning and continues.
   ///
   /// @param force  Forwarded to the reverse [InstallTransaction.commit].
-  /// @return [Success] on a clean reverse, [Error] when the record file is
+  /// @return [InstallSuccess] on a clean reverse, [InstallError] when the record file is
   ///         missing or the reverse transaction fails.
   Future<TransactionResult> uninstall({bool force = false}) async {
-    final recordPath = _recordPath();
+    final recordPath = installRecordPath(
+      _ctx.projectRoot,
+      _manifest.pluginName,
+    );
     if (!_ctx.fs.exists(recordPath)) {
-      return Error(
+      return InstallError(
         error: 'No install record at $recordPath; cannot derive an '
             'uninstall plan. Either the plugin was never installed via '
             'ManifestInstaller or the record was deleted manually.',
@@ -177,18 +181,17 @@ class ManifestInstaller {
       );
     }
 
-    // 1. Decode the record payload.
-    final raw = _ctx.fs.readAsString(recordPath);
-    final record = jsonDecode(raw);
-    if (record is! Map<String, dynamic>) {
-      return Error(
-        error: 'Install record at $recordPath is not a JSON object.',
-        rolledBack: false,
-      );
+    // 1. Decode the record payload. A record this version cannot read is
+    //    refused whole: an older one does not say which dependencies were
+    //    the user's, so reversing it could remove one of them.
+    final read = readInstallRecord(_ctx.fs, recordPath);
+    final record = read.record;
+    if (record == null) {
+      return InstallError(error: read.problem!, rolledBack: false);
     }
     final opsRaw = record['ops'];
     if (opsRaw is! List) {
-      return Error(
+      return InstallError(
         error: 'Install record at $recordPath has no "ops" array.',
         rolledBack: false,
       );
@@ -198,9 +201,14 @@ class ManifestInstaller {
     //    null + a skip warning; full-payload records map to a typed reverse.
     final reverseOps = <InstallOperation>[];
     final skipped = <String>[];
+    final kept = <String>[];
     for (final entry in opsRaw) {
       if (entry is! Map) {
         skipped.add('non-map entry');
+        continue;
+      }
+      if (entry['preExisting'] == true) {
+        kept.add('${entry['name']}');
         continue;
       }
       final reconstructed = _opFromRecord(entry);
@@ -223,6 +231,12 @@ class ManifestInstaller {
         'lists the V1 limitations.',
       );
     }
+    if (kept.isNotEmpty) {
+      _ctx.dowelContext.output.info(
+        'Kept ${kept.join(', ')} in pubspec.yaml: the project declared '
+        '${kept.length == 1 ? 'it' : 'them'} before the install.',
+      );
+    }
 
     // 3. Commit the reverse ops via a fresh InstallTransaction. We bypass the
     //    high-level PluginInstaller chain methods because we already have a
@@ -233,8 +247,8 @@ class ManifestInstaller {
     }
     final result = await tx.commit(force: force);
 
-    // 4. On Success, drop the install record so re-install starts clean.
-    if (result is Success) {
+    // 4. On InstallSuccess, drop the install record so re-install starts clean.
+    if (result is InstallSuccess) {
       _ctx.fs.delete(recordPath);
     }
 
@@ -291,12 +305,8 @@ class ManifestInstaller {
   /// package_config.json under `.dart_tool/`; `Isolate.resolvePackageUri`
   /// would be async but parsing package_config.json is cheap + sync.
   String? _resolvePluginStubsDir() {
-    final pkgConfigPath = p.join(
-      _ctx.projectRoot,
-      '.dart_tool',
-      'package_config.json',
-    );
-    if (!_ctx.fs.exists(pkgConfigPath)) return null;
+    final pkgConfigPath = _nearestPackageConfig();
+    if (pkgConfigPath == null) return null;
     final content = _ctx.fs.readAsString(pkgConfigPath);
     final json = jsonDecode(content) as Map<String, dynamic>;
     final packages = json['packages'] as List<dynamic>?;
@@ -305,12 +315,29 @@ class ManifestInstaller {
       final entry = pkg as Map<String, dynamic>;
       if (entry['name'] != _manifest.pluginName) continue;
       final rootUri = entry['rootUri'] as String;
-      final pkgRoot = rootUri.startsWith('file://')
-          ? Uri.parse(rootUri).toFilePath()
-          : p.normalize(p.join(_ctx.projectRoot, '.dart_tool', rootUri));
+      // rootUri is an absolute `file:` URI or a reference relative to
+      // `.dart_tool/`, percent-encoded either way. Resolving it as a URI
+      // decodes it; a path join kept `%20` literally.
+      final pkgRoot = p.normalize(
+        Uri.directory(p.dirname(pkgConfigPath)).resolve(rootUri).toFilePath(),
+      );
       return p.join(pkgRoot, 'assets', 'stubs');
     }
     return null;
+  }
+
+  /// The first `.dart_tool/package_config.json` at or above the project root,
+  /// the way the Dart tools find it: a pub workspace member has none of its
+  /// own, since `pub get` writes one shared config at the workspace root.
+  String? _nearestPackageConfig() {
+    var dir = p.normalize(p.absolute(_ctx.projectRoot));
+    while (true) {
+      final candidate = p.join(dir, '.dart_tool', 'package_config.json');
+      if (_ctx.fs.exists(candidate)) return candidate;
+      final parent = p.dirname(dir);
+      if (parent == dir) return null;
+      dir = parent;
+    }
   }
 
   void _applyJsonMerge(PluginInstaller installer) {
@@ -564,13 +591,6 @@ class ManifestInstaller {
   // ---------------------------------------------------------------------------
   // Uninstall helpers
   // ---------------------------------------------------------------------------
-
-  String _recordPath() => p.join(
-        _ctx.projectRoot,
-        '.dowel',
-        'installed',
-        '${_manifest.pluginName}.json',
-      );
 
   /// Reconstructs a typed [InstallOperation] from a record entry.
   ///

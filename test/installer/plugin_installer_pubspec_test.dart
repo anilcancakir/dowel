@@ -167,7 +167,7 @@ void main() {
 
       final result = await installer.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final pubspec = File(pubspecPath).readAsStringSync();
       expect(pubspec, contains('intl: ^0.20.0'));
       expect(pubspec, contains('meta: ^1.0.0'),
@@ -180,7 +180,7 @@ void main() {
 
       final result = await installer.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final pubspec = File(pubspecPath).readAsStringSync();
       expect(pubspec, contains('dev_dependencies:'));
       expect(pubspec, contains('build_runner: ^2.4.0'));
@@ -192,7 +192,7 @@ void main() {
 
       final result = await installer.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final pubspec = File(pubspecPath).readAsStringSync();
       expect(pubspec, contains('local:'));
       expect(pubspec, contains('path: ../local'));
@@ -205,7 +205,7 @@ void main() {
 
       final result = await installer.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final pubspec = File(pubspecPath).readAsStringSync();
       expect(pubspec, isNot(contains('meta: ^1.0.0')));
       expect(pubspec, contains('flutter:'));
@@ -220,7 +220,7 @@ void main() {
 
       final result = await installer.commit();
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final pubspec = File(pubspecPath).readAsStringSync();
       expect(pubspec, contains('assets/existing.json'),
           reason: 'the original asset must survive the append');

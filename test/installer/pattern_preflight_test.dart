@@ -83,7 +83,7 @@ void main() {
   }
 
   group('a pattern that cannot land refuses the commit', () {
-    test('returns Error and writes no install record', () async {
+    test('returns InstallError and writes no install record', () async {
       final root = makeProject();
       writeAppConfig(root, populated: true);
 
@@ -96,8 +96,8 @@ void main() {
 
       final result = await tx.commit(force: true);
 
-      expect(result, isA<Error>());
-      expect((result as Error).error, contains('lib/config/app.dart'));
+      expect(result, isA<InstallError>());
+      expect((result as InstallError).error, contains('lib/config/app.dart'));
       expect(
         File('${root.path}/.dowel/installed/demo.json').existsSync(),
         isFalse,
@@ -126,7 +126,7 @@ void main() {
         code: '\n      (app) => DemoServiceProvider(app),',
       ));
 
-      expect(await tx.commit(force: true), isA<Error>());
+      expect(await tx.commit(force: true), isA<InstallError>());
       expect(
         File('${root.path}/lib/config/app.dart').readAsStringSync(),
         before,
@@ -150,7 +150,7 @@ void main() {
         code: '// b',
       ));
 
-      final result = await tx.commit(force: true) as Error;
+      final result = await tx.commit(force: true) as InstallError;
 
       expect(result.error, contains('FirstMissingAnchor'));
       expect(result.error, contains('SecondMissingAnchor'));
@@ -166,7 +166,7 @@ void main() {
         code: '// a',
       ));
 
-      final result = await tx.commit(force: true) as Error;
+      final result = await tx.commit(force: true) as InstallError;
 
       expect(result.error, contains('does not exist'));
     });
@@ -175,7 +175,7 @@ void main() {
   group('the fallback pattern keeps an empty list installable', () {
     test('an empty providers list takes the injection', () async {
       // Without the fallback this is the case that used to inject nothing and
-      // report Success, and that would now fail the install outright. Neither
+      // report InstallSuccess, and that would now fail the install outright. Neither
       // is right: a fresh `magic:install` scaffold has an empty list.
       final root = makeProject();
       writeAppConfig(root, populated: false);
@@ -190,7 +190,7 @@ void main() {
         code: '\n      (app) => DemoServiceProvider(app),',
       ));
 
-      expect(await tx.commit(force: true), isA<Success>());
+      expect(await tx.commit(force: true), isA<InstallSuccess>());
       expect(
         File('${root.path}/lib/config/app.dart').readAsStringSync(),
         contains('DemoServiceProvider'),
@@ -214,7 +214,7 @@ void main() {
         code: '\n      (app) => DemoServiceProvider(app),',
       ));
 
-      expect(await tx.commit(force: true), isA<Success>());
+      expect(await tx.commit(force: true), isA<InstallSuccess>());
 
       final written =
           File('${root.path}/lib/config/app.dart').readAsStringSync();
@@ -245,8 +245,8 @@ void main() {
       return tx.commit(force: true);
     }
 
-    expect(await install(), isA<Success>());
-    expect(await install(), isA<Success>());
+    expect(await install(), isA<InstallSuccess>());
+    expect(await install(), isA<InstallSuccess>());
 
     final written = File('${root.path}/lib/config/app.dart').readAsStringSync();
     expect('DemoServiceProvider'.allMatches(written).length, 1);

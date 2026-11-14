@@ -166,7 +166,7 @@ void main() {
       );
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final out = File(p.join(tempDir.path, 'lib', 'config', 'out.dart'));
       expect(out.readAsStringSync(), '// hello world');
     });
@@ -176,7 +176,7 @@ void main() {
           .writeFile(targetPath: 'lib/x.dart', content: 'X-content');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final out = File(p.join(tempDir.path, 'lib', 'x.dart'));
       expect(out.readAsStringSync(), 'X-content');
     });
@@ -190,7 +190,7 @@ void main() {
           .deleteFile('lib/doomed.dart');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(target.existsSync(), isFalse);
     });
 
@@ -199,7 +199,7 @@ void main() {
           .deleteFile('lib/never_existed.dart');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
     });
 
     test('copyFile copies source to target', () async {
@@ -210,7 +210,7 @@ void main() {
           .copyFile(sourcePath: 'a.txt', targetPath: 'b.txt');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final dst = File(p.join(tempDir.path, 'b.txt'));
       expect(dst.readAsStringSync(), 'source');
     });
@@ -232,7 +232,7 @@ void main() {
       // Pre-existing target triggers ConflictDetector unmanaged-file; force
       // bypasses (matches plugin-install convention for translation merges).
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = target.readAsStringSync();
       // additive = true → existing values WIN.
       expect(content, contains('"login": "Login"'));
@@ -251,7 +251,7 @@ void main() {
       );
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(target.readAsStringSync(), contains('"x": 99'));
     });
 
@@ -263,7 +263,7 @@ void main() {
       );
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final fresh = File(p.join(tempDir.path, 'fresh.json'));
       expect(fresh.readAsStringSync(), contains('"k": "v"'));
     });

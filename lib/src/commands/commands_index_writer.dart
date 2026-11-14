@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'helpers/generated_dart_layout.dart';
+
 /// One discovered command entry from the filesystem scan.
 class DiscoveredCommand {
   const DiscoveredCommand({required this.className, required this.fileName});
@@ -57,10 +59,12 @@ List<DiscoveredCommand> discoverCommandsInDir(Directory commandsDir) {
 ///
 /// import 'clean_cache.dart';
 ///
-/// List<DowelCommand> get commands => <DowelCommand>[
-///   CleanCacheCommand(),
-/// ];
+/// List<DowelCommand> get commands => <DowelCommand>[CleanCacheCommand()];
 /// ```
+///
+/// The list is laid out the way `dart format` writes it (one line when it
+/// fits, one entry per line otherwise), so a consumer's format check passes
+/// on the generated file.
 String renderCommandsIndex(List<DiscoveredCommand> commands) {
   final buf = StringBuffer()
     ..writeln('// AUTO-GENERATED — DO NOT EDIT.')
@@ -74,8 +78,7 @@ String renderCommandsIndex(List<DiscoveredCommand> commands) {
       ..writeln()
       ..writeln(
         'List<DowelCommand> get commands => const <DowelCommand>[];',
-      )
-      ..writeln();
+      );
     return buf.toString();
   }
 
@@ -88,12 +91,14 @@ String renderCommandsIndex(List<DiscoveredCommand> commands) {
   }
   buf
     ..writeln()
-    ..writeln('List<DowelCommand> get commands => <DowelCommand>[');
-  for (final c in commands) {
-    buf.writeln('  ${c.className}(),');
-  }
-  buf
-    ..writeln('];')
+    ..writeAll(
+      listLiteralLines(
+        head: 'List<DowelCommand> get commands => <DowelCommand>[',
+        elements: <String>[for (final c in commands) '${c.className}()'],
+        tail: '];',
+      ),
+      '\n',
+    )
     ..writeln();
   return buf.toString();
 }

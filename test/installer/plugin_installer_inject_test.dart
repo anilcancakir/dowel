@@ -250,7 +250,7 @@ void main() {
       );
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(target.readAsStringSync(), contains("package:y/y.dart"));
     });
 
@@ -274,7 +274,7 @@ void main() {
           )
           .commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = target.readAsStringSync();
       expect(content, contains('B-before'));
       expect(content, contains('B-after'));
@@ -285,7 +285,7 @@ void main() {
           .injectMainDartImport("import 'package:demo/demo.dart';");
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(File(mainDartPath).readAsStringSync(),
           contains("import 'package:demo/demo.dart';"));
     });
@@ -295,7 +295,7 @@ void main() {
           .injectBeforeMagicInit('Demo.boot();');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       final initIdx = content.indexOf('Magic.init');
       final demoIdx = content.indexOf('Demo.boot();');
@@ -308,7 +308,7 @@ void main() {
           .injectAfterMagicInit('Demo.warm();');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       expect(content, contains('Demo.warm();'));
     });
@@ -318,7 +318,7 @@ void main() {
           .wrapRunApp('SentryWidget');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(File(mainDartPath).readAsStringSync(),
           contains('runApp(SentryWidget(MyApp()))'));
     });
@@ -328,7 +328,7 @@ void main() {
           .injectProvider('DemoServiceProvider');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(appConfigPath).readAsStringSync();
       expect(content, contains("import 'package:demo/demo.dart';"));
       expect(content, contains('(app) => DemoServiceProvider(app),'));
@@ -339,7 +339,7 @@ void main() {
           .injectConfigFactory('demoConfig');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       expect(content, contains("import 'package:demo/demo.dart';"));
       expect(content, contains('() => demoConfig,'));
@@ -351,7 +351,7 @@ void main() {
           .injectRoute('registerDemoRoutes');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(routeProviderPath).readAsStringSync();
       expect(content, contains('registerDemoRoutes();'));
       expect(content, contains('registerAppRoutes();'));
@@ -437,7 +437,7 @@ void main() async {
               .injectProvider('MyTestProvider')
               .commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(appConfigPath).readAsStringSync();
       // The new entry must land AFTER the last existing provider, not before it.
       final newIdx = content.indexOf('MyTestProvider');
@@ -457,7 +457,7 @@ void main() async {
               .injectProvider('MyTestProvider')
               .commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(appConfigPath).readAsStringSync();
       // The injected line must start with exactly 6 spaces (matching list peers).
       expect(
@@ -480,7 +480,7 @@ void main() async {
               .injectConfigFactory('myConfig')
               .commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       // The new entry must land AFTER the last existing factory, not before it.
       final newIdx = content.indexOf('myConfig');
@@ -498,7 +498,7 @@ void main() async {
               .injectConfigFactory('myConfig')
               .commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       // The injected line must start with exactly 6 spaces (matching list peers).
       expect(

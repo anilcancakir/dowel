@@ -47,6 +47,7 @@ void _seedInstalledProject(
     ..createSync(recursive: true);
   File(p.join(recordDir.path, '$pluginName.json')).writeAsStringSync(
     jsonEncode(<String, dynamic>{
+      'version': 1,
       'plugin': pluginName,
       'installedAt': '2025-01-01T00:00:00.000Z',
       'ops': ops ??
@@ -583,6 +584,38 @@ void main() {
       final out = (ctx.output as BufferedOutput).content;
       expect(out, contains('[ERROR]'));
       expect(out, contains('Missing required argument'));
+    });
+
+    test('a record an older dowel wrote is refused, dry run included',
+        () async {
+      // It does not say which dependencies were the user's, so even the
+      // preview would promise a reversal the real run refuses.
+      final root = Directory.systemTemp.createTempSync('plun_old_record_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedInstalledProject(root, pluginName: 'demo_plugin');
+      final record =
+          File(p.join(root.path, '.dowel', 'installed', 'demo_plugin.json'));
+      final decoded = jsonDecode(record.readAsStringSync()) as Map;
+      record.writeAsStringSync(jsonEncode(decoded..remove('version')));
+      final manifestPath = p.join(root.path, 'demo_install.yaml');
+      _writeInstallYaml(manifestPath, 'demo_plugin');
+
+      final cmd = _TestablePluginUninstallCommand(
+        fakeProjectRoot: root.path,
+        fakeInstallYamlPath: manifestPath,
+      );
+      final ctx = _ctxWith(
+        _baseOpts(overrides: const {'dry-run': true}),
+        positional: const ['demo_plugin'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 1);
+      final out = (ctx.output as BufferedOutput).content;
+      expect(out, contains('"version"'));
+      expect(out, contains('--force'));
     });
   });
 }

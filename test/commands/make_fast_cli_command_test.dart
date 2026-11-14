@@ -167,9 +167,9 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // Test 4: .gitignore patched (idempotent: exactly ONE .dowel/ line)
+  // Test 4: .gitignore ignores the machine-local cache only (idempotent)
   // -------------------------------------------------------------------------
-  test('.gitignore is patched with .dowel/ exactly once (idempotent)',
+  test('.gitignore ignores the cache under .dowel/ exactly once (idempotent)',
       () async {
     // First run.
     await MakeFastCliCommand.scaffoldInto(
@@ -191,9 +191,38 @@ void main() {
     final gitignore = File(p.join(tempDir.path, '.gitignore'));
     expect(gitignore.existsSync(), isTrue);
 
-    final content = gitignore.readAsStringSync();
-    expect(content, contains('.dowel/'));
-    expect(RegExp('.dowel/').allMatches(content).length, 1);
+    // plugins.json and the install records are the source of truth for the
+    // generated barrel: ignoring all of .dowel/ lost them on a fresh clone.
+    final lines = gitignore.readAsLinesSync();
+    expect(lines, isNot(contains('.dowel/')));
+    for (final entry in <String>[
+      '.dowel/cli-bundle/',
+      '.dowel/build.stamp',
+      '.dowel/.dowel.lock/',
+    ]) {
+      expect(lines.where((line) => line == entry), hasLength(1));
+    }
+  });
+
+  test('.gitignore narrows the whole-directory entry an earlier run wrote',
+      () async {
+    File(p.join(tempDir.path, '.gitignore'))
+        .writeAsStringSync('build/\n.dowel/\n*.log\n');
+
+    await MakeFastCliCommand.scaffoldInto(
+      root: tempDir.path,
+      force: false,
+      ctx: _ctx(),
+    );
+
+    final lines = File(p.join(tempDir.path, '.gitignore')).readAsLinesSync();
+    expect(lines, <String>[
+      'build/',
+      '.dowel/cli-bundle/',
+      '.dowel/build.stamp',
+      '.dowel/.dowel.lock/',
+      '*.log',
+    ]);
   });
 
   // -------------------------------------------------------------------------

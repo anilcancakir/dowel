@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -136,6 +137,31 @@ void main() {
         expect(content, contains('{{ name }}'));
       },
     );
+
+    test('decodes a percent-encoded rootUri with a trailing slash', () {
+      // pub writes a relative rootUri percent-encoded. Joined as a plain path
+      // it named `plug%20%C4%B1`, which does not exist, and the loader fell
+      // through to whatever dowel the running script came from.
+      final root = Directory.systemTemp.createTempSync('stub_loader_uri_');
+      final previous = Directory.current;
+      addTearDown(() {
+        Directory.current = previous;
+        root.deleteSync(recursive: true);
+      });
+      final project = Directory(p.join(root.path, 'proj'))..createSync();
+      File(p.join(project.path, '.dart_tool', 'package_config.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '{"configVersion": 2, "packages": [{"name": "dowel", '
+          '"rootUri": "../../plug%20%C4%B1/", "packageUri": "lib/"}]}',
+        );
+      File(p.join(root.path, 'plug ı', 'assets', 'stubs', 'probe.stub'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('from the encoded root');
+      Directory.current = project;
+
+      expect(StubLoader.load('probe'), 'from the encoded root');
+    });
 
     test(
       'dispatcher stub forwards collectMcpTools to runDowel',

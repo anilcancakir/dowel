@@ -37,8 +37,11 @@ import 'dowel_service_provider.dart';
 /// run from the substrate binary, never via delegation. Otherwise a stale or
 /// broken `lib/app/_index.g.dart` / `lib/app/_plugins.g.dart` blocks the
 /// wrapper from compiling, blocking the only command that can fix it.
+/// `install` writes the wrapper itself, and the one fluttersdk_artisan left in
+/// a migrating project imports a package that no longer resolves.
 const Set<String> _bypassDelegation = <String>{
   'commands:refresh',
+  'install',
   'plugins:refresh',
 };
 

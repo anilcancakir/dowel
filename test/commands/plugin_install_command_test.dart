@@ -537,7 +537,7 @@ void main() {
 
       final exit = await cmd.handle(ctx);
 
-      // Minimal manifest has no ops to apply; commit returns Success(0).
+      // Minimal manifest has no ops to apply; commit returns InstallSuccess.
       expect(exit, 0);
       final out = (ctx.output as BufferedOutput).content;
       // Reaching this point proves the manifest branch fired: the direct
@@ -610,6 +610,55 @@ void main() {
       expect(out, contains('install.yaml'));
     });
 
+    test(
+        'refuses when plugins.json is missing but the barrel registers '
+        'providers', () async {
+      // A fresh clone of a project that gitignored `.dowel/`: the registry is
+      // gone, the committed barrel still lists the other plugins. Registering
+      // into an empty registry regenerated the barrel with this plugin alone.
+      final root = Directory.systemTemp.createTempSync('plinst_no_registry_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      _seedConsumerProject(root, pluginName: 'magic_logger', scaffold: true);
+      final barrel = File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+        ..writeAsStringSync(
+          "import 'package:dowel/dowel.dart';\n"
+          "import 'package:tapir/cli.dart' show TapirDowelProvider;\n\n"
+          'List<DowelServiceProvider> autoDiscoveredProviders() {\n'
+          '  return <DowelServiceProvider>[TapirDowelProvider()];\n'
+          '}\n',
+        );
+      final before = barrel.readAsStringSync();
+
+      final cmd = _TestablePluginInstallCommand(
+        fakeProjectRoot: root.path,
+        fakeInstallYamlPath: null,
+      );
+      final ctx = _ctxWith(
+        const <String, dynamic>{
+          'force': false,
+          'no-bootstrap': true,
+          'dry-run': false,
+          'non-interactive': false,
+          'use-yaml-only': false,
+          'bootstrap-command': null,
+        },
+        positional: const ['magic_logger'],
+        signature: cmd.parsedSignature,
+      );
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 1);
+      expect(barrel.readAsStringSync(), before);
+      expect(
+        File(p.join(root.path, '.dowel', 'plugins.json')).existsSync(),
+        isFalse,
+      );
+      final out = (ctx.output as BufferedOutput).content;
+      expect(out, contains('.dowel/plugins.json'));
+      expect(out, contains('package:tapir/cli.dart'));
+    });
+
     test('registers the plugin directly when install.yaml is not found',
         () async {
       final root = Directory.systemTemp.createTempSync('plinst_fallback_');
@@ -680,7 +729,7 @@ void main() {
       _seedConsumerProject(root, pluginName: 'magic_logger');
       seedLibApp(root);
 
-      // Minimal manifest: no ops, commit returns Success(0), then the Change F
+      // Minimal manifest: no ops, commit returns InstallSuccess, then the Change F
       // _registerDowelProvider step fires.
       final manifestPath = p.join(root.path, 'install.yaml');
       _writeInstallYaml(manifestPath, 'magic_logger');
@@ -751,7 +800,7 @@ void main() {
           "import 'package:magic_logger/cli.dart' show MagicLoggerDowelProvider;",
         ),
       );
-      expect(generated, contains('MagicLoggerDowelProvider(),'));
+      expect(generated, contains('[MagicLoggerDowelProvider()]'));
       expect(generated,
           contains('List<DowelServiceProvider> autoDiscoveredProviders()'));
     });
@@ -846,7 +895,7 @@ void main() {
       expect(importMatches, hasLength(1),
           reason: 'codegen must emit a single import per plugin');
       final ctorMatches =
-          RegExp(r'MagicLoggerDowelProvider\(\),').allMatches(generated);
+          RegExp(r'MagicLoggerDowelProvider\(\)').allMatches(generated);
       expect(ctorMatches, hasLength(1),
           reason: 'codegen must emit a single constructor call per plugin');
     });

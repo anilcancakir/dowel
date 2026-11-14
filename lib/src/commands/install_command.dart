@@ -6,9 +6,12 @@ import 'package:path/path.dart' as p;
 import '../console/dowel_command.dart';
 import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
+import '../console/dowel_version.dart';
 import '../helpers/config_editor.dart';
 import '../helpers/file_helper.dart';
+import '../helpers/pubspec_dependency.dart';
 import '../stubs/stub_loader.dart';
+import 'helpers/artisan_leftovers.dart';
 import 'make_fast_cli_command.dart';
 import 'plugins_refresh_command.dart';
 
@@ -44,16 +47,18 @@ final class InstallDowelCommand extends DowelCommand {
   }
 
   /// Public composition seam. Writes the 3 canonical files into [root],
-  /// injects the `dowel` pubspec dep (path-dep when
-  /// package_config resolves it locally, `any` otherwise), then chains to
+  /// injects the `dowel` pubspec dep (path-dep when package_config resolves
+  /// it locally, `^<dowelVersion>` otherwise), then chains to
   /// `MakeFastCliCommand.scaffoldInto` so `bin/dowel` + `.gitignore` + AOT
-  /// bundle land in the same invocation.
+  /// bundle land in the same invocation. A project still holding the files
+  /// fluttersdk_artisan generated gets the migration steps and exit 1 instead,
+  /// unless [force] overwrites them.
   ///
   /// Idempotent across all phases:
   /// - Each of the 3 file writes skips when the target already exists unless
   ///   [force] is true.
-  /// - Pubspec dep injection is a no-op when `dowel` is already
-  ///   listed under `dependencies:` (via `ConfigEditor`).
+  /// - Pubspec dep injection is a no-op when `dowel` is already listed
+  ///   under `dependencies:` or `dev_dependencies:`, whatever its constraint.
   /// - The auto-chained `MakeFastCliCommand.scaffoldInto` is itself
   ///   idempotent (per its docblock).
   ///
@@ -80,6 +85,16 @@ final class InstallDowelCommand extends DowelCommand {
         'Could not read `name:` from $root/pubspec.yaml. '
         'Run `install` from a Dart/Flutter project root.',
       );
+      return 1;
+    }
+
+    // 1a. A project migrating from fluttersdk_artisan keeps the generated
+    //     files that package wrote. Each would be skipped as existing, and the
+    //     auto-chained build would then fail on their imports, so stop and say
+    //     what to delete instead. --force overwrites them, as it always has.
+    final stale = staleGeneratedFiles(root);
+    if (stale.isNotEmpty && !force) {
+      ctx.output.error(artisanMigrationSteps(artisanLeftovers(root)));
       return 1;
     }
 
@@ -155,29 +170,17 @@ final class InstallDowelCommand extends DowelCommand {
     // 5. pubspec dep injection. The codegen barrels at phases 3 + 4 import
     //    from `package:dowel/dowel.dart`; without a direct dep
     //    in the consumer pubspec the analyzer flags every barrel with
-    //    `depend_on_referenced_packages`. Two routing modes:
+    //    `depend_on_referenced_packages`. A dowel entry the project already
+    //    has (usually the caret `dart pub add dowel` wrote) is left as it is.
+    //    Otherwise, two routing modes:
     //    a. monorepo / path-dep workflow: read .dart_tool/package_config.json,
     //       find the dowel rootUri, inject as a path dep so the consumer
     //       pubspec resolves the same dowel checkout that already powers
     //       the in-flight `dart run dowel` invocation.
     //    b. pub.dev workflow (no package_config or dowel resolved from a
-    //       pub-cache absolute URI): inject `dowel: any`.
-    //    ConfigEditor is idempotent in both branches.
+    //       pub-cache absolute URI): a caret on the running version.
     final pubspecPath = p.join(root, 'pubspec.yaml');
-    final relativeDowel = _resolveDowelRelativePath(root);
-    if (relativeDowel != null) {
-      ConfigEditor.addPathDependencyToPubspec(
-        pubspecPath: pubspecPath,
-        name: 'dowel',
-        path: relativeDowel,
-      );
-    } else {
-      ConfigEditor.addDependencyToPubspec(
-        pubspecPath: pubspecPath,
-        name: 'dowel',
-        version: 'any',
-      );
-    }
+    _addDowelDependency(pubspecPath, root: root);
 
     ctx.output.info(
       'Install scaffold complete ($wrote written, $skipped skipped). '
@@ -202,6 +205,34 @@ final class InstallDowelCommand extends DowelCommand {
     }
 
     return 0;
+  }
+
+  /// Adds `dowel` to the pubspec at [pubspecPath] unless either dependency
+  /// section already declares it, in which case the user's constraint stays.
+  static void _addDowelDependency(String pubspecPath, {required String root}) {
+    final declared = pubspecDeclaresDependency(pubspecPath, 'dowel') ||
+        pubspecDeclaresDependency(
+          pubspecPath,
+          'dowel',
+          section: 'dev_dependencies',
+        );
+    if (declared) return;
+
+    final relativeDowel = _resolveDowelRelativePath(root);
+    if (relativeDowel != null) {
+      ConfigEditor.addPathDependencyToPubspec(
+        pubspecPath: pubspecPath,
+        name: 'dowel',
+        path: relativeDowel,
+      );
+      return;
+    }
+
+    ConfigEditor.addDependencyToPubspec(
+      pubspecPath: pubspecPath,
+      name: 'dowel',
+      version: '^$dowelVersion',
+    );
   }
 
   /// Returns true when [path] does not exist OR [force] is set.
@@ -255,15 +286,22 @@ final class InstallDowelCommand extends DowelCommand {
       if (entry['name'] != 'dowel') continue;
       final rootUri = entry['rootUri'];
       if (rootUri is! String) return null;
-      // Pub-cache resolutions start with `file://` absolute URIs; only
-      // path-dep workflows yield a relative rootUri suitable for a path: dep.
-      if (rootUri.startsWith('file://')) return null;
-      if (p.isAbsolute(rootUri)) return null;
-      // rootUri is relative to .dart_tool/ inside the consumer; rebase to
-      // be relative to the consumer's pubspec.yaml location.
-      final absolute = p.normalize(p.join(consumerRoot, '.dart_tool', rootUri));
-      final relativeToConsumer = p.relative(absolute, from: consumerRoot);
-      return relativeToConsumer;
+      // Pub-cache resolutions are absolute `file:` URIs; only path-dep
+      // workflows yield a relative rootUri suitable for a path: dep.
+      final Uri reference;
+      try {
+        reference = Uri.parse(rootUri);
+      } on FormatException {
+        return null;
+      }
+      if (reference.hasScheme || p.isAbsolute(rootUri)) return null;
+      // rootUri is a URI reference relative to .dart_tool/, percent-encoded
+      // and with or without a trailing slash. Resolving it as a URI decodes
+      // it; joining it as a path wrote `plug%20x` for `plug x`.
+      final absolute = p.normalize(
+        configFile.parent.absolute.uri.resolveUri(reference).toFilePath(),
+      );
+      return p.relative(absolute, from: consumerRoot);
     }
     return null;
   }

@@ -6,6 +6,7 @@ import 'package:meta/meta.dart';
 import '../console/dowel_command.dart';
 import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
+import 'helpers/artisan_leftovers.dart';
 
 /// Advisory warning emitted when `.mcp.json` still references the removed
 /// `fluttersdk_mcp` package. Those entries live under the `fluttersdk` key,
@@ -116,12 +117,29 @@ class DoctorCommand extends DowelCommand {
     }
 
     // 2. Advisory: warn if .mcp.json still targets the removed fluttersdk_mcp.
-    _checkStaleMcpJson(_workingDir ?? Directory.current.path, ctx);
+    final dir = _workingDir ?? Directory.current.path;
+    _checkStaleMcpJson(dir, ctx);
 
-    // 3. Advisory: warn when Flutter SDK is too old for CDP commands.
+    // 3. Advisory: warn about files fluttersdk_artisan left behind.
+    _checkArtisanLeftovers(dir, ctx);
+
+    // 4. Advisory: warn when Flutter SDK is too old for CDP commands.
     await _checkCdpReadiness(ctx);
 
     return allPass ? 0 : 1;
+  }
+
+  /// Warns with the migration steps when [dir] still holds files from
+  /// fluttersdk_artisan: a project renamed by hand keeps an old dispatcher
+  /// that no longer compiles, and every command delegated to it fails with a
+  /// compiler error instead of saying why. Advisory only.
+  static void _checkArtisanLeftovers(String dir, DowelContext ctx) {
+    final leftovers = artisanLeftovers(dir);
+    if (leftovers.isEmpty) return;
+
+    ctx.output.writeln(
+      'WARN: fluttersdk_artisan leftovers. ${artisanMigrationSteps(leftovers)}',
+    );
   }
 
   /// Checks whether `.mcp.json` in [dir] contains a stale or pre-fix

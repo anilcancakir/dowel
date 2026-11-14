@@ -83,6 +83,26 @@ void main() {
       expect(delegateCalled, isFalse);
     });
 
+    test('bypass list skips delegation for install', () async {
+      // A dispatcher left by fluttersdk_artisan does not compile, so the one
+      // command that replaces it must not be handed to it.
+      var delegateCalled = false;
+
+      await runDowel(
+        <String>['install'],
+        wrapperExists: () => true,
+        delegate: (args) async {
+          delegateCalled = true;
+          return 0;
+        },
+        baseProviders: <DowelServiceProvider>[
+          _StubProvider(<DowelCommand>[_NoopCommand('install')]),
+        ],
+      );
+
+      expect(delegateCalled, isFalse);
+    });
+
     test('delegateToConsumer:false skips delegation regardless', () async {
       var delegateCalled = false;
 
