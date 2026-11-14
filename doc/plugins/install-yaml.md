@@ -103,7 +103,7 @@ Stub-name to target-path mapping. Each entry becomes a `publishConfig` operation
 |:---|:---|
 | Stub name (string) | Target path (string) |
 
-Non-string values raise `FormatException('publish entry "<key>" must map to a String target path; got <type>.')`. A target that is absolute or climbs out of the project through `..` raises a `ManifestValidationException` naming the entry and the target.
+Non-string values raise `FormatException('publish entry "<key>" must map to a String target path; got <type>.')`. A target that is absolute or has a `..` segment raises a `ManifestValidationException` naming the entry and the target: a symbolic link resolves before a following `..`, so even `lib/../x.dart` is refused.
 
 ```yaml
 publish:
