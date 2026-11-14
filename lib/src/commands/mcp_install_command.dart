@@ -15,7 +15,7 @@ import '../helpers/file_helper.dart';
 /// branch only applies on POSIX hosts (macOS, Linux); Windows always
 /// skips the `bin/dowel` shape because the shim is a POSIX shell script.
 ///
-/// 1. POSIX host with `bin/dowel` present (fast path, ~110ms startup):
+/// 1. POSIX host with `bin/dowel` present (fast path, about 0.2 s startup):
 /// ```json
 /// {
 ///   "mcpServers": {

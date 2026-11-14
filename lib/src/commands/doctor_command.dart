@@ -50,8 +50,8 @@ const _minSdkVersion = '3.30.0';
 /// [_minSdkVersion]. Instructs the user to run `flutter upgrade`.
 const _cdpUpgradeWarning =
     'WARN: Flutter SDK is older than $_minSdkVersion. CDP commands '
-    '(tapir:resize, tapir:device, dowel start --cdp-port) require the '
-    'WebSocket hot reload fix from flutter/flutter#170612. '
+    '(tapir:resize_viewport, tapir:device_profile, dowel start --cdp-port) '
+    'require the WebSocket hot reload fix from flutter/flutter#170612. '
     'Run `flutter upgrade` and re-check.';
 
 /// Runs environment preflight checks (dowel toolchain).

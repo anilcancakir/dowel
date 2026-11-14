@@ -399,6 +399,15 @@ void main() {
       });
     });
 
+    test('the CDP upgrade warning names the real tapir command names', () {
+      final warning = DoctorCommand.cdpUpgradeWarningForTest;
+
+      expect(warning, contains('tapir:resize_viewport'));
+      expect(warning, contains('tapir:device_profile'));
+      expect(warning, isNot(contains('tapir:resize,')));
+      expect(warning, isNot(contains('tapir:device,')));
+    });
+
     // -------------------------------------------------------------------------
     // Flutter SDK version check
     // -------------------------------------------------------------------------
