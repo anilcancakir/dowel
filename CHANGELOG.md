@@ -8,6 +8,28 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Breaking
+
+- **`start --cdp-port` reads `DOWEL_CHROME_BIN`, not `TAPIR_CHROME_BIN`.** The old name belonged to a plugin, not to this framework-agnostic command, and no alias is kept. The default Chrome resolver still ignores the value; only a resolver assigned to `StartCommand.cdpChromeBinaryResolver` receives it. (`lib/src/commands/start_command.dart`)
+- **`MAGIC_CLI_STUBS_DIR` is no longer read.** It was a fallback for the removed `magic_cli` package; set `DOWEL_STUBS_DIR` instead. (`lib/src/console/dowel_generator_command.dart`)
+- **`tinker --eval ""` (or a blank `eval` from `dowel_tinker`) exits 1 with a usage error** instead of starting the REPL. Under `mcp:serve` the REPL read stdin, which is the JSON-RPC channel. `tinker` without `--eval` still starts the REPL. (`lib/src/commands/tinker_command.dart`)
+
+### Added
+
+- **`dowel_start` and `dowel_restart` take every option their CLI commands take.** `dowel_start` gains `cdp-port`, `timeout` and `flutter-arg`; `dowel_restart`, which took nothing, gains `device`, `port`, `vm-service-port`, `cdp-port`, `profile-static` and `flutter-arg`, so a restart over MCP can change one setting and keep the rest. `flutter-arg` is an array of strings and reaches the command as the list the CLI parser would produce. A test now fails when an option of an allowlisted command has no schema property. (`lib/src/mcp/mcp_server.dart`, `test/mcp/mcp_server_test.dart`)
+- **`VmServiceClient.onDone`** completes when the connection closes, through `disconnect()` or because the app went away. (`lib/src/vm/vm_service_client.dart`)
+
+### Fixed
+
+- **`dowel_logs` returns the log in the tool result instead of writing it over the protocol.** `logs` wrote the file with `stdout.write`, which under `mcp:serve` is the JSON-RPC channel: the client got raw log lines between protocol frames and an empty result. `logs` and `logs --follow` now write through the command output; `--follow` writes whole lines, holding back a line split across two reads until it is complete. The `dowel_logs` description says it returns the whole captured log, which is what it does. Every other command an MCP tool reaches was checked for direct stdio writes. (`lib/src/commands/logs_command.dart`)
+- **The MCP server reconnects after the app restarts.** vm_service disposes a connection when its socket closes and fails every later call on it, and the server only cleared its client on shutdown, so after `dowel_restart` or a stop and start every plugin tool failed until the MCP client restarted the server. The server now drops the client when the connection closes and dials the session's current URI on the next call; a call that finds the connection disposed before that signal lands reconnects and runs once more. (`lib/src/mcp/mcp_server.dart`)
+- **The MCP server sends no `notifications/tools/list_changed`.** It registered its tools inside `initialize`, so a client that sent `notifications/initialized` right behind `initialize` (a script driving stdio does) got one notification per tool before the initialize response. Tools are now registered before the handshake starts, and the list never changes afterwards. (`lib/src/mcp/mcp_server.dart`)
+
+### Known limitations
+
+- **`tapir_evaluate` is routed by name in the core MCP server.** tapir's `ext.tapir.evaluate` handler is a placeholder because evaluation needs the VM Service `evaluate` RPC, which only a connected client can call, so the server sends that one tool through `evaluate`. A plugin cannot declare the same routing for its own tool yet. (`lib/src/mcp/mcp_server.dart`)
+- **`dowel_logs` with `follow: true` never returns a result,** because the tail runs until it is interrupted and an MCP tool call answers only when the command ends. Use it from the CLI.
+
 ## [0.0.21] - 2026-11-13
 
 ### Changed

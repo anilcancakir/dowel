@@ -631,7 +631,7 @@ class StartCommand extends DowelCommand {
     // 3. Resolve Chrome binary inline (no cross-package import on
     //    tapir; chrome_reaper has no binary-resolution helper).
     final chromeBinary = cdpChromeBinaryResolver(
-      Platform.environment['TAPIR_CHROME_BIN'],
+      Platform.environment['DOWEL_CHROME_BIN'],
     );
     if (chromeBinary == null) {
       ctx.output.error(
@@ -1067,7 +1067,8 @@ class StartCommand extends DowelCommand {
 
   /// Resolves the Chrome binary path: macOS canonical bundle, then Linux
   /// PATH lookup. Returns null on Windows or when neither candidate exists.
-  /// [envOverride] is reserved for V1.x `TAPIR_CHROME_BIN`; currently ignored.
+  /// [envOverride] carries `DOWEL_CHROME_BIN`; this default resolver ignores
+  /// it, a resolver assigned to [cdpChromeBinaryResolver] may honour it.
   @visibleForTesting
   static String? Function(String? envOverride) get defaultChromeBinary =>
       (envOverride) => resolveChromeBinary(

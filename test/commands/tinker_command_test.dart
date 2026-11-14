@@ -78,5 +78,19 @@ void main() {
       expect(output.content, contains('Tinker connected'));
       expect(output.content, contains('Tinker session ended'));
     });
+
+    test('handle rejects a blank --eval instead of starting the REPL',
+        () async {
+      // Under `mcp:serve` stdin is the JSON-RPC channel, so a REPL started
+      // from `eval: ""` would read protocol frames as Dart expressions.
+      final output = BufferedOutput();
+      final ctx = DowelContext.bare(MapInput(const {'eval': '  '}), output);
+
+      final exit = await TinkerCommand().handle(ctx);
+
+      expect(exit, 1);
+      expect(output.content, contains('--eval needs a Dart expression'));
+      expect(output.content, isNot(contains('Tinker connected')));
+    });
   });
 }

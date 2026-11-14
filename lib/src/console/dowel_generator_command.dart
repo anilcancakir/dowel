@@ -49,8 +49,7 @@ abstract class DowelGeneratorCommand extends DowelCommand {
 
   /// Load stub, replace placeholders, return final content.
   String buildClass(String name) {
-    final stubsDir = Platform.environment['DOWEL_STUBS_DIR'] ??
-        Platform.environment['MAGIC_CLI_STUBS_DIR'];
+    final stubsDir = Platform.environment['DOWEL_STUBS_DIR'];
     final stubName = getStub();
     String stub;
     if (stubName.contains(' ') || stubName.contains('{')) {

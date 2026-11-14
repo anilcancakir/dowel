@@ -1,14 +1,11 @@
 /// Lifecycle boot mode an [DowelCommand] needs from the dispatcher.
 ///
-/// V1 has TWO values (none, connected). `headless` is deliberately deferred
-/// to V1.x because a Magic-bound boot in CLI context would force a Flutter
-/// dependency into the pure-Dart `dowel` package AND create a
-/// circular dep `magic → dowel → magic`. All current V1 make:* commands
-/// are file-system-only (use [FileHelper.findProjectRoot] to locate the
-/// host's `pubspec.yaml`; never query `Magic.Config`); they fit `none`
-/// cleanly. Headless mode lands when `magic` ships a `MagicDowelRunner`
-/// that the consumer's `bin/dispatcher.dart` wrapper can compose for
-/// migrate / db:seed style commands needing a Magic boot.
+/// Two values (none, connected). There is no `headless` mode: a
+/// Magic-bound boot in CLI context would force a Flutter dependency into the
+/// pure-Dart `dowel` package AND create a circular dep
+/// `magic → dowel → magic`. All make:* commands are file-system-only (use
+/// [FileHelper.findProjectRoot] to locate the host's `pubspec.yaml`; never
+/// query `Magic.Config`); they fit `none` cleanly.
 enum CommandBoot {
   /// Pure CLI. No Magic boot, no Flutter binding, no VM Service connection.
   ///

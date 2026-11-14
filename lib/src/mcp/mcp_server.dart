@@ -6,7 +6,7 @@ import 'package:dart_mcp/server.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:vm_service/vm_service.dart'
-    show ErrorRef, InstanceRef, RPCError, SentinelException;
+    show ErrorRef, InstanceRef, RPCError, RPCErrorKind, SentinelException;
 
 import '../console/dowel_command.dart';
 import '../console/dowel_context.dart';
@@ -38,21 +38,21 @@ typedef StateReader = Future<Map<String, dynamic>?> Function();
 ///
 /// Architectural choices:
 ///
-/// - Static tool set: tools are filtered + registered ONCE inside [initialize].
-///   No `sendToolListChanged()` calls in V1 (per Oracle C1 revise; the SIGHUP
-///   reload path is V1.1 BACKLOG). `capabilities.tools.listChanged` stays at
-///   the library-default `true` so the advertised capability matches reality
-///   once that path lands; never mutate it to `false` here, that would fight
-///   `ToolsSupport`'s own initialize.
+/// - Static tool set: tools are filtered and registered ONCE, in the
+///   constructor, before the handshake starts. The list never changes after
+///   that, so the server sends no `notifications/tools/list_changed`.
+///   `capabilities.tools.listChanged` stays at the library-default `true`;
+///   never mutate it to `false` here, that would fight `ToolsSupport`'s own
+///   initialize.
 ///
 /// - Filter at registration, not at dispatch: a denied tool never reaches
 ///   [registerTool], so dart_mcp's built-in "no tool registered with the
 ///   name X" error covers the denied case automatically.
 ///
-/// - VM Service connection owned by [serve]: the connection lifetime is the
-///   server's lifetime. No cross-server caching (single-server-per-process
-///   model; matches the prior `fluttersdk_mcp/lib/src/mcp_server.dart`
-///   behaviour we replaced).
+/// - VM Service connection owned by the server, one per process: dialled in
+///   [initialize] or on the first call that needs it, dropped when the app
+///   closes the socket (stop, restart) and dialled again from the session
+///   file on the next call.
 ///
 /// - Stdio transport: production wiring goes through [dart_mcp]'s
 ///   [stdioChannel] helper, leaving stderr free for diagnostic logging.
@@ -78,7 +78,9 @@ final class McpServer extends MCPServer with ToolsSupport {
             // release behind.
             version: dowelVersion,
           ),
-        );
+        ) {
+    _registerTools();
+  }
 
   /// Production factory: wires stdin / stdout through [stdioChannel] and
   /// uses the real [VmServiceClient] + [StateFile.read] for discovery.
@@ -141,7 +143,7 @@ final class McpServer extends MCPServer with ToolsSupport {
 
     // 2. Discover the running Flutter app via the state file written by
     //    `dowel start`. State file absence is NOT fatal: the MCP server
-    //    stays online, registers every tool, and individual tool calls
+    //    stays online, every tool is registered, and individual tool calls
     //    soft-fail at dispatch time with an actionable "run dowel start"
     //    message. This lets MCP clients (Claude Code, Cursor, Windsurf) stay
     //    connected across the natural dev cycle of starting / stopping the
@@ -150,18 +152,7 @@ final class McpServer extends MCPServer with ToolsSupport {
     final wsUri = state?['vmServiceUri'] as String?;
     if (wsUri != null && wsUri.isNotEmpty) {
       try {
-        final vmClient = _vmClientFactory(wsUri);
-        await vmClient.connect();
-        final isolateId = await vmClient.getMainIsolateId();
-        _vmClient = vmClient;
-        _isolateId = isolateId;
-        // BUG #11 fix: when callServiceExtension's internal retry-on-sentinel
-        // discovers the cached isolate id is stale (hot-restart minted a new
-        // isolate), it refreshes via getMainIsolateId() and broadcasts the
-        // new id on onIsolateRefreshed. Update our cached _isolateId in
-        // place so subsequent dispatches use the fresh value without paying
-        // a getVM RPC per call.
-        vmClient.onIsolateRefreshed.listen((fresh) => _isolateId = fresh);
+        await _connect(wsUri);
       } catch (e) {
         stderr.writeln(
           '[dowel_mcp] VM Service connect failed: $e. '
@@ -177,7 +168,19 @@ final class McpServer extends MCPServer with ToolsSupport {
       );
     }
 
-    // 3. Apply the filter once; survivors get registered, denied tools never
+    return result;
+  }
+
+  // Registers the filtered tool set, from the constructor. dart_mcp
+  // announces every registration made once the client's `initialized`
+  // notification has landed, and a client that pipelines that notification
+  // right behind `initialize` (a script driving stdio does) lands it while
+  // [initialize] still awaits the state file: registering there sent one
+  // `notifications/tools/list_changed` per tool ahead of the initialize
+  // response. The set depends only on the registry and the filter, so
+  // nothing here needs the handshake.
+  void _registerTools() {
+    // 1. Apply the filter once; survivors get registered, denied tools never
     //    reach `registerTool` so dart_mcp's native "no tool" error covers
     //    denied call attempts. The plugin-side tools (registry.mcpTools) AND
     //    the substrate-side tools (dowel command adapter below) flow
@@ -195,7 +198,7 @@ final class McpServer extends MCPServer with ToolsSupport {
       return registry.providerNameFor(tool.name) ?? '';
     });
 
-    // 4. Register each surviving tool with its dispatch handler. dart_mcp
+    // 2. Register each surviving tool with its dispatch handler. dart_mcp
     //    auto-validates arguments against the wrapped ObjectSchema. The
     //    handler routes by `extensionMethod` prefix: substrate commands
     //    (prefix `dowel:`) run in-process via the registry; everything
@@ -212,12 +215,10 @@ final class McpServer extends MCPServer with ToolsSupport {
     }
 
     stderr.writeln(
-      '[dowel_mcp] initialized with ${filtered.length} tools '
+      '[dowel_mcp] registered ${filtered.length} tools '
       '(${allTools.length - filtered.length} filtered; '
       '${pluginTools.length} plugin + ${substrateTools.length} substrate)',
     );
-
-    return result;
   }
 
   /// Dispatches a tool call to the matching VM Service extension and wraps
@@ -244,28 +245,21 @@ final class McpServer extends MCPServer with ToolsSupport {
     // already serving and the very next tool call picks up the new app
     // without a reconnect cycle.
     //
-    // Race guard: two concurrent tool calls arriving while `_vmClient` is
-    // null both await the same memoized in-flight future, so the factory
-    // runs exactly once per reconnect attempt. Cleared in finally so the
-    // next call after a failed connect retries cleanly.
-    if (_vmClient == null) {
-      _reconnecting ??= _lazyReconnect();
-      try {
-        await _reconnecting;
-      } catch (e) {
-        return CallToolResult(
-          isError: true,
-          content: [
-            TextContent(
-              text: '### Error\nVM Service connect failed: $e\n\n'
-                  'Run `dowel start` to launch the Flutter app, then '
-                  'retry the tool call.',
-            ),
-          ],
-        );
-      } finally {
-        _reconnecting = null;
-      }
+    // The same path picks up a restarted app: the old client is dropped when
+    // its socket closes, so `_vmClient` is null again here.
+    try {
+      await _ensureVmClient();
+    } catch (e) {
+      return CallToolResult(
+        isError: true,
+        content: [
+          TextContent(
+            text: '### Error\nVM Service connect failed: $e\n\n'
+                'Run `dowel start` to launch the Flutter app, then '
+                'retry the tool call.',
+          ),
+        ],
+      );
     }
 
     final vmClient = _vmClient;
@@ -286,8 +280,12 @@ final class McpServer extends MCPServer with ToolsSupport {
     }
 
     // Special-case: tapir_evaluate routes through vm.evaluate (issue #9
-    // GAP F); the tapir-side ext.tapir.evaluate handler is a no-op sentinel
-    // by design. Reuses the just-validated vmClient + isolateId.
+    // GAP F). The tapir-side ext.tapir.evaluate handler is a no-op sentinel
+    // by design: an extension handler runs inside the isolate and cannot
+    // call the VM Service `evaluate` RPC on itself, only a connected client
+    // can. This is a known coupling of core to one plugin's tool name; a
+    // descriptor-level routing hint would remove it and is a contract
+    // change for every plugin, so it is not done here.
     if (request.name == 'tapir_evaluate') {
       return _dispatchEvaluate(request, vmClient, isolateId);
     }
@@ -295,10 +293,14 @@ final class McpServer extends MCPServer with ToolsSupport {
     try {
       final args = request.arguments?.cast<String, dynamic>() ??
           const <String, dynamic>{};
-      final result = await vmClient.callServiceExtension<Object?>(
-        extensionMethod,
-        isolateId: isolateId,
-        params: args,
+      final result = await _withVmReconnect(
+        vmClient,
+        isolateId,
+        (client, id) => client.callServiceExtension<Object?>(
+          extensionMethod,
+          isolateId: id,
+          params: args,
+        ),
       );
       return CallToolResult(content: [TextContent(text: jsonEncode(result))]);
     } catch (e) {
@@ -337,7 +339,11 @@ final class McpServer extends MCPServer with ToolsSupport {
       );
     }
     try {
-      final result = await vmClient.evaluate(isolateId, expression);
+      final result = await _withVmReconnect(
+        vmClient,
+        isolateId,
+        (client, id) => client.evaluate(id, expression),
+      );
       // 1. ErrorRef: runtime exception during evaluation; returned as
       //    a value, not thrown.
       if (result is ErrorRef) {
@@ -425,12 +431,26 @@ final class McpServer extends MCPServer with ToolsSupport {
     await super.shutdown();
   }
 
+  // Dials the session's app when no client is live. Race guard: two
+  // concurrent tool calls arriving while `_vmClient` is null both await the
+  // same memoized in-flight future, so the factory runs exactly once per
+  // reconnect attempt. Cleared in finally so the next call after a failed
+  // connect retries cleanly.
+  Future<void> _ensureVmClient() async {
+    if (_vmClient != null) return;
+    _reconnecting ??= _lazyReconnect();
+    try {
+      await _reconnecting;
+    } finally {
+      _reconnecting = null;
+    }
+  }
+
   /// Single in-flight connect attempt shared across concurrent tool calls.
-  /// Reads state.json, instantiates one [VmServiceClient] via the factory,
-  /// connects, captures the isolate id, and populates the [_vmClient] +
-  /// [_isolateId] fields. Throws on any failure so the calling dispatch
-  /// surfaces an actionable error; the [_reconnecting] finally clears the
-  /// guard so the next dispatch retries cleanly.
+  /// Reads state.json and connects to the URI it records. Throws on any
+  /// failure so the calling dispatch surfaces an actionable error; the
+  /// [_reconnecting] finally clears the guard so the next dispatch retries
+  /// cleanly.
   Future<void> _lazyReconnect() async {
     final state = await _stateReader();
     final wsUri = state?['vmServiceUri'] as String?;
@@ -439,18 +459,69 @@ final class McpServer extends MCPServer with ToolsSupport {
       // dispatch falls through to the actionable error below.
       return;
     }
+    await _connect(wsUri);
+    stderr.writeln(
+      '[dowel_mcp] lazy-connected to VM Service at $wsUri',
+    );
+  }
+
+  // Connects one client to [wsUri] and makes it the live one.
+  Future<void> _connect(String wsUri) async {
     final vmClient = _vmClientFactory(wsUri);
     await vmClient.connect();
     final isolateId = await vmClient.getMainIsolateId();
     _vmClient = vmClient;
     _isolateId = isolateId;
-    // BUG #11 fix mirror of the initialize() path: keep the cached
-    // _isolateId in lock-step with the wrapper's own retry-driven refresh.
+    // BUG #11 fix: when callServiceExtension's internal retry-on-sentinel
+    // discovers the cached isolate id is stale (hot-restart minted a new
+    // isolate), it refreshes via getMainIsolateId() and broadcasts the new
+    // id on onIsolateRefreshed. Update the cached _isolateId in place so
+    // subsequent dispatches use the fresh value without a getVM RPC per call.
     vmClient.onIsolateRefreshed.listen((fresh) => _isolateId = fresh);
-    stderr.writeln(
-      '[dowel_mcp] lazy-connected to VM Service at $wsUri',
-    );
+    // The app stopped or restarted: vm_service disposed the connection and
+    // fails every later call on it, so let the next call dial the new one.
+    unawaited(vmClient.onDone.then((_) => _dropVmClient(vmClient)));
   }
+
+  void _dropVmClient(VmServiceClient client) {
+    // A late done signal from a client already replaced must not drop the
+    // live one.
+    if (!identical(_vmClient, client)) return;
+    _vmClient = null;
+    _isolateId = null;
+  }
+
+  // Runs [call] on [client]. When the call finds the connection disposed
+  // (the app stopped or restarted after the last call, and the done signal
+  // has not landed yet), drops the client, dials the URI the session file
+  // records now and runs [call] once more. One retry only: a second
+  // disposed connection is reported, not chased.
+  Future<T> _withVmReconnect<T>(
+    VmServiceClient client,
+    String isolateId,
+    Future<T> Function(VmServiceClient client, String isolateId) call,
+  ) async {
+    try {
+      return await call(client, isolateId);
+    } on RPCError catch (e) {
+      if (!_isConnectionDisposed(e)) rethrow;
+      _dropVmClient(client);
+      await _ensureVmClient();
+      final fresh = _vmClient;
+      final freshIsolateId = _isolateId;
+      if (fresh == null || freshIsolateId == null) rethrow;
+      return await call(fresh, freshIsolateId);
+    }
+  }
+
+  // vm_service lists -32010 for a disposed connection, but 15.4.0 throws
+  // -32000 with this message from a call made after `dispose` and for a
+  // call that was in flight when the socket closed (`_call` and `dispose`
+  // in vm_service.dart), so both shapes count.
+  static bool _isConnectionDisposed(RPCError e) =>
+      e.code == RPCErrorKind.kConnectionDisposed.code ||
+      (e.code == RPCErrorKind.kServerError.code &&
+          e.message == 'Service connection disposed');
 
   /// Walks the registry's command list and emits an [McpToolDescriptor] for
   /// every command in [_safeDowelCommandNames]. The allowlist excludes
@@ -570,12 +641,12 @@ final class McpServer extends MCPServer with ToolsSupport {
         return 'Read the captured `flutter run` log output.\n'
             '\n'
             'Reads the stdout/stderr captured by the background Flutter '
-            'process started via `dowel_start`. Returns recent lines OR '
-            'tails the live stream with `follow: true`.\n'
+            'process started via `dowel_start`. Returns the whole captured '
+            'log OR tails the live stream with `follow: true`.\n'
             '\n'
             'Usage:\n'
             '- Pass `follow: true` to tail until interrupted; default '
-            'returns the most recent buffered lines.\n'
+            'returns the whole log captured since the app started.\n'
             '- Returns empty when no app has been started yet.';
 
       case 'restart':
@@ -589,9 +660,10 @@ final class McpServer extends MCPServer with ToolsSupport {
             'change (e.g. native plugin added, pubspec dep change).\n'
             '\n'
             'Usage:\n'
-            '- No parameters; uses the device + flags from the prior '
-            '`dowel_start`.\n'
-            '- Reuses the same VM Service port + web port when possible.';
+            '- Every parameter is optional; an omitted one keeps the value '
+            'of the prior `dowel_start` (device, ports, CDP port, build mode, '
+            'extra flutter arguments).\n'
+            '- Pass a parameter only to change that one setting.';
 
       case 'reload':
         return 'Hot reload the running Flutter app.\n'
@@ -688,16 +760,15 @@ final class McpServer extends MCPServer with ToolsSupport {
     }
   }
 
-  /// Per-command JSON Schema. V1 covers the parameter surface of the 9
-  /// allowlisted commands explicitly; each schema is verified against the
-  /// command's `configure(ArgParser)` declarations so the MCP wire contract
-  /// does not drift from the CLI surface. Auto-deriving from
-  /// [DowelCommand.signature] / `parser.options` is a V1.x follow-up.
+  /// Per-command JSON Schema for the 10 allowlisted commands. Each schema has
+  /// one property per option the command's `configure(ArgParser)` declares,
+  /// typed the way the dispatcher hands it to the command: an option is a
+  /// string, a flag a boolean, a multi-option an array of strings. A parity
+  /// test in `test/mcp/mcp_server_test.dart` fails when the two drift.
   Map<String, dynamic> _commandInputSchema(DowelCommand command) {
     switch (command.name) {
       case 'start':
-        // Mirrors `StartCommand.configure(ArgParser)` exactly. All option
-        // values are strings at the parser layer; flags are booleans.
+        // One property per `StartCommand.configure` option.
         return <String, dynamic>{
           'type': 'object',
           'properties': <String, dynamic>{
@@ -734,6 +805,70 @@ final class McpServer extends MCPServer with ToolsSupport {
                   '(`profile: static`), because a web profile build has no VM '
                   'Service. Default `false`.',
             },
+            'cdp-port': <String, dynamic>{
+              'type': 'string',
+              'description': 'Chrome DevTools Protocol port as a numeric '
+                  'string. When set, pre-launches Chrome with '
+                  '`--remote-debugging-port=N` and runs flutter with '
+                  '`-d web-server`. Required for `tapir_resize` and '
+                  '`tapir_device`. Omit for a plain start.',
+            },
+            'timeout': <String, dynamic>{
+              'type': 'string',
+              'description': 'Seconds to wait for the VM Service URI, as a '
+                  'numeric string. Default `90`. Raise it for a cold native '
+                  'build.',
+            },
+            'flutter-arg': <String, dynamic>{
+              'type': 'array',
+              'items': <String, dynamic>{'type': 'string'},
+              'description': 'Extra arguments forwarded verbatim to '
+                  '`flutter run`, one per item (e.g. '
+                  '`["--dart-define=KEY=VALUE", "--flavor=dev"]`). Forwarded '
+                  'last, so a repeated flag overrides the default this tool '
+                  'chose. Carried across a restart.',
+            },
+          },
+        };
+      case 'restart':
+        // One property per `RestartCommand.configure` option. Each omitted
+        // one keeps the prior session's value.
+        return <String, dynamic>{
+          'type': 'object',
+          'properties': <String, dynamic>{
+            'device': <String, dynamic>{
+              'type': 'string',
+              'description': 'Flutter device id. Omit to keep the prior '
+                  'session\'s device.',
+            },
+            'port': <String, dynamic>{
+              'type': 'string',
+              'description': 'Web port as a numeric string. Omit to keep the '
+                  'prior session\'s port.',
+            },
+            'vm-service-port': <String, dynamic>{
+              'type': 'string',
+              'description': 'Host VM Service port as a numeric string. Omit '
+                  'to keep the prior session\'s port.',
+            },
+            'cdp-port': <String, dynamic>{
+              'type': 'string',
+              'description': 'Chrome DevTools Protocol port as a numeric '
+                  'string. Omit to keep the prior session\'s port.',
+            },
+            'profile-static': <String, dynamic>{
+              'type': 'boolean',
+              'description': 'Profile build on a device. Omit to keep the '
+                  'prior session\'s build mode; `false` forces a debug build.',
+            },
+            'flutter-arg': <String, dynamic>{
+              'type': 'array',
+              'items': <String, dynamic>{'type': 'string'},
+              'description': 'Extra arguments forwarded verbatim to '
+                  '`flutter run`, one per item. Omit to keep the prior '
+                  'session\'s arguments; passing any replaces the whole '
+                  'carried set.',
+            },
           },
         };
       case 'logs':
@@ -745,14 +880,13 @@ final class McpServer extends MCPServer with ToolsSupport {
               'type': 'boolean',
               'description': 'When `true`, tail the live log stream until '
                   'the client disconnects (`-f` short form on the CLI). '
-                  'When `false` or omitted, return the most recent '
-                  'buffered lines and exit immediately. Default `false`.',
+                  'When `false` or omitted, return the whole captured log '
+                  'and exit immediately. Default `false`.',
             },
           },
         };
       case 'stop':
       case 'status':
-      case 'restart':
       case 'reload':
       case 'hot-restart':
       case 'doctor':
@@ -778,11 +912,9 @@ final class McpServer extends MCPServer with ToolsSupport {
           'required': <String>['eval'],
         };
       default:
-        // Defensive empty schema: catches any future allowlist addition
-        // that lands without an explicit per-command schema. The
-        // accompanying test asserts every allowlisted name has a non-default
-        // entry so adding to `_safeDowelCommandNames` without updating
-        // this switch fails CI before it ships.
+        // Defensive empty schema for a future allowlist addition that lands
+        // without its own case. The schema parity test fails CI when that
+        // command declares an option this empty schema leaves out.
         return <String, dynamic>{
           'type': 'object',
           'properties': <String, dynamic>{},
@@ -807,8 +939,14 @@ final class McpServer extends MCPServer with ToolsSupport {
       );
     }
 
-    final args =
-        request.arguments?.cast<String, dynamic>() ?? const <String, dynamic>{};
+    // A JSON array decodes as List<dynamic>, while a command reads a
+    // multi-option (`flutter-arg`) as the List<String> ArgParser hands it on
+    // the CLI. The schema already pinned the items to strings.
+    final args = <String, dynamic>{
+      for (final MapEntry(:key, :value)
+          in (request.arguments ?? const <String, Object?>{}).entries)
+        key: value is List ? List<String>.from(value) : value,
+    };
     final output = BufferedOutput();
     final input = MapInput(args);
 
@@ -818,14 +956,7 @@ final class McpServer extends MCPServer with ToolsSupport {
     // shares the same lazy-reconnect path used by plugin VM-extension tools.
     DowelContext ctx;
     if (command.boot == CommandBoot.connected) {
-      if (_vmClient == null) {
-        _reconnecting ??= _lazyReconnect();
-        try {
-          await _reconnecting;
-        } finally {
-          _reconnecting = null;
-        }
-      }
+      await _ensureVmClient();
       final vmClient = _vmClient;
       if (vmClient == null) {
         return CallToolResult(

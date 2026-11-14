@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -213,6 +214,43 @@ void main() {
         ),
         throwsA(isA<ExtensionNotRegisteredException>()),
       );
+    });
+  });
+
+  group('VmServiceClient.onDone', () {
+    test('completes and drops the connection when the app closes the socket',
+        () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      final sockets = <WebSocket>[];
+      server.transform(WebSocketTransformer()).listen(sockets.add);
+      final client = VmServiceClient('ws://127.0.0.1:${server.port}/ws');
+      await client.connect();
+      var done = false;
+      unawaited(client.onDone.then((_) => done = true));
+
+      // The app went away: its side of the VM Service socket closes.
+      await sockets.single.close();
+      await client.onDone.timeout(const Duration(seconds: 5));
+
+      expect(done, isTrue);
+      expect(client.isConnected, isFalse);
+    });
+
+    test('stays pending while the connection is live', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.transform(WebSocketTransformer()).listen((_) {});
+      final client = VmServiceClient('ws://127.0.0.1:${server.port}/ws');
+      addTearDown(client.disconnect);
+      await client.connect();
+      var done = false;
+      unawaited(client.onDone.then((_) => done = true));
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(done, isFalse);
+      expect(client.isConnected, isTrue);
     });
   });
 }
