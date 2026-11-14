@@ -53,3 +53,7 @@ CLAUDE.local.md
 # not skip them, and wipes a live worktree while `.git/worktrees/<slug>` survives,
 # leaving a registration that `git worktree prune` then has to clear.
 .claude/worktrees/
+
+# Local Claude Code setup written by /ac:init-project
+.claude/settings.local.json
+.claude/hooks/format-changed.sh
