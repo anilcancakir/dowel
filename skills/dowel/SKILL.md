@@ -26,19 +26,20 @@ Reconnect the MCP client afterwards (Claude Code: `/mcp reconnect dowel`); stdio
 
 ## Rules
 
-1. **Two MCP entries give two tool catalogues.** `dart run dowel:mcp` serves the 10 substrate tools only. `./bin/dowel mcp:serve` (or `dart run :dispatcher mcp:serve`) also loads `lib/app/_plugins.g.dart` and adds every plugin's `tapir_*`, `crumbs_*` and similar tools. Read `.mcp.json` to see which one is wired. Plugin tools missing from the client's tool list (`tools/list`; `dowel_list` shows command namespaces and is not proof either way) means the substrate entry is wired, `.dowel/plugins.json` or `_plugins.g.dart` lacks the plugin (run `./bin/dowel plugins:refresh`), or the client was not reconnected; the full decision tree is in `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md` under "Diagnosing missing plugin tools".
-2. **The session is per project.** `dowel_start` writes `~/.dowel/sessions/<hash>/state.json` (pid, `vmServiceUri`, FIFO path, device, ports) keyed by the project root, so two projects run side by side and a command never acts on another project's app. `~/.dowel/state.json` is only a pointer to whichever session started last. With no session, `dowel_status` answers `{"running": false}`, `dowel_stop` is a no-op and connected tools return `isError: true` with "Run `dowel start` first"; the server stays up.
-3. **No reconnect between steps.** After `dowel_start`, the next connected call re-reads the session and opens the VM Service once. `dowel_reload` (`r`) keeps Dart state; `dowel_hot_restart` (`R`) drops it and mints a new isolate id, which the client re-resolves by itself, so call `dowel_tinker` again.
-4. **`dowel_tinker` takes one expression.** The VM Service compiles a single expression in the root library: a trailing `;`, several statements, `import` or a declaration fail with `RPCError(code: 113)`. A bare `await` is allowed because dowel wraps the source in `(() async => <expr>)()`. End a non-primitive result with `.toString()` inside the expression, or it prints as `<ClassName#id>`. Recipes: `${CLAUDE_SKILL_DIR}/references/tinker-eval.md`.
-5. **Only 10 of the 22 commands are MCP tools.** The CLI-only rest (`help`, `install`, `make:*`, `commands:refresh`, `plugins:refresh`, `plugin:install`, `plugin:uninstall`, `mcp:*`) write source, prompt, or recurse into the server. Run them from Bash: `./bin/dowel <cmd>` (native, about 100 ms warm) or `dart run dowel <cmd>` (about 3 s).
-6. **Reload and hot restart are POSIX only.** `start` creates a FIFO (`~/.dowel/sessions/<hash>/flutter-dev.fifo`) and `dowel_reload` or `dowel_hot_restart` write `r` or `R` into it. On Windows `start` fails at `mkfifo`; stop and tell the user.
-7. **`./bin/dowel` is an AOT cache.** It rebuilds (about 5 s) when the bundle or `.dowel/build.stamp` is missing or empty, the stamp's lockfile hash or Dart version differs, or `pubspec.yaml` or `lib/app/_plugins.g.dart` is newer than the stamp. A build in progress holds `.dowel/.dowel.lock`; a dead owner's lock is reclaimed by the next call, and a live one is waited on for `DOWEL_LOCK_TIMEOUT` seconds (default 600) before the call fails naming its pid. Force a rebuild with `make:fast-cli --force`.
-8. **Exit `75` means retry.** `dowel start --timeout=N` and connected commands return it while the app is still building; every other non-zero code is a failure.
-9. **`--dry-run` is the only write-free path.** `plugin:install <name> --dry-run` previews every operation and writes nothing. The real run writes file operations to `.tmp` files and swaps them in only after every one of them was staged, but helper edits (`AddDependency`, the injections) write directly while staging, and neither they nor a failure during the swap are rolled back: after a failed install inspect `git status` and recover by hand. A successful run is recorded under `.dowel/installed/<plugin>.json`, so `plugin:uninstall` can reverse what it wrote. A plugin without an `install.yaml` is registered straight into `.dowel/plugins.json` and needs the scaffold from `dowel install`.
+1. **Two MCP entries give two tool catalogues.** `dart run dowel:mcp` serves the substrate tools only. `./bin/dowel mcp:serve` (or `dart run :dispatcher mcp:serve`) also loads `lib/app/_plugins.g.dart` and adds every plugin's tools (`tapir_*`, `crumbs_*`). Read `.mcp.json` to see which one is wired. Plugin tools missing from `tools/list` (`dowel_list` shows command namespaces and is no proof either way): follow "MCP entry points" in `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md`.
+2. **The session is per project.** `dowel_start` writes `~/.dowel/sessions/<hash>/state.json` (pid, `vmServiceUri`, FIFO path, device, ports) keyed by the project root, so two projects run side by side. `~/.dowel/state.json` only points at whichever session started last. CLI commands and the substrate tools refuse another project's session; plugin tools and `dowel_tinker` run no such check, so read `projectRoot` and `ownedByThisProject` from `dowel_status` when two apps are up.
+3. **In a git worktree, start the app there.** Run `dowel start` in the worktree (or pass `--state=<path>`) before any command that uses the session. The ownership check passes when the worktree sits inside the project root the main app recorded (an app at the repo root, the worktree under it) and for state with no recorded `projectRoot`; then `dowel_stop`, `dowel_restart` and plugin tools act on the main app and report success. A sibling checkout, or an app in a subdirectory the worktree is not inside, is refused.
+4. **The VM connection is cached.** The first connected call after `dowel_start` opens the VM Service, and the MCP server keeps that client until it shuts down. `dowel_reload` (`r`) keeps Dart state; `dowel_hot_restart` (`R`) drops it and mints a new isolate id, which `dowel_tinker` re-reads on each call. After a stop and start or a device change, reconnect the MCP client if connected calls fail.
+5. **`dowel_tinker` takes one expression.** The VM compiles a single expression in the root library: a trailing `;`, several statements, `import` or a declaration fail with code 113 (`[ERROR] evaluate: (113) ...`). A bare `await` works because dowel wraps the source in `(() async => <expr>)()`. End a non-primitive result with `.toString()` inside the expression, or it prints as `<ClassName#id>`. A runtime exception comes back as `Error: <message>` with exit 0, so read the text rather than `isError`. Recipes: `${CLAUDE_SKILL_DIR}/references/tinker-eval.md`.
+6. **Only the lifecycle and inspect commands are MCP tools.** `help`, `install`, `make:*`, `commands:refresh`, `plugins:refresh`, `plugin:install`, `plugin:uninstall` and `mcp:*` are CLI-only: run them from Bash as `./bin/dowel <cmd>` (native) or `dart run dowel <cmd>` (slower startup). Flags and exit codes: `${CLAUDE_SKILL_DIR}/references/cli-commands.md`.
+7. **Reload and hot restart are POSIX only.** `start` creates a FIFO (`~/.dowel/sessions/<hash>/flutter-dev.fifo`) and `dowel_reload` or `dowel_hot_restart` write `r` or `R` into it. Windows has no `mkfifo`; stop and tell the user.
+8. **`./bin/dowel` is an AOT cache.** It rebuilds when the bundle or `.dowel/build.stamp` is missing or empty, the stamp's lockfile hash or Dart version differs, or `pubspec.yaml` or `lib/app/_plugins.g.dart` is newer than the stamp. A build holds `.dowel/.dowel.lock`; a dead owner's lock is reclaimed and a live one is waited on for `DOWEL_LOCK_TIMEOUT` seconds (default 600). Force a rebuild with `make:fast-cli --force`; if a command you just generated is missing, delete `.dowel/cli-bundle` and `.dowel/build.stamp`.
+9. **Exit `75` means retry.** CLI `start --timeout=N` (without `--cdp-port`) and CLI connected commands return it while the app is still building; every other non-zero code is a failure. A substrate tool result starts with `` # `dowel <cmd>` exit N `` and sets `isError` when `N` is not 0, so a 75 shows up as an error.
+10. **`--dry-run` is the only write-free path.** `plugin:install <name> --dry-run` previews every operation and writes nothing. The real run swaps file operations in through `.tmp` files only after all were staged, but dependency additions and injections write directly while staging and are not rolled back: after a failed install inspect `git status` and recover by hand. A successful run is recorded under `.dowel/installed/<plugin>.json`, and `plugin:uninstall` reverses its file-creating operations and dependency additions, skipping and warning about the rest. A plugin without an `install.yaml` is registered straight into `.dowel/plugins.json`, needs the scaffold from `dowel install`, and cannot be uninstalled.
 
 ## Tool surface
 
-Substrate tools (the `_safeDowelCommandNames` allowlist in `lib/src/mcp/mcp_server.dart`), always available:
+Substrate tools (the `_safeDowelCommandNames` allowlist in `lib/src/mcp/mcp_server.dart`), available unless `.dowel/mcp.json`, `DOWEL_MCP_TOOLS_DENY` or `--exclude-tool` denies them:
 
 | Family | Tools | Mental model |
 |---|---|---|
@@ -46,19 +47,18 @@ Substrate tools (the `_safeDowelCommandNames` allowlist in `lib/src/mcp/mcp_serv
 | Inspect | `dowel_status`, `dowel_logs`, `dowel_doctor`, `dowel_list` | Session JSON, captured log, preflight checks, command catalogue |
 | Evaluate | `dowel_tinker { eval: "..." }` | One Dart expression on the main isolate |
 
-Plugin tools appear with the dispatcher entry (rule 1): `tapir_*` from `tapir`, `crumbs_*` from `crumbs`. The server logs `[dowel_mcp] initialized with N tools (M filtered; P plugin + S substrate)` to stderr at boot.
-
-Per-tool schema, return shape and errors: `${CLAUDE_SKILL_DIR}/references/mcp-tools.md`. Flags, exit codes and output of the CLI-only commands: `${CLAUDE_SKILL_DIR}/references/cli-commands.md`.
+`dowel_logs` over MCP writes the log to the server's stdout, which is the transport: read `~/.dowel/sessions/<hash>/flutter-dev.log` with the Read tool or run `./bin/dowel logs`. Plugin tools appear with the dispatcher entry (rule 1); the server logs `[dowel_mcp] initialized with N tools (M filtered; P plugin + S substrate)` to stderr at boot. Per-tool behaviour, the result envelope and the filter: `${CLAUDE_SKILL_DIR}/references/mcp-tools.md`.
 
 ## Picking the path
 
 | Need | Use | Why |
 |---|---|---|
 | Boot, restart, inspect or evaluate the running app | `dowel_*` tool | One round trip inside the MCP session |
+| Read the app log | The log file, or `./bin/dowel logs` | `dowel_logs` does not return it over MCP |
 | Read or change live state (singletons, controllers, caches) | `dowel_tinker` | VM Service evaluate, one shot |
-| Inspect the semantics tree or drive gestures | `tapir_*` | Actionability-gated driver; pair with tinker for state checks |
-| Read HTTP, log and exception buffers | `crumbs_*` | The in-app ring buffers |
-| Scaffold a command, plugin or entry | `./bin/dowel make:command`, `make:plugin`, `make:fast-cli` | CLI-only; writes source and regenerates barrels |
+| Inspect the semantics tree or drive gestures | `tapir_*` | Plugin tools; pair with tinker for state checks |
+| Read HTTP, log and exception buffers | `crumbs_*` | Plugin tools over the in-app ring buffers |
+| Scaffold a command, plugin or entry | `./bin/dowel make:command`, `make:plugin`, `make:fast-cli` | CLI-only; `make:command` also refreshes the command index |
 | Install or remove a plugin | `./bin/dowel plugin:install <name>` or `plugin:uninstall <name>` | CLI-only; `--dry-run` previews |
 
 ## Recipes
@@ -66,12 +66,12 @@ Per-tool schema, return shape and errors: `${CLAUDE_SKILL_DIR}/references/mcp-to
 First touch of a session:
 
 ```text
-dowel_doctor     four hard checks (flutter, dart, port 3100, sdk >= 3.30.0); WARN lines are advisory
-dowel_status     {"running": false}, or {running, pid, alive, vmServiceUri, device, webPort, startedAt}
+dowel_doctor     hard checks (flutter, dart, port 3100, SDK 3.30.0 or newer for --cdp-port); WARN lines are advisory
+dowel_status     {"running": false}, or {running, pid, alive, vmServiceUri, device, webPort, startedAt, projectRoot, ownedByThisProject}
 dowel_list       confirms which plugin namespaces loaded
 ```
 
-`running: false` means call `dowel_start` before any connected tool; `alive: false` means the process died, call `dowel_restart`.
+`running: false` means call `dowel_start` before any connected tool; `alive: false` means the process died, call `dowel_restart`; `ownedByThisProject: false` means the app belongs to another project.
 
 Boot, inspect, evaluate:
 
@@ -79,12 +79,12 @@ Boot, inspect, evaluate:
 dowel_start { device: "chrome" }
 dowel_status                                        vmServiceUri present, alive: true
 dowel_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
-dowel_tinker { eval: "await SharedPreferences.getInstance().then((p) => p.getKeys().toList())" }
+dowel_tinker { eval: "await SharedPreferences.getInstance().then((p) => p.getKeys().toList().toString())" }
 ```
 
 `device` defaults to `chrome` (web, port 3100); pass `macos` for desktop or an adb serial for Android.
 
-Hot reload after an edit: `dowel_reload`, then `dowel_logs { follow: false }` for the expected line, then `dowel_tinker` to confirm. If reload fails (a const constructor change, a build error during reassemble) use `dowel_hot_restart`; if that fails, `dowel_restart`.
+Hot reload after an edit: `dowel_reload` exits 0 once the keystroke is written, before Flutter finishes, so read the log file for the expected line, then `dowel_tinker` to confirm. If reload fails (a const constructor change, a build error during reassemble) use `dowel_hot_restart`; if that fails, `dowel_restart`.
 
 CLI-only work from Bash:
 
@@ -96,21 +96,21 @@ CLI-only work from Bash:
 
 ## Recovery
 
-Connected tools soft-fail with `isError: true` text. Branch on the substring:
+Connected tools soft-fail with text. Branch on the substring:
 
 | Substring | Cause | Next move |
 |---|---|---|
-| `No Flutter app detected` / ``Run `dowel start` first`` | No session for this project | `dowel_start { device: ... }`, retry |
-| `state.json missing or has no vmServiceUri` | `flutter run` crashed during boot | `dowel_restart` |
-| session shows `booting: true` | `start` was cut short by its caller; the app is running | Call any connected tool, it recovers the URI from the session log. Do not re-run start or hand-write the file |
+| `No Flutter app detected (~/.dowel/state.json missing or has no vmServiceUri)` from a plugin tool, or `Not connected to a running Flutter app` from `dowel_tinker` | No session, or a session that records no `vmServiceUri` | `dowel_status`: `running: false` means `dowel_start { device }` and retry; `booting: true` means the next row; otherwise `flutter run` crashed during boot, so read the log, `dowel_stop`, then `dowel_start` |
+| session shows `booting: true` | `start` was cut short by its caller; the app is running | Do not re-run start or hand-write the file. Run `./bin/dowel tinker --eval=1`: a CLI connected command reads the URI back from the session log and saves it; MCP tools do not |
 | ``Pipe missing: <path>. Run `dowel restart` `` | The FIFO was deleted while the session recorded it | `dowel_restart` |
 | `The session has no stdinPipe entry` | The session predates the FIFO or was hand-written | `dowel_restart` |
-| `Expression compilation error` / `RPCError(code: 113)` | `eval` is not a single expression | Drop the `;`, collapse to one expression |
-| `Isolate sentinel (kind: ...)` | Stale isolate id | Recovers on the next call; if not, `dowel_hot_restart` |
-| `mkfifo failed (Windows not yet supported; V1 is POSIX-only)` | `dowel_start` on Windows | Stop and tell the user |
-| `Chrome failed to open debug port <port>` | `--cdp-port` in use, or Chrome missing | Pass a free `--cdp-port=<N>` |
+| `evaluate: (113)` | `eval` is not a single expression | Drop the `;`, collapse to one expression |
+| `Isolate sentinel encountered` (from `tapir_evaluate`) | Stale isolate id | Retry; if it persists, `dowel_hot_restart` |
+| ``# `dowel start` exit 75`` | The build is still running | `dowel_status`, then retry |
+| `Chrome binary not found`, `CDP port <N> is already in use`, `Port <N> is already in use` | `start --cdp-port` preflight (CLI only) | Install Chrome, or free the port or pass another |
+| `mkfifo failed` | `dowel_start` on Windows | Stop and tell the user |
 
-State schema, FIFO model, AOT staleness and every failure: `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md`.
+State keys, the FIFO model, AOT staleness and the longer recovery cases: `${CLAUDE_SKILL_DIR}/references/state-and-recovery.md`.
 
 ## Testing
 
