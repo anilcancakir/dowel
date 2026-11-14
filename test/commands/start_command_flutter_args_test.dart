@@ -80,10 +80,7 @@ void main() {
         vmServicePort: 8181,
         ddsOn: false,
         isChromeTarget: true,
-        extra: <String>[
-          '--dart-define=SCALE=5000',
-          '--flavor=staging',
-        ],
+        extra: <String>['--dart-define=SCALE=5000', '--flavor=staging'],
       );
 
       expect(args, contains('--dart-define=SCALE=5000'));
@@ -101,34 +98,37 @@ void main() {
     });
 
     test(
-        'forwards --profile exactly once on a device when profileStatic is set',
-        () {
-      final List<String> args = StartCommand.flutterArgsFor(
-        device: 'emulator-5554',
-        webPort: 3100,
-        vmServicePort: 8181,
-        ddsOn: false,
-        isChromeTarget: false,
-        profileStatic: true,
-      );
+      'forwards --profile exactly once on a device when profileStatic is set',
+      () {
+        final List<String> args = StartCommand.flutterArgsFor(
+          device: 'emulator-5554',
+          webPort: 3100,
+          vmServicePort: 8181,
+          ddsOn: false,
+          isChromeTarget: false,
+          profileStatic: true,
+        );
 
-      expect(args.where((String a) => a == '--profile'), hasLength(1));
-    });
+        expect(args.where((String a) => a == '--profile'), hasLength(1));
+      },
+    );
 
-    test('does not duplicate --profile when it also arrives as a flutter-arg',
-        () {
-      final List<String> args = StartCommand.flutterArgsFor(
-        device: 'emulator-5554',
-        webPort: 3100,
-        vmServicePort: 8181,
-        ddsOn: false,
-        isChromeTarget: false,
-        profileStatic: true,
-        extra: <String>['--profile'],
-      );
+    test(
+      'does not duplicate --profile when it also arrives as a flutter-arg',
+      () {
+        final List<String> args = StartCommand.flutterArgsFor(
+          device: 'emulator-5554',
+          webPort: 3100,
+          vmServicePort: 8181,
+          ddsOn: false,
+          isChromeTarget: false,
+          profileStatic: true,
+          extra: <String>['--profile'],
+        );
 
-      expect(args.where((String a) => a == '--profile'), hasLength(1));
-    });
+        expect(args.where((String a) => a == '--profile'), hasLength(1));
+      },
+    );
 
     test('keeps --profile as a label on a browser target', () {
       // Web profile builds have no VM Service, so the flag would boot an app
@@ -214,8 +214,7 @@ void main() {
       expect(state['flutterArgs'], <String>['--dart-define=SCALE=5000']);
     });
 
-    test(
-        'omits the key when there were none, rather than writing an empty '
+    test('omits the key when there were none, rather than writing an empty '
         'list a reader has to interpret', () {
       final Map<String, dynamic> state = StartCommand.bootingState(
         pid: 1,
@@ -264,30 +263,23 @@ void main() {
       // as a positional target and the define the caller wrote was gone,
       // silently, against a help text and a doc page that both promise the
       // argument is forwarded verbatim.
-      final ArgvInput input = ArgvInput.parse(
-        startParser(),
-        <String>['--flutter-arg=--dart-define=TAGS=a,b'],
-      );
+      final ArgvInput input = ArgvInput.parse(startParser(), <String>[
+        '--flutter-arg=--dart-define=TAGS=a,b',
+      ]);
 
-      expect(
-        input.option('flutter-arg'),
-        <String>['--dart-define=TAGS=a,b'],
-      );
+      expect(input.option('flutter-arg'), <String>['--dart-define=TAGS=a,b']);
     });
 
     test('collects one entry per occurrence, in order', () {
-      final ArgvInput input = ArgvInput.parse(
-        startParser(),
-        <String>[
-          '--flutter-arg=--dart-define=A=1',
-          '--flutter-arg=--flavor=dev',
-        ],
-      );
+      final ArgvInput input = ArgvInput.parse(startParser(), <String>[
+        '--flutter-arg=--dart-define=A=1',
+        '--flutter-arg=--flavor=dev',
+      ]);
 
-      expect(
-        input.option('flutter-arg'),
-        <String>['--dart-define=A=1', '--flavor=dev'],
-      );
+      expect(input.option('flutter-arg'), <String>[
+        '--dart-define=A=1',
+        '--flavor=dev',
+      ]);
     });
 
     test('is an empty list when the flag was never passed', () {
@@ -306,15 +298,11 @@ void main() {
       final ArgParser parser = ArgParser();
       RestartCommand().configure(parser);
 
-      final ArgvInput input = ArgvInput.parse(
-        parser,
-        <String>['--flutter-arg=--dart-define=SCALE=500'],
-      );
+      final ArgvInput input = ArgvInput.parse(parser, <String>[
+        '--flutter-arg=--dart-define=SCALE=500',
+      ]);
 
-      expect(
-        input.option('flutter-arg'),
-        <String>['--dart-define=SCALE=500'],
-      );
+      expect(input.option('flutter-arg'), <String>['--dart-define=SCALE=500']);
     });
   });
 }

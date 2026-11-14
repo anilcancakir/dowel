@@ -85,22 +85,18 @@ final class ReapResult {
 final class ProcessGroupReaper {
   /// [grace] bounds each wait: after SIGTERM, after SIGKILL, and for the
   /// ports once the processes are gone, so a reap returns within three times
-  /// [grace] at worst. Without [isAlive] a pid is probed with `ps -o stat=`;
-  /// without [isPortFree] ports are not waited on.
+  /// [grace] at worst. Without [_isAlive] a pid is probed with `ps -o stat=`;
+  /// without [_isPortFree] ports are not waited on.
   /// [selfPid] is the caller's pid, whose group is never signalled.
   ProcessGroupReaper({
-    required ReaperKill kill,
-    required ReaperRunner run,
-    Future<bool> Function(int pid)? isAlive,
-    Future<bool> Function(int port)? isPortFree,
+    required this._kill,
+    required this._run,
+    this._isAlive,
+    this._isPortFree,
     this.grace = const Duration(seconds: 5),
     this.pollInterval = const Duration(milliseconds: 100),
     int? selfPid,
-  })  : _kill = kill,
-        _run = run,
-        _isAlive = isAlive,
-        _isPortFree = isPortFree,
-        _selfPid = selfPid ?? io.pid;
+  }) : _selfPid = selfPid ?? io.pid;
 
   final ReaperKill _kill;
   final ReaperRunner _run;
@@ -235,8 +231,8 @@ final class ProcessGroupReaper {
 
   /// Parses `ps -o etime=` output, `[[dd-]hh:]mm:ss`.
   static Duration _parseElapsed(String etime) {
-    final RegExpMatch? match =
-        RegExp(r'^(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+)$').firstMatch(etime);
+    final RegExpMatch? match = RegExp(r'^(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+)$')
+        .firstMatch(etime);
     if (match == null) {
       throw FormatException('Unreadable `ps -o etime=` output', etime);
     }

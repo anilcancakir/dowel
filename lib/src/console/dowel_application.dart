@@ -26,7 +26,7 @@ import 'process_alive.dart';
 ///
 /// V1 has 2 boot modes; headless is deferred to V1.x (would force a Flutter
 /// dep into pure-Dart dowel + circular dep with magic).
-class DowelApplication {
+final class DowelApplication {
   DowelApplication({required this.registry, this.version = dowelVersion});
 
   final DowelRegistry registry;
@@ -158,10 +158,9 @@ class DowelApplication {
         File('${File(StateFile.path).parent.path}/flutter-dev.log'),
       );
       if (wsUri != null) {
-        await StateFile.write(<String, dynamic>{
-          ...state,
-          'vmServiceUri': wsUri,
-        }..remove('booting'));
+        await StateFile.write(
+          <String, dynamic>{...state, 'vmServiceUri': wsUri}..remove('booting'),
+        );
       }
     }
     if (wsUri == null) {
@@ -230,10 +229,12 @@ class DowelApplication {
     final signature = command.parsedSignature;
     final argsHint = signature == null
         ? '[arguments]'
-        : signature.arguments.map((a) {
-            final base = a.isOptional ? '[${a.name}]' : '<${a.name}>';
-            return a.isVariadic ? '$base...' : base;
-          }).join(' ');
+        : signature.arguments
+              .map((a) {
+                final base = a.isOptional ? '[${a.name}]' : '<${a.name}>';
+                return a.isVariadic ? '$base...' : base;
+              })
+              .join(' ');
 
     stdout.writeln(ConsoleStyle.info('Description:'));
     stdout.writeln('  ${command.description}');
@@ -253,8 +254,9 @@ class DowelApplication {
           if (a.defaultValue != null) 'default=${a.defaultValue}',
         ];
         final attrsTail = attrs.isEmpty ? '' : '   [${attrs.join(', ')}]';
-        final desc =
-            a.description == null ? '' : '\n             ${a.description}';
+        final desc = a.description == null
+            ? ''
+            : '\n             ${a.description}';
         stdout.writeln('  ${a.name.padRight(10)} $attrsTail$desc');
       }
       stdout.writeln('');

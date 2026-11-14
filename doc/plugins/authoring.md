@@ -9,6 +9,7 @@ through the stdio JSON-RPC server so LLM agents can invoke them by name.
 
 - [Getting Started](#getting-started)
 - [DowelServiceProvider Contract](#dowelserviceprovider-contract)
+- [Public surface](#public-surface)
 - [Writing Commands](#writing-commands)
 - [Adding MCP Tools](#adding-mcp-tools)
 - [Publishing](#publishing)
@@ -94,6 +95,12 @@ final class AwesomePluginDowelProvider extends DowelServiceProvider {
   // To expose MCP tools, override mcpTools() returning your descriptor list.
 }
 ```
+
+### Public surface
+
+Everything a plugin needs comes from `package:dowel/dowel.dart`, whose exports list their symbols with `show` (the install manifest model and the install operation classes are exported whole): what is not listed is internal and may change in a minor release. Most builtin command classes (`DoctorCommand`, `ListCommand`, `PluginInstallCommand` and the rest) and `McpServer` are not part of it; the ones a plugin runs or builds on are (`StartCommand`, `StopCommand`, `RestartCommand`, `HotRestartCommand`, `InstallDowelCommand`, `MakeFastCliCommand` and `TinkerCommand`). `package:args` is re-exported only for `ArgParser`, `ArgParserException` and `ArgResults`; import `package:args` for anything else.
+
+Only the classes a plugin builds on are open to `extends`: `DowelCommand`, `DowelGeneratorCommand`, `DowelInstallCommand`, `DowelServiceProvider`, `DowelContext`, `DowelOutput` and `VmServiceClient`. Every other exported class is `final`, and `DowelInput`, `PromptDriver`, `StubDriver` and `VirtualFs` are `interface` classes: a test fake implements them. A fake of `InMemoryFs` or `DowelRegistry` implements `VirtualFs` or builds the registry instead of extending it.
 
 ---
 
@@ -213,12 +220,7 @@ match the package's `providerName` (or a recognisable abbreviation thereof).
    for new commands/tools, major for breaking provider API changes).
 
 2. Declare the dependency on `dowel` with a caret constraint, not
-   `path:`:
-
-   ```yaml
-   dependencies:
-     dowel: ^0.0.21
-   ```
+   `path:`. `dart pub add dowel` writes one.
 
 3. Validate the archive before tagging:
 

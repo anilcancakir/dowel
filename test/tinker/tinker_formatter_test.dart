@@ -1,4 +1,5 @@
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/tinker/tinker_formatter.dart';
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart';
 
@@ -46,10 +47,7 @@ void main() {
     });
 
     test('uses "Instance" sentinel when classRef is null', () {
-      final ref = InstanceRef(
-        kind: 'PlainInstance',
-        id: 'objects/bar',
-      );
+      final ref = InstanceRef(kind: 'PlainInstance', id: 'objects/bar');
       expect(formatInstanceRef(ref), '<Instance#objects/bar>');
     });
 
@@ -63,10 +61,7 @@ void main() {
     });
 
     test('renders ErrorRef with id fallback when message is null', () {
-      final err = ErrorRef(
-        kind: 'UnhandledException',
-        id: 'objects/silent',
-      );
+      final err = ErrorRef(kind: 'UnhandledException', id: 'objects/silent');
       expect(formatInstanceRef(err), 'Error: objects/silent');
     });
 
@@ -108,10 +103,7 @@ void main() {
     });
 
     test('returns the InstanceRef fallback when every caster returns null', () {
-      final casters = <TinkerCaster>[
-        (_) => null,
-        (_) => null,
-      ];
+      final casters = <TinkerCaster>[(_) => null, (_) => null];
       expect(formatTinkerResult('plain', casters: casters), 'plain');
     });
 

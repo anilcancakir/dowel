@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
@@ -131,7 +132,7 @@ final class PluginsRegistry {
 ///
 /// [write] follows the same `.tmp` + rename pattern used by
 /// [InstallTransaction]: content is written to
-/// `<projectRoot>/.dowel/plugins.json.tmp` first and then renamed over the
+/// `<projectRoot>/.dowel/plugins.json.<pid>.tmp` first and then renamed over the
 /// target. On POSIX systems this rename is atomic, so readers never observe a
 /// partial write.
 ///
@@ -176,7 +177,9 @@ class PluginsRegistryFile {
   String get _registryPath => p.join(_projectRoot, '.dowel', 'plugins.json');
 
   /// Absolute path of the temporary write target used during atomic writes.
-  String get _tmpPath => '$_registryPath.tmp';
+  /// The pid suffix keeps two concurrent installs into one project from
+  /// renaming each other's temp.
+  String get _tmpPath => '$_registryPath.$pid.tmp';
 
   /// Reads the registry from disk.
   ///

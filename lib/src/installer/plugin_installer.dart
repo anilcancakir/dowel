@@ -15,7 +15,7 @@ import 'install_transaction.dart';
 /// ## Lifecycle (one-shot)
 ///
 /// Each `PluginInstaller` instance commits exactly once. After [commit]
-/// returns ANY result ([Success] / [DryRun] / [Conflict] / [Error]) a second
+/// returns ANY result ([InstallSuccess] / [InstallDryRun] / [InstallConflict] / [InstallError]) a second
 /// call throws [StateError]. The reasoning is symmetric with
 /// [InstallTransaction]'s own one-shot semantics: replaying chain-built ops
 /// against partially mutated disk state silently corrupts the install record.
@@ -24,9 +24,9 @@ import 'install_transaction.dart';
 /// ## startWith / endWith escape hatches
 ///
 /// - [startWith] fires immediately before the ops dispatch and runs even when
-///   the dispatch later returns a non-[Success] result. Use it for setup that
+///   the dispatch later returns a non-[InstallSuccess] result. Use it for setup that
 ///   must happen regardless of outcome (e.g. priming a logger).
-/// - [endWith] fires only after a [Success] result lands. Use it for
+/// - [endWith] fires only after an [InstallSuccess] result lands. Use it for
 ///   post-install side effects that are unsafe to run on a half-applied
 ///   install (e.g. printing a "next steps" banner).
 ///
@@ -87,19 +87,17 @@ import 'install_transaction.dart';
 ///   .endWith((ctx) => ctx.dowelContext.output.success('Run "flutter pub get"'))
 ///   .commit(dryRun: false, force: false);
 /// ```
-class PluginInstaller {
+final class PluginInstaller {
   /// Creates a `PluginInstaller` bound to [ctx] for the plugin identified by
-  /// [pluginName].
+  /// [_pluginName].
   ///
-  /// [pluginName] threads through [InstallTransaction] to the
+  /// [_pluginName] threads through [InstallTransaction] to the
   /// `.dowel/installed/<pluginName>.json` record file path.
   ///
   /// @param ctx         The active [InstallContext] (fs / prompt / stubs /
   ///                    clock / output).
   /// @param pluginName  Pubspec package name of the plugin under installation.
-  PluginInstaller(InstallContext ctx, {required String pluginName})
-      : _ctx = ctx,
-        _pluginName = pluginName;
+  PluginInstaller(InstallContext ctx, {required this._pluginName}) : _ctx = ctx;
 
   final InstallContext _ctx;
   final String _pluginName;
@@ -116,7 +114,7 @@ class PluginInstaller {
   /// `void Function(...)?` type, Dart has no `Closure` type.
   void Function(InstallContext)? _startWith;
 
-  /// Hook fired only after [commit] returns [Success]. `null` when no
+  /// Hook fired only after [commit] returns [InstallSuccess]. `null` when no
   /// [endWith] call was made.
   void Function(InstallContext)? _endWith;
 
@@ -159,9 +157,9 @@ class PluginInstaller {
     return this;
   }
 
-  /// Registers a callback invoked after [commit] returns [Success].
+  /// Registers a callback invoked after [commit] returns [InstallSuccess].
   ///
-  /// Does NOT fire on [DryRun], [Conflict], or [Error] outcomes. Replaces any
+  /// Does NOT fire on [InstallDryRun], [InstallConflict], or [InstallError] outcomes. Replaces any
   /// previously registered hook (last-write-wins). Returns `this` for
   /// chaining.
   ///
@@ -176,7 +174,7 @@ class PluginInstaller {
   /// method.
   ///
   /// Production callers should use the public chain methods; this exists so
-  /// the original Step 18 lifecycle tests can populate the queue with
+  /// the lifecycle tests can populate the queue with
   /// arbitrary op shapes without coupling to the chain-method surface.
   ///
   /// @param op  The [InstallOperation] to enqueue.
@@ -467,9 +465,9 @@ class PluginInstaller {
   /// literal entry.
   ///
   /// A plugin targeting a non-conforming `app.dart` now FAILS the install with
-  /// an `Error` naming the file. This docblock used to describe the opposite,
+  /// an `InstallError` naming the file. This docblock used to describe the opposite,
   /// calling the silent no-op "helper behaviour" and saying the install
-  /// reports Success regardless, which was a defect written down as a
+  /// reports InstallSuccess regardless, which was a defect written down as a
   /// contract: a consumer app hit it, registered no provider, booted no
   /// plugin, and was told the install had succeeded.
   ///
@@ -499,7 +497,7 @@ class PluginInstaller {
     // `lib/config/app.dart:37` writes `(app) =>` and `watchools`'
     // `lib/config/app.dart:23` writes `(MagicApp app) =>`. The regex used to
     // require the bare form, so every plugin install against the second shape
-    // injected nothing and reported Success.
+    // injected nothing and reported InstallSuccess.
     //
     // The key's quoting is not load-bearing. Anchoring on the key made it so
     // for one round: `prefer_single_quotes` makes `"providers":` uncommon
@@ -525,7 +523,10 @@ class PluginInstaller {
           r'\((?:\w+\s+)?app\)\s*=>\s*\w+ServiceProvider\(app\),'
           r'(?=(?:[^\S\n]*(?://[^\n]*)?\n)*?[^\S\n]*\])',
         ),
-        fallbackPattern: RegExp('''['"]providers['"]''' r'\s*:\s*\['),
+        fallbackPattern: RegExp(
+          '''['"]providers['"]'''
+          r'\s*:\s*\[',
+        ),
         code: '\n      (app) => $providerClassName(app),',
       ),
     );
@@ -657,7 +658,7 @@ class PluginInstaller {
   /// [String] → `PlistWriter.setStringKey`,
   /// [bool] → `PlistWriter.setBoolKey`,
   /// `List<String>` → `PlistWriter.setArrayKey`.
-  /// Any other shape surfaces an [Error] result from the transaction.
+  /// Any other shape surfaces an [InstallError] result from the transaction.
   /// Skipped silently when the platform directory is absent.
   ///
   /// @param key       Plist key.
@@ -921,7 +922,7 @@ class PluginInstaller {
   /// result.
   ///
   /// @param dryRun  When `true`, the transaction prints staged ops and returns
-  ///                [DryRun] without writing to disk.
+  ///                [InstallDryRun] without writing to disk.
   /// @param force   When `true`, the transaction bypasses the conflict
   ///                pre-flight and overwrites user-modified files.
   /// @return The [TransactionResult] surfaced by the underlying transaction.
@@ -931,7 +932,7 @@ class PluginInstaller {
     bool force = false,
   }) async {
     // 1. One-shot guard. Reject the second call regardless of the first
-    //    call's outcome (Success / DryRun / Conflict / Error all flip the
+    //    call's outcome (InstallSuccess / InstallDryRun / InstallConflict / InstallError all flip the
     //    guard so the queue can never be replayed against stale state).
     if (_committed) {
       throw StateError(
@@ -957,11 +958,11 @@ class PluginInstaller {
     //    transaction. Forwarding the two flags keeps the boolean surface flat.
     final result = await tx.commit(dryRun: dryRun, force: force);
 
-    // 5. Post-commit hook fires only when the transaction reported Success.
-    //    DryRun / Conflict / Error short-circuit the endWith so callers can
+    // 5. Post-commit hook fires only when the transaction reported InstallSuccess.
+    //    InstallDryRun / InstallConflict / InstallError short-circuit the endWith so callers can
     //    safely use it for "next steps" banners that would mislead the user
     //    if printed after a failed or previewed run.
-    if (result is Success) {
+    if (result is InstallSuccess) {
       _endWith?.call(_ctx);
     }
 

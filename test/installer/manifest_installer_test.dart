@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/installer/install_record.dart';
+import 'package:dowel/src/installer/install_transaction.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
@@ -16,9 +18,9 @@ class _QueuedPromptDriver implements PromptDriver {
     Map<String, String> asks = const {},
     Map<String, bool> confirms = const {},
     Map<String, String> choices = const {},
-  })  : _asks = Map.of(asks),
-        _confirms = Map.of(confirms),
-        _choices = Map.of(choices);
+  }) : _asks = Map.of(asks),
+       _confirms = Map.of(confirms),
+       _choices = Map.of(choices);
 
   final Map<String, String> _asks;
   final Map<String, bool> _confirms;
@@ -88,6 +90,24 @@ class _MapStubDriver implements StubDriver {
       replace(load(name), replacements);
 }
 
+/// Records the search paths of the last [load] and answers every stub with
+/// an empty body.
+class _SearchPathRecordingStubDriver implements StubDriver {
+  List<String>? searchPaths;
+
+  @override
+  String load(String name, {List<String>? searchPaths}) {
+    this.searchPaths = searchPaths;
+    return '';
+  }
+
+  @override
+  String replace(String stub, Map<String, String> replacements) => stub;
+
+  @override
+  String make(String name, Map<String, String> replacements) => '';
+}
+
 InstallContext _ctx({
   required InMemoryFs fs,
   PromptDriver? prompt,
@@ -103,115 +123,180 @@ InstallContext _ctx({
 }
 
 InstallManifest _minimalManifest() => InstallManifest(
-      pluginName: 'example_plugin',
-      pubspec: PubspecDeps.empty(),
-      publish: const {
-        'install/example_config.dart.stub': 'lib/config/example.dart',
-      },
-      jsonMerge: const {},
-      magic: const MagicIntegration(provider: 'ExampleServiceProvider'),
-      native: NativeConfig.empty(),
-      env: const {},
-      prompts: const [],
-      placeholders: const {},
-      postInstall: PostInstallSpec.empty(),
-    );
+  pluginName: 'example_plugin',
+  pubspec: PubspecDeps.empty(),
+  publish: const {
+    'install/example_config.dart.stub': 'lib/config/example.dart',
+  },
+  jsonMerge: const {},
+  magic: const MagicIntegration(provider: 'ExampleServiceProvider'),
+  native: NativeConfig.empty(),
+  env: const {},
+  prompts: const [],
+  placeholders: const {},
+  postInstall: PostInstallSpec.empty(),
+);
 
 InstallManifest _fullManifestSample() => InstallManifest(
-      pluginName: 'example_plugin',
-      pubspec: const PubspecDeps(
-        deps: {'intl': '^0.20.0'},
-        devDeps: {'mocktail': '^1.0.0'},
-        assets: ['assets/example/'],
-      ),
-      publish: const {
-        'install/example_config.dart.stub': 'lib/config/example.dart',
-      },
-      jsonMerge: const {
-        'assets/lang/en.json': JsonMergeSpec(
-          source: 'install/lang/en.json',
-          additive: true,
-        ),
-      },
-      magic: const MagicIntegration(
-        provider: 'ExampleServiceProvider',
-        configFactory: 'exampleConfig',
-        routes: 'registerExampleRoutes',
-      ),
-      native: NativeConfig(
-        android: const AndroidConfig(
-          permissions: ['android.permission.INTERNET'],
-          metaData: {'io.flutter.embedded_views_preview': 'true'},
-          activities: [
-            AndroidActivitySpec(
-              name: 'com.example.CallbackActivity',
-              exported: true,
-              taskAffinity: '',
-              intentFilters: [
-                AndroidIntentFilter(
-                  autoVerify: true,
-                  actions: ['android.intent.action.VIEW'],
-                  categories: ['android.intent.category.DEFAULT'],
-                  data: [
-                    AndroidIntentData(
-                        scheme: 'https', host: 'auth.example.com'),
-                  ],
-                ),
+  pluginName: 'example_plugin',
+  pubspec: const PubspecDeps(
+    deps: {'intl': '^0.20.0'},
+    devDeps: {'mocktail': '^1.0.0'},
+    assets: ['assets/example/'],
+  ),
+  publish: const {
+    'install/example_config.dart.stub': 'lib/config/example.dart',
+  },
+  jsonMerge: const {
+    'assets/lang/en.json': JsonMergeSpec(
+      source: 'install/lang/en.json',
+      additive: true,
+    ),
+  },
+  magic: const MagicIntegration(
+    provider: 'ExampleServiceProvider',
+    configFactory: 'exampleConfig',
+    routes: 'registerExampleRoutes',
+  ),
+  native: NativeConfig(
+    android: const AndroidConfig(
+      permissions: ['android.permission.INTERNET'],
+      metaData: {'io.flutter.embedded_views_preview': 'true'},
+      activities: [
+        AndroidActivitySpec(
+          name: 'com.example.CallbackActivity',
+          exported: true,
+          taskAffinity: '',
+          intentFilters: [
+            AndroidIntentFilter(
+              autoVerify: true,
+              actions: ['android.intent.action.VIEW'],
+              categories: ['android.intent.category.DEFAULT'],
+              data: [
+                AndroidIntentData(scheme: 'https', host: 'auth.example.com'),
               ],
             ),
           ],
-          gradle: GradleConfig(
-            plugins: [
-              GradlePluginSpec(
-                  id: 'com.example.gradle.plugin', version: '1.0.0'),
-            ],
-            deps: [
-              GradleDepSpec(
-                  scope: 'implementation', notation: 'com.example:lib:1.0.0'),
-            ],
-          ),
-        ),
-        ios: const IosConfig(
-          infoPlist: {'NSExampleUsageDescription': 'Reason'},
-          urlSchemes: ['com.example.app'],
-          entitlements: {'com.apple.security.keychain': true},
-          podfile: PodfileConfig(platformVersion: '13.0', pods: ['ExamplePod']),
-        ),
-        web: const WebConfig(
-          headScripts: ['<script src="example.js"></script>'],
-          metaTags: [
-            {'name': 'description', 'content': 'Example'},
-          ],
-        ),
-      ),
-      env: const {
-        'EXAMPLE_KEY': EnvVarSpec(defaultValue: 'example_value'),
-      },
-      prompts: const [
-        PromptSpec(
-          key: 'configPath',
-          type: 'string',
-          question: 'Config path?',
-          defaultValue: '~/.example.conf',
         ),
       ],
-      placeholders: const {
-        'configFilePath': '{{ prompts.configPath }}',
-      },
-      postInstall: const PostInstallSpec(
-        run: [
-          ShellSpec(cmd: 'dart', args: ['format', 'lib/config/example.dart'])
+      gradle: GradleConfig(
+        plugins: [
+          GradlePluginSpec(id: 'com.example.gradle.plugin', version: '1.0.0'),
         ],
-        askToRun: [],
-        message: 'example_plugin installed.',
+        deps: [
+          GradleDepSpec(
+            scope: 'implementation',
+            notation: 'com.example:lib:1.0.0',
+          ),
+        ],
       ),
-      bootstrapCommand: 'example:install',
-    );
+    ),
+    ios: const IosConfig(
+      infoPlist: {'NSExampleUsageDescription': 'Reason'},
+      urlSchemes: ['com.example.app'],
+      entitlements: {'com.apple.security.keychain': true},
+      podfile: PodfileConfig(platformVersion: '13.0', pods: ['ExamplePod']),
+    ),
+    web: const WebConfig(
+      headScripts: ['<script src="example.js"></script>'],
+      metaTags: [
+        {'name': 'description', 'content': 'Example'},
+      ],
+    ),
+  ),
+  env: const {'EXAMPLE_KEY': EnvVarSpec(defaultValue: 'example_value')},
+  prompts: const [
+    PromptSpec(
+      key: 'configPath',
+      type: 'string',
+      question: 'Config path?',
+      defaultValue: '~/.example.conf',
+    ),
+  ],
+  placeholders: const {'configFilePath': '{{ prompts.configPath }}'},
+  postInstall: const PostInstallSpec(
+    run: [
+      ShellSpec(cmd: 'dart', args: ['format', 'lib/config/example.dart']),
+    ],
+    askToRun: [],
+    message: 'example_plugin installed.',
+  ),
+  bootstrapCommand: 'example:install',
+);
 
 void main() {
+  group('ManifestInstaller: plugin stubs directory from package_config', () {
+    /// Stages the minimal manifest under [projectRoot] and returns the search
+    /// paths the published stub was loaded from.
+    List<String>? stubSearchPaths(
+      InMemoryFs fs, {
+      String projectRoot = '/proj',
+    }) {
+      final stubs = _SearchPathRecordingStubDriver();
+      final ctx = InstallContext.test(
+        fs: fs,
+        prompt: _QueuedPromptDriver(),
+        stubs: stubs,
+        projectRoot: projectRoot,
+      );
+      ManifestInstaller(ctx, _minimalManifest()).prepare();
+
+      return stubs.searchPaths;
+    }
+
+    String packageConfig(String rootUri) => jsonEncode(<String, dynamic>{
+      'configVersion': 2,
+      'packages': <Map<String, String>>[
+        <String, String>{
+          'name': 'example_plugin',
+          'rootUri': rootUri,
+          'packageUri': 'lib/',
+        },
+      ],
+    });
+
+    test(
+      'decodes a percent-encoded relative rootUri with a trailing slash',
+      () {
+        final fs = InMemoryFs()
+          ..writeAsString(
+            '/proj/.dart_tool/package_config.json',
+            packageConfig('../../plug%20%C4%B1/'),
+          );
+
+        expect(stubSearchPaths(fs), <String>['/plug ı/assets/stubs']);
+      },
+    );
+
+    test('reads an absolute file URI without a trailing slash', () {
+      final fs = InMemoryFs()
+        ..writeAsString(
+          '/proj/.dart_tool/package_config.json',
+          packageConfig('file:///cache/example%20plugin-1.0.0'),
+        );
+
+      expect(stubSearchPaths(fs), <String>[
+        '/cache/example plugin-1.0.0/assets/stubs',
+      ]);
+    });
+
+    test('a pub workspace member reads the config at the workspace root', () {
+      // `pub get` in a workspace writes one config at the root; the member
+      // app only gets `.dart_tool/pub/`.
+      final fs = InMemoryFs()
+        ..writeAsString(
+          '/ws/.dart_tool/package_config.json',
+          packageConfig('../plug/'),
+        );
+
+      expect(stubSearchPaths(fs, projectRoot: '/ws/app'), <String>[
+        '/ws/plug/assets/stubs',
+      ]);
+    });
+  });
+
   group('ManifestInstaller — prepare() stages translated ops', () {
-    test('minimal manifest stages exactly one PublishFile + injectProvider ops',
-        () {
+    test('minimal manifest stages exactly one PublishFile + injectProvider ops', () {
       final fs = InMemoryFs();
       final stubs = _MapStubDriver({
         'install/example_config.dart.stub': 'const x = 1;\n',
@@ -252,9 +337,13 @@ void main() {
 
       // Pubspec section.
       expect(
-          ops.whereType<AddDependency>().where((o) => !o.isDev), hasLength(1));
+        ops.whereType<AddDependency>().where((o) => !o.isDev),
+        hasLength(1),
+      );
       expect(
-          ops.whereType<AddDependency>().where((o) => o.isDev), hasLength(1));
+        ops.whereType<AddDependency>().where((o) => o.isDev),
+        hasLength(1),
+      );
       expect(ops.whereType<AddPubspecAsset>(), hasLength(1));
 
       // Publish + JSON merge.
@@ -266,7 +355,9 @@ void main() {
       expect(ops.whereType<InjectImport>().length, greaterThanOrEqualTo(1));
       expect(ops.whereType<InjectMainDartImport>(), hasLength(1));
       expect(
-          ops.whereType<InjectAfterPattern>().length, greaterThanOrEqualTo(2));
+        ops.whereType<InjectAfterPattern>().length,
+        greaterThanOrEqualTo(2),
+      );
       expect(ops.whereType<InjectRouteRegistration>(), hasLength(1));
 
       // Native.
@@ -277,7 +368,9 @@ void main() {
       expect(activity.exported, isTrue);
       expect(activity.taskAffinity, '');
       expect(
-          activity.intentFilters.single.data.single.host, 'auth.example.com');
+        activity.intentFilters.single.data.single.host,
+        'auth.example.com',
+      );
       expect(ops.whereType<InjectGradlePlugin>(), hasLength(1));
       expect(ops.whereType<InjectGradleDependency>(), hasLength(1));
       expect(ops.whereType<InjectInfoPlistKey>(), hasLength(1));
@@ -294,8 +387,7 @@ void main() {
       expect(ops.whereType<RunShell>(), hasLength(1));
     });
 
-    test(
-        'config factory import resolves from the published lib/config path, '
+    test('config factory import resolves from the published lib/config path, '
         'not the package barrel', () {
       final fs = InMemoryFs();
       final stubs = _MapStubDriver({
@@ -337,16 +429,18 @@ void main() {
         _fullManifestSample(),
       );
 
-      final publish =
-          installer.prepare().pendingOps.whereType<PublishFile>().single;
+      final publish = installer
+          .prepare()
+          .pendingOps
+          .whereType<PublishFile>()
+          .single;
 
       expect(publish.replacements, {'configFilePath': '/tmp/example.conf'});
     });
   });
 
   group('ManifestInstaller — install() commits the transaction', () {
-    test('dryRun returns DryRun with the staged op count and no disk writes',
-        () async {
+    test('dryRun returns InstallDryRun with the staged op count and no disk writes', () async {
       final fs = InMemoryFs();
       final stubs = _MapStubDriver({
         'install/example_config.dart.stub': 'const x = 1;\n',
@@ -358,46 +452,57 @@ void main() {
 
       final result = await installer.install(dryRun: true);
 
-      expect(result, isA<DryRun>());
-      expect((result as DryRun).opCount, greaterThan(0));
+      expect(result, isA<InstallDryRun>());
+      expect((result as InstallDryRun).opCount, greaterThan(0));
       expect(fs.exists('/proj/lib/config/example.dart'), isFalse);
     });
 
-    test('non-dryRun writes published file + install record on Success',
-        () async {
-      final fs = InMemoryFs();
-      final stubs = _MapStubDriver({
-        'install/example_config.dart.stub': 'const x = 1;\n',
-      });
-      // Manifest without magic.provider — that path uses dart:io-backed
-      // helpers (ConfigEditor.addImportToFile / insertCodeAfterPattern) which
-      // BYPASS the InMemoryFs (see PluginInstaller's "Limitations" docblock).
-      // The publish path stays inside the VirtualFs seam so the assertion can
-      // verify the rendered file + install record both landed.
-      final manifest = InstallManifest(
-        pluginName: 'example_plugin',
-        pubspec: PubspecDeps.empty(),
-        publish: const {
-          'install/example_config.dart.stub': 'lib/config/example.dart',
-        },
-        jsonMerge: const {},
-        magic: MagicIntegration.empty(),
-        native: NativeConfig.empty(),
-        env: const {},
-        prompts: const [],
-        placeholders: const {},
-        postInstall: PostInstallSpec.empty(),
-      );
-      final installer = ManifestInstaller(_ctx(fs: fs, stubs: stubs), manifest);
+    test(
+      'non-dryRun writes published file + install record on InstallSuccess',
+      () async {
+        final fs = InMemoryFs();
+        final stubs = _MapStubDriver({
+          'install/example_config.dart.stub': 'const x = 1;\n',
+        });
+        // Manifest without magic.provider — that path uses dart:io-backed
+        // helpers (ConfigEditor.addImportToFile / insertCodeAfterPattern) which
+        // BYPASS the InMemoryFs (see PluginInstaller's "Limitations" docblock).
+        // The publish path stays inside the VirtualFs seam so the assertion can
+        // verify the rendered file + install record both landed.
+        final manifest = InstallManifest(
+          pluginName: 'example_plugin',
+          pubspec: PubspecDeps.empty(),
+          publish: const {
+            'install/example_config.dart.stub': 'lib/config/example.dart',
+          },
+          jsonMerge: const {},
+          magic: MagicIntegration.empty(),
+          native: NativeConfig.empty(),
+          env: const {},
+          prompts: const [],
+          placeholders: const {},
+          postInstall: PostInstallSpec.empty(),
+        );
+        final installer = ManifestInstaller(
+          _ctx(fs: fs, stubs: stubs),
+          manifest,
+        );
 
-      final result = await installer.install();
+        final result = await installer.install();
 
-      expect(result, isA<Success>(), reason: 'Got ${result.describe()}');
-      expect(fs.exists('/proj/lib/config/example.dart'), isTrue);
-      expect(
-          fs.readAsString('/proj/lib/config/example.dart'), 'const x = 1;\n');
-      expect(fs.exists('/proj/.dowel/installed/example_plugin.json'), isTrue);
-    });
+        expect(
+          result,
+          isA<InstallSuccess>(),
+          reason: 'Got ${result.describe()}',
+        );
+        expect(fs.exists('/proj/lib/config/example.dart'), isTrue);
+        expect(
+          fs.readAsString('/proj/lib/config/example.dart'),
+          'const x = 1;\n',
+        );
+        expect(fs.exists('/proj/.dowel/installed/example_plugin.json'), isTrue);
+      },
+    );
   });
 
   group('ManifestInstaller — prompts + placeholders', () {
@@ -414,12 +519,18 @@ void main() {
         promptOverrides: const {'configPath': '/override/path'},
       );
 
-      final publish =
-          installer.prepare().pendingOps.whereType<PublishFile>().single;
+      final publish = installer
+          .prepare()
+          .pendingOps
+          .whereType<PublishFile>()
+          .single;
 
       expect(publish.replacements, {'configFilePath': '/override/path'});
-      expect(prompt.recorded, isEmpty,
-          reason: 'override should pre-empt the prompt call');
+      expect(
+        prompt.recorded,
+        isEmpty,
+        reason: 'override should pre-empt the prompt call',
+      );
     });
 
     test('nonInteractive=true uses prompt defaults instead of asking', () {
@@ -436,11 +547,17 @@ void main() {
 
       installer.prepare(nonInteractive: true);
 
-      expect(prompt.recorded, isEmpty,
-          reason: 'nonInteractive must skip prompts and fall back to defaults');
+      expect(
+        prompt.recorded,
+        isEmpty,
+        reason: 'nonInteractive must skip prompts and fall back to defaults',
+      );
 
-      final publish =
-          installer.prepare().pendingOps.whereType<PublishFile>().last;
+      final publish = installer
+          .prepare()
+          .pendingOps
+          .whereType<PublishFile>()
+          .last;
       // Default for `configPath` was `~/.example.conf` in the sample.
       expect(publish.replacements, {'configFilePath': '~/.example.conf'});
     });
@@ -466,107 +583,529 @@ void main() {
       );
 
       final installer = ManifestInstaller(_ctx(fs: fs, stubs: stubs), manifest);
-      final publish =
-          installer.prepare().pendingOps.whereType<PublishFile>().single;
+      final publish = installer
+          .prepare()
+          .pendingOps
+          .whereType<PublishFile>()
+          .single;
 
       expect(publish.replacements, {'literalKey': 'literal_value'});
     });
   });
 
   group('ManifestInstaller — uninstall', () {
-    test('returns Error when the install record file is missing', () async {
-      final fs = InMemoryFs();
-      final installer = ManifestInstaller(
-        _ctx(fs: fs),
-        _minimalManifest(),
-      );
+    test(
+      'returns InstallError when the install record file is missing',
+      () async {
+        final fs = InMemoryFs();
+        final installer = ManifestInstaller(_ctx(fs: fs), _minimalManifest());
 
-      final result = await installer.uninstall();
+        final result = await installer.uninstall();
 
-      expect(result, isA<Error>());
-      expect((result as Error).error, contains('install record'));
-    });
+        expect(result, isA<InstallError>());
+        expect((result as InstallError).error, contains('install record'));
+      },
+    );
 
-    test('reverses WriteFile / CopyFile / PublishFile records into DeleteFile',
+    test(
+      'reverses WriteFile / CopyFile / PublishFile records into DeleteFile',
+      () async {
+        final fs = InMemoryFs();
+        // Pre-seed three target files + a fabricated install record.
+        fs.writeAsString('/proj/lib/a.dart', 'a');
+        fs.writeAsString('/proj/lib/b.dart', 'b');
+        fs.writeAsString('/proj/lib/c.dart', 'c');
+        final record = <String, dynamic>{
+          'version': 1,
+          'plugin': 'example_plugin',
+          'installedAt': '2025-01-01T00:00:00.000Z',
+          'ops': [
+            {'type': 'WriteFile', 'targetPath': 'lib/a.dart', 'content': 'a'},
+            {
+              'type': 'CopyFile',
+              'sourcePath': 'x.dart',
+              'targetPath': 'lib/b.dart',
+            },
+            {'type': 'DeleteFile', 'targetPath': 'lib/c.dart'},
+          ],
+          'stubHashes': <String, String>{},
+        };
+        fs.writeAsString(
+          '/proj/.dowel/installed/example_plugin.json',
+          const JsonEncoder.withIndent('  ').convert(record),
+        );
+
+        final installer = ManifestInstaller(_ctx(fs: fs), _minimalManifest());
+
+        final result = await installer.uninstall();
+
+        expect(
+          result,
+          isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}',
+        );
+        expect(fs.exists('/proj/lib/a.dart'), isFalse);
+        expect(fs.exists('/proj/lib/b.dart'), isFalse);
+        // DeleteFile from the original record has no reverse; lib/c.dart should
+        // remain on disk after uninstall.
+        expect(fs.exists('/proj/lib/c.dart'), isTrue);
+        // Record file is removed on InstallSuccess.
+        expect(
+          fs.exists('/proj/.dowel/installed/example_plugin.json'),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'type-only records (no payload) log a skip + still InstallSuccess',
+      () async {
+        final fs = InMemoryFs();
+        final record = <String, dynamic>{
+          'version': 1,
+          'plugin': 'example_plugin',
+          'installedAt': '2025-01-01T00:00:00.000Z',
+          'ops': [
+            // The persisted record carries only the type tag for these ops.
+            {'type': 'AddDependency'},
+            {'type': 'InjectAndroidPermission'},
+          ],
+          'stubHashes': <String, String>{},
+        };
+        fs.writeAsString(
+          '/proj/.dowel/installed/example_plugin.json',
+          const JsonEncoder.withIndent('  ').convert(record),
+        );
+
+        final output = BufferedOutput();
+        final ctx = InstallContext.test(
+          fs: fs,
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          output: output,
+          projectRoot: '/proj',
+        );
+        final installer = ManifestInstaller(ctx, _minimalManifest());
+
+        final result = await installer.uninstall();
+
+        expect(
+          result,
+          isA<InstallSuccess>(),
+          reason: 'Got: ${result.describe()}',
+        );
+      },
+    );
+
+    test(
+      'a dependency the user declared before the install survives',
+      () async {
+        final root = Directory.systemTemp.createTempSync('mi_uninstall_dep_');
+        addTearDown(() => root.deleteSync(recursive: true));
+        final pubspec = File(p.join(root.path, 'pubspec.yaml'))
+          ..writeAsStringSync(
+            'name: app\ndependencies:\n  intl: ^0.19.0\n  http: ^1.0.0\n',
+          );
+        File(p.join(root.path, '.dowel', 'installed', 'example_plugin.json'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(
+            jsonEncode(<String, dynamic>{
+              'version': 1,
+              'plugin': 'example_plugin',
+              'installedAt': '2025-01-01T00:00:00.000Z',
+              'ops': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'AddDependency',
+                  'name': 'intl',
+                  'version': '^0.20.0',
+                  'isDev': false,
+                  'preExisting': true,
+                },
+                <String, dynamic>{
+                  'type': 'AddDependency',
+                  'name': 'http',
+                  'version': '^1.0.0',
+                  'isDev': false,
+                  'preExisting': false,
+                },
+              ],
+              'stubHashes': <String, String>{},
+            }),
+          );
+        final ctx = InstallContext.test(
+          fs: const RealFs(),
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          projectRoot: root.path,
+        );
+
+        final result = await ManifestInstaller(
+          ctx,
+          _minimalManifest(),
+        ).uninstall();
+
+        expect(result, isA<InstallSuccess>(), reason: result.describe());
+        final content = pubspec.readAsStringSync();
+        expect(content, contains('intl: ^0.19.0'));
+        expect(content, isNot(contains('http')));
+      },
+    );
+
+    test(
+      'a dependency the plugin added is removed after a forced reinstall',
+      () async {
+        final root = Directory.systemTemp.createTempSync('mi_reinstall_dep_');
+        addTearDown(() => root.deleteSync(recursive: true));
+        final pubspec = File(p.join(root.path, 'pubspec.yaml'))
+          ..writeAsStringSync('name: app\ndependencies:\n  http: ^1.0.0\n');
+        final manifest = InstallManifest(
+          pluginName: 'example_plugin',
+          pubspec: const PubspecDeps(
+            deps: <String, String>{'foo_sdk': '^1.0.0'},
+            devDeps: <String, String>{},
+            assets: <String>[],
+          ),
+          publish: const {},
+          jsonMerge: const {},
+          magic: MagicIntegration.empty(),
+          native: NativeConfig.empty(),
+          env: const {},
+          prompts: const [],
+          placeholders: const {},
+          postInstall: PostInstallSpec.empty(),
+        );
+        InstallContext ctx() => InstallContext.test(
+          fs: const RealFs(),
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          projectRoot: root.path,
+        );
+
+        final installed = await ManifestInstaller(ctx(), manifest).install();
+        final reinstalled = await ManifestInstaller(
+          ctx(),
+          manifest,
+        ).install(force: true);
+        final removed = await ManifestInstaller(ctx(), manifest).uninstall();
+
+        expect(installed, isA<InstallSuccess>(), reason: installed.describe());
+        expect(
+          reinstalled,
+          isA<InstallSuccess>(),
+          reason: reinstalled.describe(),
+        );
+        expect(removed, isA<InstallSuccess>(), reason: removed.describe());
+        final content = pubspec.readAsStringSync();
+        expect(content, isNot(contains('foo_sdk')));
+        expect(content, contains('http: ^1.0.0'));
+      },
+    );
+
+    group('a record naming a path outside the project', () {
+      late Directory sandbox;
+      late Directory root;
+      late File victim;
+
+      setUp(() {
+        sandbox = Directory.systemTemp.createTempSync('mi_escape_');
+        root = Directory(p.join(sandbox.path, 'app'))..createSync();
+        victim = File(p.join(sandbox.path, 'victim.txt'))
+          ..writeAsStringSync('keep me');
+      });
+
+      tearDown(() => sandbox.deleteSync(recursive: true));
+
+      Future<TransactionResult> uninstallWith({
+        required List<Map<String, dynamic>> ops,
+        Map<String, Object?> stubHashes = const <String, Object?>{},
+      }) {
+        File(p.join(root.path, '.dowel', 'installed', 'example_plugin.json'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(
+            jsonEncode(<String, dynamic>{
+              'version': 1,
+              'plugin': 'example_plugin',
+              'installedAt': '2025-01-01T00:00:00.000Z',
+              'ops': ops,
+              'stubHashes': stubHashes,
+            }),
+          );
+        final ctx = InstallContext.test(
+          fs: const RealFs(),
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          projectRoot: root.path,
+        );
+        return ManifestInstaller(ctx, _minimalManifest()).uninstall();
+      }
+
+      test('is refused for a target that climbs out', () async {
+        final result = await uninstallWith(
+          ops: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'WriteFile',
+              'targetPath': '../victim.txt',
+              'content': 'x',
+            },
+          ],
+        );
+
+        expect(result, isA<InstallError>());
+        expect((result as InstallError).error, contains('../victim.txt'));
+        expect(victim.existsSync(), isTrue);
+      });
+
+      test('is refused for an absolute target', () async {
+        final result = await uninstallWith(
+          ops: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'CopyFile',
+              'sourcePath': 'lib/a.dart',
+              'targetPath': victim.path,
+            },
+          ],
+        );
+
+        expect(result, isA<InstallError>());
+        expect(victim.existsSync(), isTrue);
+      });
+
+      test('is refused for a hash key that climbs out', () async {
+        File(p.join(root.path, 'lib', 'a.dart'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('a');
+        final result = await uninstallWith(
+          ops: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'WriteFile',
+              'targetPath': 'lib/a.dart',
+              'content': 'a',
+            },
+          ],
+          stubHashes: <String, String>{'lib/../../victim.txt': 'abc'},
+        );
+
+        expect(result, isA<InstallError>());
+        expect(victim.existsSync(), isTrue);
+        expect(File(p.join(root.path, 'lib', 'a.dart')).existsSync(), isTrue);
+      });
+
+      test('is refused for a hash that is not a string', () async {
+        final result = await uninstallWith(
+          ops: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'WriteFile',
+              'targetPath': 'lib/a.dart',
+              'content': 'a',
+            },
+          ],
+          stubHashes: <String, Object?>{'lib/a.dart': 42},
+        );
+
+        expect(result, isA<InstallError>());
+        expect((result as InstallError).error, contains('stubHashes'));
+      });
+
+      test(
+        'with a non-string hash is a conflict that --force repairs',
         () async {
-      final fs = InMemoryFs();
-      // Pre-seed three target files + a fabricated install record.
-      fs.writeAsString('/proj/lib/a.dart', 'a');
-      fs.writeAsString('/proj/lib/b.dart', 'b');
-      fs.writeAsString('/proj/lib/c.dart', 'c');
-      final record = <String, dynamic>{
-        'plugin': 'example_plugin',
-        'installedAt': '2025-01-01T00:00:00.000Z',
-        'ops': [
-          {'type': 'WriteFile', 'targetPath': 'lib/a.dart', 'content': 'a'},
-          {
-            'type': 'CopyFile',
-            'sourcePath': 'x.dart',
-            'targetPath': 'lib/b.dart'
-          },
-          {'type': 'DeleteFile', 'targetPath': 'lib/c.dart'},
-        ],
-        'stubHashes': <String, String>{},
-      };
-      fs.writeAsString(
-        '/proj/.dowel/installed/example_plugin.json',
-        const JsonEncoder.withIndent('  ').convert(record),
+          File(p.join(root.path, 'lib', 'a.dart'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('a');
+          final recordPath = p.join(
+            root.path,
+            '.dowel',
+            'installed',
+            'example_plugin.json',
+          );
+          File(recordPath)
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              jsonEncode(<String, dynamic>{
+                'version': 1,
+                'plugin': 'example_plugin',
+                'ops': <Object?>[],
+                'stubHashes': <String, Object?>{
+                  'lib/a.dart': 42,
+                  'lib/b': null,
+                },
+              }),
+            );
+          final ctx = InstallContext.test(
+            fs: const RealFs(),
+            prompt: _QueuedPromptDriver(),
+            stubs: _MapStubDriver(const {}),
+            projectRoot: root.path,
+          );
+          const op = WriteFile(targetPath: 'lib/a.dart', content: 'b');
+
+          final conflicts = ConflictDetector(
+            ctx,
+          ).detect(const <InstallOperation>[op], pluginName: 'example_plugin');
+          final forced = await (InstallTransaction(
+            ctx,
+            pluginName: 'example_plugin',
+          )..stage(op)).commit(force: true);
+
+          expect(
+            conflicts.map((conflict) => conflict.reason),
+            contains('unsupported-install-record'),
+          );
+          expect(forced, isA<InstallSuccess>());
+          expect(readInstallRecord(const RealFs(), recordPath).problem, isNull);
+        },
       );
 
-      final installer = ManifestInstaller(
-        _ctx(fs: fs),
-        _minimalManifest(),
+      test('keeps a CopyFile whose source lies outside the project', () async {
+        final source = File(p.join(sandbox.path, 'template.dart'))
+          ..writeAsStringSync('// template');
+        final ctx = InstallContext.test(
+          fs: const RealFs(),
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          projectRoot: root.path,
+        );
+        final installed =
+            await (InstallTransaction(ctx, pluginName: 'example_plugin')..stage(
+                  CopyFile(
+                    sourcePath: source.path,
+                    targetPath: 'lib/copied.dart',
+                  ),
+                ))
+                .commit();
+        expect(installed, isA<InstallSuccess>());
+        final recordPath = p.join(
+          root.path,
+          '.dowel',
+          'installed',
+          'example_plugin.json',
+        );
+        expect(readInstallRecord(const RealFs(), recordPath).problem, isNull);
+
+        final result = await ManifestInstaller(
+          ctx,
+          _minimalManifest(),
+        ).uninstall();
+
+        expect(result, isA<InstallSuccess>(), reason: result.describe());
+        expect(
+          File(p.join(root.path, 'lib', 'copied.dart')).existsSync(),
+          isFalse,
+        );
+        expect(source.existsSync(), isTrue);
+      });
+
+      group(
+        'through a directory symlink',
+        () {
+          late Directory outside;
+
+          setUp(() {
+            outside = Directory(p.join(sandbox.path, 'outside'))..createSync();
+            File(p.join(outside.path, 'victim.txt')).writeAsStringSync('keep');
+            Link(p.join(root.path, 'link')).createSync(outside.path);
+          });
+
+          test('is refused before uninstall deletes the file', () async {
+            final result = await uninstallWith(
+              ops: <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'WriteFile',
+                  'targetPath': 'link/victim.txt',
+                  'content': 'x',
+                },
+              ],
+            );
+
+            expect(result, isA<InstallError>());
+            expect(
+              (result as InstallError).error,
+              contains(p.join('link', 'victim.txt')),
+            );
+            expect(
+              File(p.join(outside.path, 'victim.txt')).existsSync(),
+              isTrue,
+            );
+          });
+
+          test('is refused when a ".." follows the link', () async {
+            Directory(p.join(outside.path, 'sub')).createSync();
+            Link(p.join(root.path, 'deep'))
+                .createSync(p.join(outside.path, 'sub'));
+
+            final result = await uninstallWith(
+              ops: <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'WriteFile',
+                  'targetPath': 'deep/../victim.txt',
+                  'content': 'x',
+                },
+              ],
+            );
+
+            expect(result, isA<InstallError>());
+            expect(
+              File(p.join(outside.path, 'victim.txt')).existsSync(),
+              isTrue,
+            );
+          });
+
+          test('is refused before install writes through it', () async {
+            final ctx = InstallContext.test(
+              fs: const RealFs(),
+              prompt: _QueuedPromptDriver(),
+              stubs: _MapStubDriver(const {}),
+              projectRoot: root.path,
+            );
+
+            final result =
+                await (InstallTransaction(
+                      ctx,
+                      pluginName: 'example_plugin',
+                    )..stage(
+                      const WriteFile(targetPath: 'link/new.txt', content: 'x'),
+                    ))
+                    .commit(force: true);
+
+            expect(result, isA<InstallError>());
+            expect((result as InstallError).rolledBack, isTrue);
+            expect(outside.listSync(), hasLength(1));
+          });
+        },
+        skip: Platform.isWindows
+            ? 'creating a symlink needs a privilege on Windows'
+            : false,
       );
-
-      final result = await installer.uninstall();
-
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
-      expect(fs.exists('/proj/lib/a.dart'), isFalse);
-      expect(fs.exists('/proj/lib/b.dart'), isFalse);
-      // DeleteFile from the original record has no reverse; lib/c.dart should
-      // remain on disk after uninstall.
-      expect(fs.exists('/proj/lib/c.dart'), isTrue);
-      // Record file is removed on Success.
-      expect(
-        fs.exists('/proj/.dowel/installed/example_plugin.json'),
-        isFalse,
-      );
-    });
-
-    test('type-only records (no payload) log a skip + still Success', () async {
-      final fs = InMemoryFs();
-      final record = <String, dynamic>{
-        'plugin': 'example_plugin',
-        'installedAt': '2025-01-01T00:00:00.000Z',
-        'ops': [
-          // The persisted record carries only the type tag for these ops.
-          {'type': 'AddDependency'},
-          {'type': 'InjectAndroidPermission'},
-        ],
-        'stubHashes': <String, String>{},
-      };
-      fs.writeAsString(
-        '/proj/.dowel/installed/example_plugin.json',
-        const JsonEncoder.withIndent('  ').convert(record),
-      );
-
-      final output = BufferedOutput();
-      final ctx = InstallContext.test(
-        fs: fs,
-        prompt: _QueuedPromptDriver(),
-        stubs: _MapStubDriver(const {}),
-        output: output,
-        projectRoot: '/proj',
-      );
-      final installer = ManifestInstaller(ctx, _minimalManifest());
-
-      final result = await installer.uninstall();
-
-      expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
     });
 
     test(
-        'install->uninstall round-trip for PublishFile correctly deletes the '
+      'a record without a version is refused and nothing is reversed',
+      () async {
+        final fs = InMemoryFs();
+        fs.writeAsString('/proj/lib/a.dart', 'a');
+        fs.writeAsString(
+          '/proj/.dowel/installed/example_plugin.json',
+          jsonEncode(<String, dynamic>{
+            'plugin': 'example_plugin',
+            'ops': [
+              {'type': 'WriteFile', 'targetPath': 'lib/a.dart', 'content': 'a'},
+            ],
+            'stubHashes': <String, String>{},
+          }),
+        );
+
+        final result = await ManifestInstaller(
+          _ctx(fs: fs),
+          _minimalManifest(),
+        ).uninstall();
+
+        expect(result, isA<InstallError>());
+        expect((result as InstallError).error, contains('--force'));
+        expect(fs.exists('/proj/lib/a.dart'), isTrue);
+      },
+    );
+
+    test('install->uninstall round-trip for PublishFile correctly deletes the '
         'rendered file (Phase 3 Fix 2 regression)', () async {
       // This is the critical Stage 2 spec FAIL the deep reviewer flagged:
       // before Fix 1+2, the install record degraded a PublishFile op to
@@ -601,8 +1140,11 @@ void main() {
 
       // Phase A: install via the real ManifestInstaller chain.
       final installResult = await ManifestInstaller(ctx, manifest).install();
-      expect(installResult, isA<Success>(),
-          reason: 'install failed: ${installResult.describe()}');
+      expect(
+        installResult,
+        isA<InstallSuccess>(),
+        reason: 'install failed: ${installResult.describe()}',
+      );
       expect(fs.exists('/proj/lib/config/example.dart'), isTrue);
 
       // Phase B: read back the install record and assert PublishFile carries
@@ -613,20 +1155,34 @@ void main() {
       final ops = (record['ops'] as List).cast<Map<String, dynamic>>();
       final publishEntry = ops.firstWhere((o) => o['type'] == 'PublishFile');
       expect(
-          publishEntry['sourceStubName'], 'install/example_config.dart.stub');
+        publishEntry['sourceStubName'],
+        'install/example_config.dart.stub',
+      );
       expect(publishEntry['targetPath'], 'lib/config/example.dart');
       expect(publishEntry['replacements'], isA<Map>());
 
       // Phase C: uninstall and assert the rendered file is gone.
-      final uninstallResult =
-          await ManifestInstaller(ctx, manifest).uninstall();
-      expect(uninstallResult, isA<Success>(),
-          reason: 'uninstall failed: ${uninstallResult.describe()}');
-      expect(fs.exists('/proj/lib/config/example.dart'), isFalse,
-          reason: 'PublishFile must reverse to DeleteFile and remove the '
-              'rendered config file');
-      expect(fs.exists('/proj/.dowel/installed/example_plugin.json'), isFalse,
-          reason: 'install record must be deleted on successful uninstall');
+      final uninstallResult = await ManifestInstaller(
+        ctx,
+        manifest,
+      ).uninstall();
+      expect(
+        uninstallResult,
+        isA<InstallSuccess>(),
+        reason: 'uninstall failed: ${uninstallResult.describe()}',
+      );
+      expect(
+        fs.exists('/proj/lib/config/example.dart'),
+        isFalse,
+        reason:
+            'PublishFile must reverse to DeleteFile and remove the '
+            'rendered config file',
+      );
+      expect(
+        fs.exists('/proj/.dowel/installed/example_plugin.json'),
+        isFalse,
+        reason: 'install record must be deleted on successful uninstall',
+      );
     });
 
     test('reverseOf handles every InstallOperation subclass (exhaustive)', () {
@@ -639,7 +1195,10 @@ void main() {
         const RemoveDependency(name: 'x'),
         const AddPubspecAsset(assetPath: 'assets/x/'),
         const PublishFile(
-            sourceStubName: 's', targetPath: 't', replacements: {}),
+          sourceStubName: 's',
+          targetPath: 't',
+          replacements: {},
+        ),
         const WriteFile(targetPath: 't', content: 'c'),
         const DeleteFile(targetPath: 't'),
         const CopyFile(sourcePath: 's', targetPath: 't'),
@@ -661,7 +1220,9 @@ void main() {
         const AddWebMetaTag(attributes: {}),
         const InjectMainDartImport(importStatement: 'i'),
         const InjectIntoMainDart(
-            placement: MainDartPlacement.beforeInit, code: 'c'),
+          placement: MainDartPlacement.beforeInit,
+          code: 'c',
+        ),
         const InjectRouteRegistration(functionName: 'f'),
         const RunShell(command: 'echo', args: []),
       ];
@@ -676,22 +1237,30 @@ void main() {
       // Spot-check the documented mappings.
       expect(
         ManifestInstaller.reverseOf(
-            const AddDependency(name: 'x', version: '^1.0.0')),
+          const AddDependency(name: 'x', version: '^1.0.0'),
+        ),
         isA<RemoveDependency>(),
       );
       expect(
-        ManifestInstaller.reverseOf(const PublishFile(
-            sourceStubName: 's', targetPath: 't', replacements: {})),
+        ManifestInstaller.reverseOf(
+          const PublishFile(
+            sourceStubName: 's',
+            targetPath: 't',
+            replacements: {},
+          ),
+        ),
         isA<DeleteFile>(),
       );
       expect(
         ManifestInstaller.reverseOf(
-            const WriteFile(targetPath: 't', content: 'c')),
+          const WriteFile(targetPath: 't', content: 'c'),
+        ),
         isA<DeleteFile>(),
       );
       expect(
         ManifestInstaller.reverseOf(
-            const CopyFile(sourcePath: 's', targetPath: 't')),
+          const CopyFile(sourcePath: 's', targetPath: 't'),
+        ),
         isA<DeleteFile>(),
       );
       expect(
@@ -700,13 +1269,15 @@ void main() {
       );
       expect(
         ManifestInstaller.reverseOf(
-            const InjectInfoPlistUrlScheme(scheme: 's')),
+          const InjectInfoPlistUrlScheme(scheme: 's'),
+        ),
         isNull,
         reason: 'inject ops stay non-reversible in v1',
       );
       expect(
         ManifestInstaller.reverseOf(
-            const InjectAndroidActivity(name: '.A', exported: true)),
+          const InjectAndroidActivity(name: '.A', exported: true),
+        ),
         isNull,
         reason: 'inject ops stay non-reversible in v1',
       );
@@ -774,15 +1345,16 @@ native:
 </plist>
 ''';
 
-    test('the same manifest run twice leaves every file byte-identical',
-        () async {
-      final root = Directory.systemTemp.createTempSync('dowel_manifest_ios_');
-      addTearDown(() {
-        if (root.existsSync()) root.deleteSync(recursive: true);
-      });
-      File(p.join(root.path, 'ios', 'Runner', 'Info.plist'))
-        ..createSync(recursive: true)
-        ..writeAsStringSync('''<?xml version="1.0" encoding="UTF-8"?>
+    test(
+      'the same manifest run twice leaves every file byte-identical',
+      () async {
+        final root = Directory.systemTemp.createTempSync('dowel_manifest_ios_');
+        addTearDown(() {
+          if (root.existsSync()) root.deleteSync(recursive: true);
+        });
+        File(p.join(root.path, 'ios', 'Runner', 'Info.plist'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('''<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
 \t<key>CFBundleName</key>
@@ -790,63 +1362,77 @@ native:
 </dict>
 </plist>
 ''');
-      for (final name in const ['Runner', 'RunnerRelease']) {
-        File(p.join(root.path, 'ios', 'Runner', '$name.entitlements'))
-            .writeAsStringSync(emptyEntitlements);
-      }
-      final pbxproj =
-          File(p.join(root.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'))
-            ..createSync(recursive: true)
-            ..writeAsStringSync(splitPbxproj);
-      final files = {
-        'Info.plist': File(p.join(root.path, 'ios', 'Runner', 'Info.plist')),
-        'Runner.entitlements':
-            File(p.join(root.path, 'ios', 'Runner', 'Runner.entitlements')),
-        'RunnerRelease.entitlements': File(
-            p.join(root.path, 'ios', 'Runner', 'RunnerRelease.entitlements')),
-      };
+        for (final name in const ['Runner', 'RunnerRelease']) {
+          File(p.join(root.path, 'ios', 'Runner', '$name.entitlements'))
+              .writeAsStringSync(emptyEntitlements);
+        }
+        final pbxproj =
+            File(
+                p.join(root.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'),
+              )
+              ..createSync(recursive: true)
+              ..writeAsStringSync(splitPbxproj);
+        final files = {
+          'Info.plist': File(p.join(root.path, 'ios', 'Runner', 'Info.plist')),
+          'Runner.entitlements': File(
+            p.join(root.path, 'ios', 'Runner', 'Runner.entitlements'),
+          ),
+          'RunnerRelease.entitlements': File(
+            p.join(root.path, 'ios', 'Runner', 'RunnerRelease.entitlements'),
+          ),
+        };
 
-      Future<void> run() async {
-        final ctx = InstallContext.test(
-          fs: const RealFs(),
-          prompt: _QueuedPromptDriver(),
-          stubs: _MapStubDriver(const {}),
-          projectRoot: root.path,
+        Future<void> run() async {
+          final ctx = InstallContext.test(
+            fs: const RealFs(),
+            prompt: _QueuedPromptDriver(),
+            stubs: _MapStubDriver(const {}),
+            projectRoot: root.path,
+          );
+          final result = await ManifestInstaller(
+            ctx,
+            ManifestParser.parseString(manifestYaml),
+          ).install(force: true);
+          expect(
+            result,
+            isA<InstallSuccess>(),
+            reason: 'Got: ${result.describe()}',
+          );
+        }
+
+        await run();
+        final afterFirst = {
+          for (final entry in files.entries)
+            entry.key: entry.value.readAsStringSync(),
+        };
+        final pbxprojAfterFirst = pbxproj.readAsStringSync();
+
+        // 1. The first run did the work, in every file the target signs with.
+        expect(
+          afterFirst['Info.plist'],
+          contains('<string>com.example.app</string>'),
         );
-        final result = await ManifestInstaller(
-          ctx,
-          ManifestParser.parseString(manifestYaml),
-        ).install(force: true);
-        expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
-      }
+        for (final name in const [
+          'Runner.entitlements',
+          'RunnerRelease.entitlements',
+        ]) {
+          expect(afterFirst[name], contains('com.apple.developer.applesignin'));
+          expect(afterFirst[name], contains('<string>Default</string>'));
+        }
+        expect(pbxprojAfterFirst, splitPbxproj);
 
-      await run();
-      final afterFirst = {
-        for (final entry in files.entries)
-          entry.key: entry.value.readAsStringSync(),
-      };
-      final pbxprojAfterFirst = pbxproj.readAsStringSync();
-
-      // 1. The first run did the work, in every file the target signs with.
-      expect(afterFirst['Info.plist'],
-          contains('<string>com.example.app</string>'));
-      for (final name in const [
-        'Runner.entitlements',
-        'RunnerRelease.entitlements',
-      ]) {
-        expect(afterFirst[name], contains('com.apple.developer.applesignin'));
-        expect(afterFirst[name], contains('<string>Default</string>'));
-      }
-      expect(pbxprojAfterFirst, splitPbxproj);
-
-      // 2. The second run changes nothing.
-      await run();
-      for (final entry in files.entries) {
-        expect(entry.value.readAsStringSync(), afterFirst[entry.key],
-            reason: '${entry.key} drifted on the second run');
-      }
-      expect(pbxproj.readAsStringSync(), splitPbxproj);
-    });
+        // 2. The second run changes nothing.
+        await run();
+        for (final entry in files.entries) {
+          expect(
+            entry.value.readAsStringSync(),
+            afterFirst[entry.key],
+            reason: '${entry.key} drifted on the second run',
+          );
+        }
+        expect(pbxproj.readAsStringSync(), splitPbxproj);
+      },
+    );
   });
 
   group('ManifestInstaller: android activities on RealFs', () {
@@ -882,27 +1468,29 @@ native:
 </manifest>
 ''';
 
-    test('the DSL parses every activity field, including an empty affinity',
-        () {
-      final manifest = ManifestParser.parseString(manifestYaml);
+    test(
+      'the DSL parses every activity field, including an empty affinity',
+      () {
+        final manifest = ManifestParser.parseString(manifestYaml);
 
-      final activity = manifest.native.android!.activities.single;
-      expect(activity.name, 'com.linusu.flutter_web_auth_2.CallbackActivity');
-      expect(activity.exported, isTrue);
-      expect(activity.taskAffinity, '');
-      final filter = activity.intentFilters.single;
-      expect(filter.autoVerify, isTrue);
-      expect(filter.actions, ['android.intent.action.VIEW']);
-      expect(filter.categories, [
-        'android.intent.category.DEFAULT',
-        'android.intent.category.BROWSABLE',
-      ]);
-      expect(filter.data, hasLength(2));
-      expect(filter.data.first.scheme, 'https');
-      expect(filter.data.first.host, 'auth.example.com');
-      expect(filter.data.first.path, '/social/callback');
-      expect(filter.data.last.pathPrefix, '/cb');
-    });
+        final activity = manifest.native.android!.activities.single;
+        expect(activity.name, 'com.linusu.flutter_web_auth_2.CallbackActivity');
+        expect(activity.exported, isTrue);
+        expect(activity.taskAffinity, '');
+        final filter = activity.intentFilters.single;
+        expect(filter.autoVerify, isTrue);
+        expect(filter.actions, ['android.intent.action.VIEW']);
+        expect(filter.categories, [
+          'android.intent.category.DEFAULT',
+          'android.intent.category.BROWSABLE',
+        ]);
+        expect(filter.data, hasLength(2));
+        expect(filter.data.first.scheme, 'https');
+        expect(filter.data.first.host, 'auth.example.com');
+        expect(filter.data.first.path, '/social/callback');
+        expect(filter.data.last.pathPrefix, '/cb');
+      },
+    );
 
     test('an activity without a name is refused at parse time', () {
       expect(
@@ -917,68 +1505,88 @@ native:
       );
     });
 
-    test('install writes the activity once, records it, and uninstall succeeds',
-        () async {
-      final root =
-          Directory.systemTemp.createTempSync('dowel_manifest_activity_');
-      addTearDown(() {
-        if (root.existsSync()) root.deleteSync(recursive: true);
-      });
-      final manifestFile = File(p.join(
-          root.path, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'))
-        ..createSync(recursive: true)
-        ..writeAsStringSync(androidManifest);
-      final manifest = ManifestParser.parseString(manifestYaml);
+    test(
+      'install writes the activity once, records it, and uninstall succeeds',
+      () async {
+        final root = Directory.systemTemp.createTempSync(
+          'dowel_manifest_activity_',
+        );
+        addTearDown(() {
+          if (root.existsSync()) root.deleteSync(recursive: true);
+        });
+        final manifestFile =
+            File(
+                p.join(
+                  root.path,
+                  'android',
+                  'app',
+                  'src',
+                  'main',
+                  'AndroidManifest.xml',
+                ),
+              )
+              ..createSync(recursive: true)
+              ..writeAsStringSync(androidManifest);
+        final manifest = ManifestParser.parseString(manifestYaml);
 
-      InstallContext ctx() => InstallContext.test(
-            fs: const RealFs(),
-            prompt: _QueuedPromptDriver(),
-            stubs: _MapStubDriver(const {}),
-            projectRoot: root.path,
+        InstallContext ctx() => InstallContext.test(
+          fs: const RealFs(),
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          projectRoot: root.path,
+        );
+
+        Future<void> run() async {
+          final result = await ManifestInstaller(
+            ctx(),
+            manifest,
+          ).install(force: true);
+          expect(
+            result,
+            isA<InstallSuccess>(),
+            reason: 'Got: ${result.describe()}',
           );
+        }
 
-      Future<void> run() async {
-        final result =
-            await ManifestInstaller(ctx(), manifest).install(force: true);
-        expect(result, isA<Success>(), reason: 'Got: ${result.describe()}');
-      }
+        await run();
+        final afterFirst = manifestFile.readAsStringSync();
+        await run();
 
-      await run();
-      final afterFirst = manifestFile.readAsStringSync();
-      await run();
+        // 1. The element landed once, with the filter the DSL described.
+        final callbacks = XmlDocument.parse(afterFirst)
+            .findAllElements('activity')
+            .where(
+              (e) =>
+                  e.getAttribute('android:name') ==
+                  'com.linusu.flutter_web_auth_2.CallbackActivity',
+            );
+        expect(callbacks, hasLength(1));
+        expect(afterFirst, contains('android:path="/social/callback"'));
+        expect(afterFirst, contains('android:pathPrefix="/cb"'));
+        expect(afterFirst, contains('android:taskAffinity=""'));
 
-      // 1. The element landed once, with the filter the DSL described.
-      final callbacks = XmlDocument.parse(afterFirst)
-          .findAllElements('activity')
-          .where((e) =>
-              e.getAttribute('android:name') ==
-              'com.linusu.flutter_web_auth_2.CallbackActivity');
-      expect(callbacks, hasLength(1));
-      expect(afterFirst, contains('android:path="/social/callback"'));
-      expect(afterFirst, contains('android:pathPrefix="/cb"'));
-      expect(afterFirst, contains('android:taskAffinity=""'));
+        // 2. The second run changed nothing.
+        expect(manifestFile.readAsStringSync(), afterFirst);
 
-      // 2. The second run changed nothing.
-      expect(manifestFile.readAsStringSync(), afterFirst);
+        // 3. The record carries the whole payload.
+        final record = jsonDecode(
+          File(p.join(root.path, '.dowel', 'installed', 'example_plugin.json'))
+              .readAsStringSync(),
+        ) as Map<String, dynamic>;
+        final entry = (record['ops'] as List)
+            .cast<Map<String, dynamic>>()
+            .singleWhere((o) => o['type'] == 'InjectAndroidActivity');
+        expect(entry['name'], 'com.linusu.flutter_web_auth_2.CallbackActivity');
+        expect(entry['exported'], isTrue);
+        expect(entry['taskAffinity'], '');
+        final filters = (entry['intentFilters'] as List).cast<Map>();
+        expect(filters.single['autoVerify'], isTrue);
+        expect(filters.single['data'] as List, hasLength(2));
 
-      // 3. The record carries the whole payload.
-      final record = jsonDecode(
-        File(p.join(root.path, '.dowel', 'installed', 'example_plugin.json'))
-            .readAsStringSync(),
-      ) as Map<String, dynamic>;
-      final entry = (record['ops'] as List)
-          .cast<Map<String, dynamic>>()
-          .singleWhere((o) => o['type'] == 'InjectAndroidActivity');
-      expect(entry['name'], 'com.linusu.flutter_web_auth_2.CallbackActivity');
-      expect(entry['exported'], isTrue);
-      expect(entry['taskAffinity'], '');
-      final filters = (entry['intentFilters'] as List).cast<Map>();
-      expect(filters.single['autoVerify'], isTrue);
-      expect(filters.single['data'] as List, hasLength(2));
-
-      // 4. Uninstall reads the record back without choking on the payload.
-      final uninstall = await ManifestInstaller(ctx(), manifest).uninstall();
-      expect(uninstall, isA<Success>(), reason: uninstall.describe());
-    });
+        // 4. Uninstall reads the record back without choking on the payload.
+        final uninstall = await ManifestInstaller(ctx(), manifest).uninstall();
+        expect(uninstall, isA<InstallSuccess>(), reason: uninstall.describe());
+      },
+    );
   });
 }

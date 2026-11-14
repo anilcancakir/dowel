@@ -6,11 +6,9 @@ void main() {
     test('declares two V1 values: none + connected', () {
       expect(CommandBoot.values, hasLength(2));
       expect(
-          CommandBoot.values,
-          containsAll(<CommandBoot>[
-            CommandBoot.none,
-            CommandBoot.connected,
-          ]));
+        CommandBoot.values,
+        containsAll(<CommandBoot>[CommandBoot.none, CommandBoot.connected]),
+      );
     });
 
     test('each value exposes a human-readable name', () {

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/helpers/route_registry_editor.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -57,44 +57,38 @@ void main() {
     // addRouteRegistration
     // -------------------------------------------------------------------------
 
-    test(
-      '1. addRouteRegistration inserts call before registerAppRoutes() '
-      'preserving order and whitespace',
-      () {
-        providerPath = p.join(tempDir.path, 'route_service_provider.dart');
-        File(providerPath).writeAsStringSync(_fullFixture);
+    test('1. addRouteRegistration inserts call before registerAppRoutes() '
+        'preserving order and whitespace', () {
+      providerPath = p.join(tempDir.path, 'route_service_provider.dart');
+      File(providerPath).writeAsStringSync(_fullFixture);
 
-        RouteRegistryEditor.addRouteRegistration(
-          providerPath,
-          'registerMyPluginRoutes',
-        );
+      RouteRegistryEditor.addRouteRegistration(
+        providerPath,
+        'registerMyPluginRoutes',
+      );
 
-        final content = File(providerPath).readAsStringSync();
-        expect(content, contains('registerMyPluginRoutes();'));
+      final content = File(providerPath).readAsStringSync();
+      expect(content, contains('registerMyPluginRoutes();'));
 
-        // Must appear BEFORE registerAppRoutes().
-        final insertPos = content.indexOf('registerMyPluginRoutes();');
-        final appRoutesPos = content.indexOf('registerAppRoutes();');
-        expect(insertPos, lessThan(appRoutesPos));
-      },
-    );
+      // Must appear BEFORE registerAppRoutes().
+      final insertPos = content.indexOf('registerMyPluginRoutes();');
+      final appRoutesPos = content.indexOf('registerAppRoutes();');
+      expect(insertPos, lessThan(appRoutesPos));
+    });
 
-    test(
-      '2. addRouteRegistration inserts before closing brace when '
-      'registerAppRoutes() is absent (empty boot)',
-      () {
-        providerPath = p.join(tempDir.path, 'route_service_provider.dart');
-        File(providerPath).writeAsStringSync(_emptyBootFixture);
+    test('2. addRouteRegistration inserts before closing brace when '
+        'registerAppRoutes() is absent (empty boot)', () {
+      providerPath = p.join(tempDir.path, 'route_service_provider.dart');
+      File(providerPath).writeAsStringSync(_emptyBootFixture);
 
-        RouteRegistryEditor.addRouteRegistration(
-          providerPath,
-          'registerMyPluginRoutes',
-        );
+      RouteRegistryEditor.addRouteRegistration(
+        providerPath,
+        'registerMyPluginRoutes',
+      );
 
-        final content = File(providerPath).readAsStringSync();
-        expect(content, contains('registerMyPluginRoutes();'));
-      },
-    );
+      final content = File(providerPath).readAsStringSync();
+      expect(content, contains('registerMyPluginRoutes();'));
+    });
 
     test(
       '3. addRouteRegistration is idempotent — re-call does not double-insert',
@@ -154,27 +148,24 @@ class RouteServiceProvider extends ServiceProvider {
     // removeRouteRegistration
     // -------------------------------------------------------------------------
 
-    test(
-      '5. removeRouteRegistration deletes the target call line',
-      () {
-        providerPath = p.join(tempDir.path, 'route_service_provider.dart');
-        File(providerPath).writeAsStringSync(_fullFixture);
+    test('5. removeRouteRegistration deletes the target call line', () {
+      providerPath = p.join(tempDir.path, 'route_service_provider.dart');
+      File(providerPath).writeAsStringSync(_fullFixture);
 
-        // First add, then remove.
-        RouteRegistryEditor.addRouteRegistration(
-          providerPath,
-          'registerMyPluginRoutes',
-        );
+      // First add, then remove.
+      RouteRegistryEditor.addRouteRegistration(
+        providerPath,
+        'registerMyPluginRoutes',
+      );
 
-        RouteRegistryEditor.removeRouteRegistration(
-          providerPath,
-          'registerMyPluginRoutes',
-        );
+      RouteRegistryEditor.removeRouteRegistration(
+        providerPath,
+        'registerMyPluginRoutes',
+      );
 
-        final content = File(providerPath).readAsStringSync();
-        expect(content, isNot(contains('registerMyPluginRoutes();')));
-      },
-    );
+      final content = File(providerPath).readAsStringSync();
+      expect(content, isNot(contains('registerMyPluginRoutes();')));
+    });
 
     test(
       '6. removeRouteRegistration is idempotent — no-op when call is absent',
@@ -210,10 +201,7 @@ class RouteServiceProvider extends ServiceProvider {
         );
 
         final content = File(providerPath).readAsStringSync();
-        expect(
-          content,
-          contains("import 'package:my_plugin/routes.dart';"),
-        );
+        expect(content, contains("import 'package:my_plugin/routes.dart';"));
       },
     );
 
@@ -221,12 +209,10 @@ class RouteServiceProvider extends ServiceProvider {
     // Error paths
     // -------------------------------------------------------------------------
 
-    test(
-      '8. addRouteRegistration throws StateError when boot() is absent',
-      () {
-        providerPath = p.join(tempDir.path, 'route_service_provider.dart');
-        // File with no boot() method at all.
-        File(providerPath).writeAsStringSync("""
+    test('8. addRouteRegistration throws StateError when boot() is absent', () {
+      providerPath = p.join(tempDir.path, 'route_service_provider.dart');
+      // File with no boot() method at all.
+      File(providerPath).writeAsStringSync("""
 class RouteServiceProvider extends ServiceProvider {
   RouteServiceProvider(super.app);
 
@@ -237,41 +223,35 @@ class RouteServiceProvider extends ServiceProvider {
 }
 """);
 
-        expect(
-          () => RouteRegistryEditor.addRouteRegistration(
-            providerPath,
-            'registerMyPluginRoutes',
-          ),
-          throwsA(isA<StateError>()),
-        );
-      },
-    );
+      expect(
+        () => RouteRegistryEditor.addRouteRegistration(
+          providerPath,
+          'registerMyPluginRoutes',
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
 
-    test(
-      '9. addRouteRegistration throws StateError when boot() brace is unmatched',
-      () {
-        providerPath = p.join(tempDir.path, 'route_service_provider.dart');
-        // Opening brace of boot() exists but no matching closing brace.
-        File(providerPath).writeAsStringSync(
-          'class X { Future<void> boot() async { registerAppRoutes();',
-        );
+    test('9. addRouteRegistration throws StateError when boot() brace is unmatched', () {
+      providerPath = p.join(tempDir.path, 'route_service_provider.dart');
+      // Opening brace of boot() exists but no matching closing brace.
+      File(providerPath).writeAsStringSync(
+        'class X { Future<void> boot() async { registerAppRoutes();',
+      );
 
-        expect(
-          () => RouteRegistryEditor.addRouteRegistration(
-            providerPath,
-            'registerMyPluginRoutes',
-          ),
-          throwsA(isA<StateError>()),
-        );
-      },
-    );
+      expect(
+        () => RouteRegistryEditor.addRouteRegistration(
+          providerPath,
+          'registerMyPluginRoutes',
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
 
-    test(
-      '10. addRouteRegistration with multiple existing calls inserts in '
-      'correct position',
-      () {
-        // Provider with two starter registrations before registerAppRoutes.
-        const String multiCallFixture = """
+    test('10. addRouteRegistration with multiple existing calls inserts in '
+        'correct position', () {
+      // Provider with two starter registrations before registerAppRoutes.
+      const String multiCallFixture = """
 import 'package:magic/magic.dart';
 
 class RouteServiceProvider extends ServiceProvider {
@@ -285,29 +265,26 @@ class RouteServiceProvider extends ServiceProvider {
   }
 }
 """;
-        providerPath = p.join(tempDir.path, 'route_service_provider.dart');
-        File(providerPath).writeAsStringSync(multiCallFixture);
+      providerPath = p.join(tempDir.path, 'route_service_provider.dart');
+      File(providerPath).writeAsStringSync(multiCallFixture);
 
-        RouteRegistryEditor.addRouteRegistration(
-          providerPath,
-          'registerMyPluginRoutes',
-        );
+      RouteRegistryEditor.addRouteRegistration(
+        providerPath,
+        'registerMyPluginRoutes',
+      );
 
-        final content = File(providerPath).readAsStringSync();
-        expect(content, contains('registerMyPluginRoutes();'));
+      final content = File(providerPath).readAsStringSync();
+      expect(content, contains('registerMyPluginRoutes();'));
 
-        final insertPos = content.indexOf('registerMyPluginRoutes();');
-        final appRoutesPos = content.indexOf('registerAppRoutes();');
-        expect(insertPos, lessThan(appRoutesPos));
-      },
-    );
+      final insertPos = content.indexOf('registerMyPluginRoutes();');
+      final appRoutesPos = content.indexOf('registerAppRoutes();');
+      expect(insertPos, lessThan(appRoutesPos));
+    });
 
-    test(
-      '11. addRouteRegistration correctly handles boot() containing nested '
-      'block (brace depth > 1)',
-      () {
-        // boot() with an inner block so the brace-counting depth++ path fires.
-        const String nestedBlockFixture = """
+    test('11. addRouteRegistration correctly handles boot() containing nested '
+        'block (brace depth > 1)', () {
+      // boot() with an inner block so the brace-counting depth++ path fires.
+      const String nestedBlockFixture = """
 import 'package:magic/magic.dart';
 
 class RouteServiceProvider extends ServiceProvider {
@@ -322,21 +299,20 @@ class RouteServiceProvider extends ServiceProvider {
   }
 }
 """;
-        providerPath = p.join(tempDir.path, 'route_service_provider.dart');
-        File(providerPath).writeAsStringSync(nestedBlockFixture);
+      providerPath = p.join(tempDir.path, 'route_service_provider.dart');
+      File(providerPath).writeAsStringSync(nestedBlockFixture);
 
-        RouteRegistryEditor.addRouteRegistration(
-          providerPath,
-          'registerMyPluginRoutes',
-        );
+      RouteRegistryEditor.addRouteRegistration(
+        providerPath,
+        'registerMyPluginRoutes',
+      );
 
-        final content = File(providerPath).readAsStringSync();
-        expect(content, contains('registerMyPluginRoutes();'));
+      final content = File(providerPath).readAsStringSync();
+      expect(content, contains('registerMyPluginRoutes();'));
 
-        final insertPos = content.indexOf('registerMyPluginRoutes();');
-        final appRoutesPos = content.indexOf('registerAppRoutes();');
-        expect(insertPos, lessThan(appRoutesPos));
-      },
-    );
+      final insertPos = content.indexOf('registerMyPluginRoutes();');
+      final appRoutesPos = content.indexOf('registerAppRoutes();');
+      expect(insertPos, lessThan(appRoutesPos));
+    });
   });
 }

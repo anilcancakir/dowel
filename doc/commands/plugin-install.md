@@ -33,6 +33,18 @@ exits with code `1` before any write is attempted. A plugin without an
 (`lib/app/_plugins.g.dart`); without it the command exits with code `1` and
 tells you to run `install` first.
 
+The command also refuses to run, with exit code `1`, when
+`lib/app/_plugins.g.dart` registers providers but `.dowel/plugins.json`, the
+registry the barrel is generated from, is missing. Installing then would
+regenerate the barrel with a single plugin and drop the rest:
+
+```text
+lib/app/_plugins.g.dart registers providers from <imports>, but .dowel/plugins.json, the registry it is generated from, is missing. Installing now would regenerate the barrel without them. Restore .dowel/plugins.json from version control (commit it; only .dowel/cli-bundle*, .dowel/build.stamp* and .dowel/.dowel.lock/ are cache), then retry. Or delete lib/app/_plugins.g.dart, run `dart run dowel install` to write an empty one, and run plugin:install again for each plugin.
+```
+
+Commit `.dowel/plugins.json` and `.dowel/installed/`; only the AOT cache under
+`.dowel/` is gitignored.
+
 ---
 
 <a name="synopsis"></a>
@@ -82,13 +94,23 @@ checks `<plugin_root>/install.yaml` first, then `<plugin_root>/assets/install.ya
 `ManifestParser.parseFile` parses the YAML into an `InstallManifest`.
 `ManifestInstaller` stages `InstallOperation` objects on an `InstallTransaction`.
 `InstallTransaction.commit` writes every file to a `.tmp` path first; on full
-success, all `.tmp` files are renamed atomically. Any `.tmp` write failure deletes
-all staged temps and returns `Error(rolledBack: true)`. On `Success`, the plugin
-entry is written to `.dowel/plugins.json` and `PluginsRefreshCommand` regenerates
+success, all `.tmp` files are renamed atomically. The result is one of four
+classes: `InstallSuccess`, `InstallDryRun`, `InstallConflict` (exit code `2`) and
+`InstallError` (exit code `1`). A conflict lists each file with its reason
+(`modified-since-last-known-stub`, `unmanaged-file` or
+`unsupported-install-record`); `--force` bypasses the check, which also switches
+off every other conflict check, so read `git diff` afterwards. A `.tmp` write
+failure deletes all staged temps and returns `InstallError(rolledBack: true)`,
+unless an editor-backed operation (a dependency addition, an injection) already
+changed a file: those write directly while staging and sit outside the `.tmp`
+rollback, so the result then says `rolledBack: false` and a partial install
+record (`"partial": true`) lists the edits that landed, for `plugin:uninstall`
+to reverse what it can. On `InstallSuccess`, the plugin entry is written to
+`.dowel/plugins.json` and `PluginsRefreshCommand` regenerates
 `lib/app/_plugins.g.dart` in-process.
 
 Preferred authoring path: declarative, conflict-checked, dry-run-capable, and
-partially reversible via `plugin:uninstall` (V1 limitations; see Reversibility).
+partially reversible via `plugin:uninstall` (see Reversibility).
 
 ### Mode 2: Direct Registration
 
@@ -160,7 +182,11 @@ present.
 
 All `InstallTransaction` file writes use `.tmp` + atomic rename: concurrent
 readers never observe partial state. A mid-commit `.tmp` write failure deletes
-all staged temps and returns `Error(rolledBack: true)` before any rename occurs.
+all staged temps and returns `InstallError(rolledBack: true)` before any rename
+occurs, except after an editor-backed edit (see Mode 1).
+
+A dependency the project already declares keeps its constraint: the manifest's
+`pubspec` entries are added only when the pubspec does not list them.
 
 ---
 
@@ -168,13 +194,34 @@ all staged temps and returns `Error(rolledBack: true)` before any rename occurs.
 ## Reversibility
 
 `plugin:uninstall <name>` is the complement to `plugin:install`. A Mode 1
-manifest commit writes `.dowel/installed/<name>.json` listing every op and
-content hash. V1 reversibility is partial: `WriteFile` ops are fully reversed
-(tamper-check then delete); `InjectImport`, `InjectBeforePattern`, and
-`InjectAfterPattern` ops are logged as `[skipped]` (no anchor-bracketed markers
-in V1; operator must reverse by hand). Mode 2 installs write no record, so
-`plugin:uninstall` cannot auto-reverse them. Full bidirectional
-reversibility is planned for V1.1.
+manifest commit writes `.dowel/installed/<name>.json`, through a temp file and
+a rename:
+
+| Key | Content |
+|:---|:---|
+| `version` | The record format, `1`. A record without it, or with absolute `stubHashes` keys, is not read. |
+| `stubHashes` | The content hash of every file the install wrote, under project-relative, forward-slash keys, so a moved or re-cloned project still matches. |
+| `ops` | Every operation with its typed payload. A dependency addition carries `preExisting`, true when the project declared that dependency before the install. |
+| `partial` | Present and `true` only for the record of an install that failed after its editor-backed edits landed. |
+
+Reversibility is partial: `plugin:uninstall` reverses the files an install
+created (`WriteFile`, `PublishFile`, `CopyFile`) and the dependency additions
+the project did not declare before (a `preExisting` one stays in
+`pubspec.yaml`, and the command says which). It deletes those files without
+comparing them with `stubHashes`, so a file edited after the install goes with
+its edits: commit or copy it first. Every other operation,
+each `Inject*` among them, is logged as skipped: remove those edits by hand.
+`plugin:uninstall` then removes the plugin from `.dowel/plugins.json` and
+regenerates `lib/app/_plugins.g.dart`. Mode 2 installs write no record, so
+`plugin:uninstall` cannot reverse them. `plugin:uninstall --dry-run` previews
+only the `WriteFile` and `CopyFile` deletions, so it lists fewer reversals than
+the real run performs (that also covers `PublishFile` files and dependencies).
+
+A record written by an older dowel is refused by both commands: `plugin:install`
+reports a conflict on the record (`unsupported-install-record`) and
+`plugin:uninstall` exits `1` with `The install record <path> has no "version" (an
+older dowel wrote it). Re-run the install with --force to rewrite it.` Run
+`plugin:install <name> --force` once; it rewrites the record.
 
 ---
 

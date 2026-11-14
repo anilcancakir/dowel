@@ -21,9 +21,7 @@ void main() {
 
     test('plays nicely with DowelRegistry.registerProvider', () {
       final registry = DowelRegistry();
-      final provider = _NamedProvider('p', <DowelCommand>[
-        _StubCommand('one'),
-      ]);
+      final provider = _NamedProvider('p', <DowelCommand>[_StubCommand('one')]);
 
       registry.registerProvider(provider);
 

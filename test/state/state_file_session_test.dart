@@ -30,11 +30,7 @@ void main() {
       StateFile.debugHomeOverride = null;
       StateFile.debugProjectRootOverride = null;
       StateFile.pathOverride = null;
-      for (final Directory dir in <Directory>[
-        tempHome,
-        projectA,
-        projectB,
-      ]) {
+      for (final Directory dir in <Directory>[tempHome, projectA, projectB]) {
         if (dir.existsSync()) await dir.delete(recursive: true);
       }
     });
@@ -81,36 +77,39 @@ void main() {
       );
     });
 
-    test('write mirrors to the legacy pointer for hand-written recipes',
-        () async {
-      StateFile.debugProjectRootOverride = projectA.path;
-      await StateFile.write(<String, dynamic>{
-        'pid': 111,
-        'projectRoot': projectA.path,
-      });
+    test(
+      'write mirrors to the legacy pointer for hand-written recipes',
+      () async {
+        StateFile.debugProjectRootOverride = projectA.path;
+        await StateFile.write(<String, dynamic>{
+          'pid': 111,
+          'projectRoot': projectA.path,
+        });
 
-      final File pointer = File(StateFile.legacyPointerPath);
-      expect(pointer.existsSync(), isTrue);
-      final Map<String, dynamic> decoded =
-          jsonDecode(pointer.readAsStringSync()) as Map<String, dynamic>;
-      expect(decoded['pid'], equals(111));
-    });
+        final File pointer = File(StateFile.legacyPointerPath);
+        expect(pointer.existsSync(), isTrue);
+        final Map<String, dynamic> decoded =
+            jsonDecode(pointer.readAsStringSync()) as Map<String, dynamic>;
+        expect(decoded['pid'], equals(111));
+      },
+    );
 
-    test('read falls back to the legacy pointer when no session file exists',
-        () async {
-      // The documented recovery recipe is to hand-write ~/.dowel/state.json
-      // when `dowel start` cannot boot the app. That has to keep working.
-      final Directory dir = Directory('${tempHome.path}/.dowel');
-      await dir.create(recursive: true);
-      await File('${dir.path}/state.json').writeAsString(
-        jsonEncode(<String, dynamic>{'pid': 999}),
-      );
+    test(
+      'read falls back to the legacy pointer when no session file exists',
+      () async {
+        // The documented recovery recipe is to hand-write ~/.dowel/state.json
+        // when `dowel start` cannot boot the app. That has to keep working.
+        final Directory dir = Directory('${tempHome.path}/.dowel');
+        await dir.create(recursive: true);
+        await File('${dir.path}/state.json')
+            .writeAsString(jsonEncode(<String, dynamic>{'pid': 999}));
 
-      StateFile.debugProjectRootOverride = projectA.path;
-      final Map<String, dynamic>? got = await StateFile.read();
+        StateFile.debugProjectRootOverride = projectA.path;
+        final Map<String, dynamic>? got = await StateFile.read();
 
-      expect(got?['pid'], equals(999));
-    });
+        expect(got?['pid'], equals(999));
+      },
+    );
 
     test('pathOverride wins over the session path', () {
       StateFile.debugProjectRootOverride = projectA.path;
@@ -184,22 +183,25 @@ void main() {
       expect(viaLink, equals(direct));
     });
 
-    test('without the debug override the session lands under the real home',
-        () {
-      // Every other test in this file pins the home directory, so the
-      // production resolution has never run: a regression there would move
-      // every session on every machine and no test would notice.
-      StateFile.debugHomeOverride = null;
-      StateFile.debugProjectRootOverride = projectA.path;
+    test(
+      'without the debug override the session lands under the real home',
+      () {
+        // Every other test in this file pins the home directory, so the
+        // production resolution has never run: a regression there would move
+        // every session on every machine and no test would notice.
+        StateFile.debugHomeOverride = null;
+        StateFile.debugProjectRootOverride = projectA.path;
 
-      final String home = Platform.environment['HOME'] ??
-          Platform.environment['USERPROFILE'] ??
-          '/tmp';
+        final String home =
+            Platform.environment['HOME'] ??
+            Platform.environment['USERPROFILE'] ??
+            '/tmp';
 
-      expect(StateFile.path, startsWith('$home/.dowel/sessions/'));
-      expect(StateFile.legacyPointerPath, equals('$home/.dowel/state.json'));
-      expect(StateFile.homeDir, equals('$home/.dowel'));
-    });
+        expect(StateFile.path, startsWith('$home/.dowel/sessions/'));
+        expect(StateFile.legacyPointerPath, equals('$home/.dowel/state.json'));
+        expect(StateFile.homeDir, equals('$home/.dowel'));
+      },
+    );
 
     test('delete leaves a pointer that records no project', () async {
       // The hand-written recovery file usually omits projectRoot, and the
@@ -207,9 +209,8 @@ void main() {
       // reach for precisely when `start` has already failed them.
       final Directory dir = Directory('${tempHome.path}/.dowel');
       await dir.create(recursive: true);
-      await File('${dir.path}/state.json').writeAsString(
-        jsonEncode(<String, dynamic>{'pid': 999}),
-      );
+      await File('${dir.path}/state.json')
+          .writeAsString(jsonEncode(<String, dynamic>{'pid': 999}));
 
       StateFile.debugProjectRootOverride = projectA.path;
       await StateFile.delete();
@@ -217,25 +218,27 @@ void main() {
       expect(File(StateFile.legacyPointerPath).existsSync(), isTrue);
     });
 
-    test('delete from a subdirectory still clears this project\'s pointer',
-        () async {
-      // `stop` run from `backend/` has no session file of its own, so the
-      // fallback root is the subdirectory. Comparing exactly left the
-      // pointer behind, advertising a session that had just been stopped.
-      final Directory nested = Directory('${projectA.path}/backend');
-      await nested.create(recursive: true);
+    test(
+      'delete from a subdirectory still clears this project\'s pointer',
+      () async {
+        // `stop` run from `backend/` has no session file of its own, so the
+        // fallback root is the subdirectory. Comparing exactly left the
+        // pointer behind, advertising a session that had just been stopped.
+        final Directory nested = Directory('${projectA.path}/backend');
+        await nested.create(recursive: true);
 
-      StateFile.debugProjectRootOverride = projectA.path;
-      await StateFile.write(<String, dynamic>{
-        'pid': 111,
-        'projectRoot': projectA.path,
-      });
+        StateFile.debugProjectRootOverride = projectA.path;
+        await StateFile.write(<String, dynamic>{
+          'pid': 111,
+          'projectRoot': projectA.path,
+        });
 
-      StateFile.debugProjectRootOverride = nested.path;
-      await StateFile.delete();
+        StateFile.debugProjectRootOverride = nested.path;
+        await StateFile.delete();
 
-      expect(File(StateFile.legacyPointerPath).existsSync(), isFalse);
-    });
+        expect(File(StateFile.legacyPointerPath).existsSync(), isFalse);
+      },
+    );
 
     test('the staging file is per process, not per path', () async {
       // The legacy pointer is shared, so two projects starting at once both
@@ -295,10 +298,7 @@ void main() {
       // shared session.
       StateFile.debugProjectRootOverride = projectB.path;
       expect(StateFile.path, contains('/.dowel/sessions/'));
-      expect(
-        StateFile.path,
-        equals(StateFile.sessionPathFor(projectB.path)),
-      );
+      expect(StateFile.path, equals(StateFile.sessionPathFor(projectB.path)));
     });
   });
 }

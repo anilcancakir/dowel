@@ -1,4 +1,5 @@
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/commands_refresh_command.dart';
 import 'package:test/test.dart';
 
 void main() {

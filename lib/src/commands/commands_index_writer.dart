@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'helpers/generated_dart_layout.dart';
+
 /// One discovered command entry from the filesystem scan.
 class DiscoveredCommand {
   const DiscoveredCommand({required this.className, required this.fileName});
@@ -29,8 +31,7 @@ List<DiscoveredCommand> discoverCommandsInDir(Directory commandsDir) {
     if (!base.endsWith('.dart')) return false;
     if (base.startsWith('_')) return false; // _index.g.dart + any private file
     return true;
-  }).toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  }).toList()..sort((a, b) => a.path.compareTo(b.path));
 
   final out = <DiscoveredCommand>[];
   for (final file in entries) {
@@ -57,13 +58,16 @@ List<DiscoveredCommand> discoverCommandsInDir(Directory commandsDir) {
 ///
 /// import 'clean_cache.dart';
 ///
-/// List<DowelCommand> get commands => <DowelCommand>[
-///   CleanCacheCommand(),
-/// ];
+/// List<DowelCommand> get commands => <DowelCommand>[CleanCacheCommand()];
 /// ```
+///
+/// The list is laid out the way `dart format` writes it (one line when it
+/// fits, one entry per line otherwise), so a consumer's format check passes
+/// on the generated file.
 String renderCommandsIndex(List<DiscoveredCommand> commands) {
   final buf = StringBuffer()
-    ..writeln('// AUTO-GENERATED — DO NOT EDIT.')
+    ..writeln(formatWidthDirective)
+    ..writeln('// AUTO-GENERATED: DO NOT EDIT.')
     ..writeln('// Regenerate via: dowel commands:refresh')
     ..writeln('// (Also auto-updated by: dowel make:command <Name>)')
     ..writeln()
@@ -72,10 +76,7 @@ String renderCommandsIndex(List<DiscoveredCommand> commands) {
   if (commands.isEmpty) {
     buf
       ..writeln()
-      ..writeln(
-        'List<DowelCommand> get commands => const <DowelCommand>[];',
-      )
-      ..writeln();
+      ..writeln('List<DowelCommand> get commands => const <DowelCommand>[];');
     return buf.toString();
   }
 
@@ -88,12 +89,14 @@ String renderCommandsIndex(List<DiscoveredCommand> commands) {
   }
   buf
     ..writeln()
-    ..writeln('List<DowelCommand> get commands => <DowelCommand>[');
-  for (final c in commands) {
-    buf.writeln('  ${c.className}(),');
-  }
-  buf
-    ..writeln('];')
+    ..writeAll(
+      listLiteralLines(
+        head: 'List<DowelCommand> get commands => <DowelCommand>[',
+        elements: <String>[for (final c in commands) '${c.className}()'],
+        tail: '];',
+      ),
+      '\n',
+    )
     ..writeln();
   return buf.toString();
 }
@@ -113,7 +116,7 @@ List<DiscoveredCommand> writeCommandsIndex(Directory commandsDir) {
 /// Matches `class XxxCommand extends YyyCommand` declarations. The base
 /// class must itself end in `Command` (covers `DowelCommand`,
 /// `DowelGeneratorCommand`, and any user-defined intermediate base).
-/// Comments and string literals are NOT excluded — the convention says
+/// Comments and string literals are NOT excluded: the convention says
 /// command class declarations live at the top level of their file.
 final RegExp _classPattern = RegExp(
   r'class\s+(\w+Command)\s+extends\s+\w*Command\b',

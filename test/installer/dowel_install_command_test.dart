@@ -67,16 +67,21 @@ void main() {
 
       final optionNames = parsed.options.map((o) => o.name).toSet();
       expect(
-          optionNames,
-          containsAll(
-              <String>['force', 'dry-run', 'non-interactive', 'no-bootstrap']));
+        optionNames,
+        containsAll(<String>[
+          'force',
+          'dry-run',
+          'non-interactive',
+          'no-bootstrap',
+        ]),
+      );
 
       // Every standard flag is a boolean switch (no value), not a value option.
       for (final name in <String>[
         'force',
         'dry-run',
         'non-interactive',
-        'no-bootstrap'
+        'no-bootstrap',
       ]) {
         final spec = parsed.options.firstWhere((o) => o.name == name);
         expect(spec.isFlag, isTrue, reason: '--$name must be a flag');
@@ -110,8 +115,11 @@ void main() {
       final installCtx = cmd.buildContext(dowelCtx);
 
       expect(installCtx, isA<InstallContext>());
-      expect(identical(installCtx.dowelContext, dowelCtx), isTrue,
-          reason: 'InstallContext must reuse the supplied DowelContext');
+      expect(
+        identical(installCtx.dowelContext, dowelCtx),
+        isTrue,
+        reason: 'InstallContext must reuse the supplied DowelContext',
+      );
     });
   });
 
@@ -130,19 +138,21 @@ void main() {
       expect(cmd.isForce(_ctxWith(const {'force': false})), isFalse);
     });
 
-    test('isNonInteractive reads the --non-interactive option from ctx.input',
-        () {
-      final cmd = _TestInstallCommand();
+    test(
+      'isNonInteractive reads the --non-interactive option from ctx.input',
+      () {
+        final cmd = _TestInstallCommand();
 
-      expect(
-        cmd.isNonInteractive(_ctxWith(const {'non-interactive': true})),
-        isTrue,
-      );
-      expect(
-        cmd.isNonInteractive(_ctxWith(const {'non-interactive': false})),
-        isFalse,
-      );
-    });
+        expect(
+          cmd.isNonInteractive(_ctxWith(const {'non-interactive': true})),
+          isTrue,
+        );
+        expect(
+          cmd.isNonInteractive(_ctxWith(const {'non-interactive': false})),
+          isFalse,
+        );
+      },
+    );
 
     test('isSkipBootstrap reads the --no-bootstrap option from ctx.input', () {
       final cmd = _TestInstallCommand();

@@ -10,8 +10,7 @@ import '../helpers/file_helper.dart';
 /// `installer/` subtree.
 ///
 /// Two concrete implementations ship in V1: [RealFs] backed by `dart:io` and
-/// [InMemoryFs] backed by a [Map]. Both honour the same eight-method
-/// contract so [InstallTransaction] can swap them out in tests without code
+/// [InMemoryFs] backed by a [Map]. Both honour the same contract so [InstallTransaction] can swap them out in tests without code
 /// changes.
 ///
 /// All paths are absolute. Implementations make no attempt to resolve
@@ -25,7 +24,7 @@ import '../helpers/file_helper.dart';
 /// fs.writeAsString('/tmp/hello.txt', 'world');
 /// final hash = fs.md5('/tmp/hello.txt');
 /// ```
-abstract class VirtualFs {
+abstract interface class VirtualFs {
   /// Returns `true` when a file (not directory) exists at [absPath].
   ///
   /// @param absPath  Absolute path to test.
@@ -84,6 +83,13 @@ abstract class VirtualFs {
   /// @return 32-character lowercase hex digest.
   /// @throws FileSystemException When the file does not exist.
   String md5(String absPath);
+
+  /// [absPath] with every symbolic link in its longest existing directory
+  /// prefix resolved, and the part that does not exist yet appended as it
+  /// is. The installer compares it with the resolved project root, so a
+  /// directory link inside the project that points outside it cannot carry a
+  /// write or a delete out of the project.
+  String resolveSymbolicLinks(String absPath);
 }
 
 /// Production [VirtualFs] backed by `dart:io`. Every method delegates to the
@@ -96,7 +102,7 @@ abstract class VirtualFs {
 /// const fs = RealFs();
 /// fs.writeAsString('/Users/anilcan/Code/app/lib/config/x.dart', '...');
 /// ```
-class RealFs implements VirtualFs {
+final class RealFs implements VirtualFs {
   /// Creates a stateless [RealFs]. The class holds no instance fields so the
   /// constructor is `const` and consumers can share a single literal.
   const RealFs();
@@ -155,6 +161,23 @@ class RealFs implements VirtualFs {
     final content = FileHelper.readFile(absPath);
     return crypto.md5.convert(utf8.encode(content)).toString();
   }
+
+  @override
+  String resolveSymbolicLinks(String absPath) {
+    var existing = p.normalize(absPath);
+    final missing = <String>[];
+    while (!Directory(existing).existsSync()) {
+      final parent = p.dirname(existing);
+      if (parent == existing) break;
+      missing.insert(0, p.basename(existing));
+      existing = parent;
+    }
+
+    return p.joinAll(<String>[
+      Directory(existing).resolveSymbolicLinksSync(),
+      ...missing,
+    ]);
+  }
 }
 
 /// In-memory [VirtualFs] backed by a [Map] (`absPath -> UTF-8 content`).
@@ -171,7 +194,7 @@ class RealFs implements VirtualFs {
 /// fs.writeAsString('/virtual/pubspec.yaml', 'name: app\n');
 /// expect(fs.readAsString('/virtual/pubspec.yaml'), contains('name'));
 /// ```
-class InMemoryFs implements VirtualFs {
+final class InMemoryFs implements VirtualFs {
   /// Creates an empty in-memory file store.
   InMemoryFs();
 
@@ -246,4 +269,8 @@ class InMemoryFs implements VirtualFs {
     }
     return crypto.md5.convert(utf8.encode(content)).toString();
   }
+
+  /// An in-memory store has no links, so only `.` and `..` resolve.
+  @override
+  String resolveSymbolicLinks(String absPath) => p.normalize(absPath);
 }

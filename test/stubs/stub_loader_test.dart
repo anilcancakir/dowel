@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -19,18 +20,16 @@ void main() {
     });
 
     test('substitutes the same placeholder appearing multiple times', () {
-      final out = StubLoader.replace(
-        '{{ x }} and {{ x }} and {{ x }}',
-        {'x': 'value'},
-      );
+      final out = StubLoader.replace('{{ x }} and {{ x }} and {{ x }}', {
+        'x': 'value',
+      });
       expect(out, 'value and value and value');
     });
 
     test('leaves unknown placeholders untouched', () {
-      final out = StubLoader.replace(
-        '{{ known }} {{ unknown }}',
-        {'known': 'X'},
-      );
+      final out = StubLoader.replace('{{ known }} {{ unknown }}', {
+        'known': 'X',
+      });
       expect(out, 'X {{ unknown }}');
     });
 
@@ -71,8 +70,10 @@ void main() {
           .writeAsStringSync('SECOND wins (should not be returned)');
 
       // tempDir listed FIRST → its stub wins.
-      final content = StubLoader.load('widget',
-          searchPaths: [tempDir.path, secondDir.path]);
+      final content = StubLoader.load(
+        'widget',
+        searchPaths: [tempDir.path, secondDir.path],
+      );
 
       expect(content, contains('Widget body for'));
       expect(content, isNot(contains('SECOND wins')));
@@ -115,8 +116,9 @@ void main() {
     test('make composes load + replace via default search paths', () {
       // The loader treats the replacement map as literal substitution; this
       // mirrors how `install` renders the bin/dispatcher.dart wrapper.
-      final content = StubLoader.make(
-          'dispatcher.dart', <String, String>{'name': 'my_app'});
+      final content = StubLoader.make('dispatcher.dart', <String, String>{
+        'name': 'my_app',
+      });
 
       expect(content, contains('my_app'));
     });
@@ -137,17 +139,39 @@ void main() {
       },
     );
 
-    test(
-      'dispatcher stub forwards collectMcpTools to runDowel',
-      () {
-        // The stub must pass collectMcpTools so plugin providers collect their
-        // MCP tool descriptors when the consumer invokes mcp:serve. Without
-        // this arg, runDowel's split-API never calls registerMcpToolsFor and
-        // tools/list returns an empty array (GitHub issue #7, Bug A).
-        final content = StubLoader.load('dispatcher.dart');
+    test('decodes a percent-encoded rootUri with a trailing slash', () {
+      // pub writes a relative rootUri percent-encoded. Joined as a plain path
+      // it named `plug%20%C4%B1`, which does not exist, and the loader fell
+      // through to whatever dowel the running script came from.
+      final root = Directory.systemTemp.createTempSync('stub_loader_uri_');
+      final previous = Directory.current;
+      addTearDown(() {
+        Directory.current = previous;
+        root.deleteSync(recursive: true);
+      });
+      final project = Directory(p.join(root.path, 'proj'))..createSync();
+      File(p.join(project.path, '.dart_tool', 'package_config.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '{"configVersion": 2, "packages": [{"name": "dowel", '
+          '"rootUri": "../../plug%20%C4%B1/", "packageUri": "lib/"}]}',
+        );
+      File(p.join(root.path, 'plug ı', 'assets', 'stubs', 'probe.stub'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('from the encoded root');
+      Directory.current = project;
 
-        expect(content, contains('collectMcpTools'));
-      },
-    );
+      expect(StubLoader.load('probe'), 'from the encoded root');
+    });
+
+    test('dispatcher stub forwards collectMcpTools to runDowel', () {
+      // The stub must pass collectMcpTools so plugin providers collect their
+      // MCP tool descriptors when the consumer invokes mcp:serve. Without
+      // this arg, runDowel's split-API never calls registerMcpToolsFor and
+      // tools/list returns an empty array (GitHub issue #7, Bug A).
+      final content = StubLoader.load('dispatcher.dart');
+
+      expect(content, contains('collectMcpTools'));
+    });
   });
 }

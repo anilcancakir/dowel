@@ -46,11 +46,11 @@ final class AndroidIntentData {
   /// The attributes that are set, keyed by their local `android:` name, in the
   /// order a rendered `<data>` lists them.
   Map<String, String> get attributes => <String, String>{
-        if (scheme case final value?) 'scheme': value,
-        if (host case final value?) 'host': value,
-        if (path case final value?) 'path': value,
-        if (pathPrefix case final value?) 'pathPrefix': value,
-      };
+    'scheme': ?scheme,
+    'host': ?host,
+    'path': ?path,
+    'pathPrefix': ?pathPrefix,
+  };
 
   /// The install-record payload; unset attributes are left out.
   Map<String, dynamic> toJson() => <String, dynamic>{...attributes};
@@ -101,9 +101,9 @@ final class AndroidIntentFilter {
 
   /// The install-record payload.
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'autoVerify': autoVerify,
-        'actions': actions,
-        'categories': categories,
-        'data': <Map<String, dynamic>>[for (final d in data) d.toJson()],
-      };
+    'autoVerify': autoVerify,
+    'actions': actions,
+    'categories': categories,
+    'data': <Map<String, dynamic>>[for (final d in data) d.toJson()],
+  };
 }

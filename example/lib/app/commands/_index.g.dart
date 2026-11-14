@@ -1,7 +1,8 @@
-// AUTO-GENERATED — DO NOT EDIT.
+// dart format width=80
+// AUTO-GENERATED: DO NOT EDIT.
 // Regenerate via: dowel commands:refresh
 // (Also auto-updated by: dowel make:command <Name>)
 
 import 'package:dowel/dowel.dart';
 
-List<DowelCommand> get commands => <DowelCommand>[];
+List<DowelCommand> get commands => const <DowelCommand>[];

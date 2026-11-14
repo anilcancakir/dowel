@@ -60,7 +60,7 @@ class StdioOutput implements DowelOutput {
 }
 
 /// Test-friendly output that captures everything into an in-memory buffer.
-class BufferedOutput implements DowelOutput {
+final class BufferedOutput implements DowelOutput {
   BufferedOutput({this.verbosity = 1});
 
   final StringBuffer _buffer = StringBuffer();

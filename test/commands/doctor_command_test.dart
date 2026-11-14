@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/doctor_command.dart';
 import 'package:test/test.dart';
 
 /// Constant warning message emitted when a stale `.mcp.json` entry is found.
@@ -11,14 +12,15 @@ String _staleMcpWarning(String key) =>
     '.mcp.json, then run: ./bin/dowel mcp:install (or: '
     'dart run dowel mcp:install).';
 
-/// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
-/// `fluttersdk_artisan:mcp` args shape. Mirrors the production constant in
+/// Advisory warning emitted when `.mcp.json` still starts the old
+/// `fluttersdk_artisan:mcp` server. Mirrors the production constant in
 /// `lib/src/commands/doctor_command.dart`; kept in sync manually.
-String _preFixMcpWarning(String key) =>
-    'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
-    'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Delete the "$key" entry from .mcp.json, then run: '
-    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
+String _outdatedMcpWarning(String key) =>
+    'WARN: Outdated MCP entry detected. The "$key" server in .mcp.json starts '
+    'fluttersdk_artisan:mcp, the MCP server of a package that no longer '
+    'exists, and it never loads your plugins. Delete the "$key" entry from '
+    '.mcp.json, then run: ./bin/dowel mcp:install (or: dart run dowel '
+    'mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still has the `fluttersdk` server
 /// key that fluttersdk_artisan's `mcp:install` wrote, whatever its args.
@@ -94,9 +96,7 @@ void main() {
         await tempDir.delete(recursive: true);
       });
 
-      test(
-          '.mcp.json with fluttersdk_mcp:server in args emits stale entry warning',
-          () async {
+      test('.mcp.json with fluttersdk_mcp:server in args emits stale entry warning', () async {
         // Seed a .mcp.json that references the old fluttersdk_mcp:server entry.
         final mcpJson = File('${tempDir.path}/.mcp.json');
         await mcpJson.writeAsString('''
@@ -119,11 +119,9 @@ void main() {
         expect(output.content, contains(_staleMcpWarning('fluttersdk')));
       });
 
-      test(
-          '.mcp.json with pre-fix fluttersdk_artisan:mcp entry emits pre-fix advisory',
-          () async {
-        // Seed a .mcp.json with the pre-Bug-B fluttersdk_artisan:mcp args shape.
-        // Post-Step-8 this DOES emit _preFixMcpWarning; _staleMcpWarning still
+      test('.mcp.json with a fluttersdk_artisan:mcp entry emits the outdated-entry advisory', () async {
+        // Seed a .mcp.json with the fluttersdk_artisan:mcp args shape.
+        // This emits _outdatedMcpWarning; _staleMcpWarning still
         // must NOT appear because that is the legacy fluttersdk_mcp:server shape.
         final mcpJson = File('${tempDir.path}/.mcp.json');
         await mcpJson.writeAsString('''
@@ -144,16 +142,17 @@ void main() {
         await command.handle(ctx);
 
         expect(output.content, isNot(contains(_staleMcpWarning('fluttersdk'))));
-        expect(output.content, contains(_preFixMcpWarning('fluttersdk')));
+        expect(output.content, contains(_outdatedMcpWarning('fluttersdk')));
       });
 
-      test('a fluttersdk entry in any shape emits the old-entry warning',
-          () async {
-        // 0.0.20 wrote the fluttersdk key with `./bin/fsa mcp:serve` or
-        // `dart run :dispatcher mcp:serve`; neither shape names a removed
-        // package, so only the key gives it away.
-        final mcpJson = File('${tempDir.path}/.mcp.json');
-        await mcpJson.writeAsString('''
+      test(
+        'a fluttersdk entry in any shape emits the old-entry warning',
+        () async {
+          // 0.0.20 wrote the fluttersdk key with `./bin/fsa mcp:serve` or
+          // `dart run :dispatcher mcp:serve`; neither shape names a removed
+          // package, so only the key gives it away.
+          final mcpJson = File('${tempDir.path}/.mcp.json');
+          await mcpJson.writeAsString('''
 {
   "mcpServers": {
     "fluttersdk": {
@@ -164,17 +163,23 @@ void main() {
 }
 ''');
 
-        final command = DoctorCommand(workingDir: tempDir.path);
-        final output = BufferedOutput();
-        final ctx = DowelContext.bare(MapInput(const {}), output);
+          final command = DoctorCommand(workingDir: tempDir.path);
+          final output = BufferedOutput();
+          final ctx = DowelContext.bare(MapInput(const {}), output);
 
-        await command.handle(ctx);
+          await command.handle(ctx);
 
-        expect(output.content, contains(_oldKeyMcpWarning));
-        expect(output.content, isNot(contains(_staleMcpWarning('fluttersdk'))));
-        expect(
-            output.content, isNot(contains(_preFixMcpWarning('fluttersdk'))));
-      });
+          expect(output.content, contains(_oldKeyMcpWarning));
+          expect(
+            output.content,
+            isNot(contains(_staleMcpWarning('fluttersdk'))),
+          );
+          expect(
+            output.content,
+            isNot(contains(_outdatedMcpWarning('fluttersdk'))),
+          );
+        },
+      );
 
       test('the warning names the key the stale entry really has', () async {
         final mcpJson = File('${tempDir.path}/.mcp.json');
@@ -197,7 +202,9 @@ void main() {
 
         expect(output.content, contains(_staleMcpWarning('old-tools')));
         expect(
-            output.content, isNot(contains('Delete the "fluttersdk" entry')));
+          output.content,
+          isNot(contains('Delete the "fluttersdk" entry')),
+        );
       });
 
       test('a dowel entry alone emits no warning', () async {
@@ -266,10 +273,8 @@ void main() {
         expect(codeWithStale, equals(codeWithoutStale));
       });
 
-      test(
-          'pre-fix fluttersdk_artisan:mcp .mcp.json does not change doctor exit code',
-          () async {
-        // The pre-fix advisory (_preFixMcpWarning) must be advisory-only and
+      test('fluttersdk_artisan:mcp .mcp.json does not change doctor exit code', () async {
+        // The outdated-entry advisory (_outdatedMcpWarning) must be advisory-only and
         // must NOT affect the doctor exit code. Mirror the stale-entry
         // exit-code-stability pattern above but seed the fluttersdk_artisan:mcp
         // args shape instead of the legacy fluttersdk_mcp:server shape.
@@ -301,30 +306,120 @@ void main() {
       });
     });
 
+    group('fluttersdk_artisan leftovers', () {
+      late Directory tempDir;
+
+      setUp(() {
+        tempDir = Directory.systemTemp.createTempSync('doctor_artisan_');
+      });
+
+      tearDown(() => tempDir.deleteSync(recursive: true));
+
+      void seed(String relative, String content) {
+        File('${tempDir.path}/$relative')
+          ..createSync(recursive: true)
+          ..writeAsStringSync(content);
+      }
+
+      test('names every leftover and the migration steps', () async {
+        seed('bin/fsa', '#!/bin/sh\n');
+        seed('.artisan/plugins.json', '{}');
+        seed(
+          'lib/app/commands/greet_command.dart',
+          'class GreetCommand extends ArtisanCommand {}\n',
+        );
+        seed('lib/app/commands/clean_command.dart', 'class Clean {}\n');
+        seed(
+          '.dowel/plugins.json',
+          '{"version": 1, "plugins": [{"name": "fluttersdk_dusk"}]}',
+        );
+        seed(
+          'bin/dispatcher.dart',
+          "import 'package:fluttersdk_artisan/artisan.dart';\n",
+        );
+        final output = BufferedOutput();
+
+        await DoctorCommand(workingDir: tempDir.path)
+            .handle(DowelContext.bare(MapInput(const {}), output));
+
+        final content = output.content;
+        expect(content, contains('WARN: fluttersdk_artisan leftovers'));
+        for (final leftover in <String>[
+          'bin/fsa',
+          '.artisan/',
+          'lib/app/commands/greet_command.dart',
+          '.dowel/plugins.json',
+          'bin/dispatcher.dart',
+        ]) {
+          expect(content, contains('  $leftover'));
+        }
+        expect(content, isNot(contains('clean_command.dart')));
+        expect(content, contains('dart pub remove fluttersdk_artisan'));
+        expect(content, contains('dart run dowel mcp:install'));
+      });
+
+      test('a clean dowel project gets no leftover warning', () async {
+        seed('bin/dispatcher.dart', "import 'package:dowel/dowel.dart';\n");
+        seed(
+          '.dowel/plugins.json',
+          '{"version": 1, "plugins": [{"name": "tapir"}]}',
+        );
+        final output = BufferedOutput();
+
+        await DoctorCommand(workingDir: tempDir.path)
+            .handle(DowelContext.bare(MapInput(const {}), output));
+
+        expect(output.content, isNot(contains('fluttersdk_artisan leftovers')));
+      });
+
+      test('a file it cannot read warns and the checks after it run', () async {
+        // Bytes that are not UTF-8 make readAsStringSync throw on every
+        // platform, the way an unreadable file does.
+        File('${tempDir.path}/.dowel/plugins.json')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(<int>[0xFF, 0xFE, 0xFD]);
+        DoctorCommand.doctorFlutterRunner = (_, _) async => ProcessResult(
+          0,
+          0,
+          jsonEncode(<String, String>{'frameworkVersion': '3.10.0'}),
+          '',
+        );
+        addTearDown(() => DoctorCommand.doctorFlutterRunner = Process.run);
+        final output = BufferedOutput();
+
+        await DoctorCommand(workingDir: tempDir.path)
+            .handle(DowelContext.bare(MapInput(const {}), output));
+
+        expect(output.content, contains('leftovers check was incomplete'));
+        expect(output.content, contains('plugins.json'));
+        expect(
+          output.content,
+          contains(DoctorCommand.cdpUpgradeWarningForTest),
+        );
+      });
+    });
+
     // -------------------------------------------------------------------------
     // Flutter SDK version check
     // -------------------------------------------------------------------------
 
     group('_checkFlutterSdkVersion', () {
       /// Builds a fake [ProcessResult] with the given frameworkVersion in JSON.
-      ProcessResult fakeVersionResult(String version) => ProcessResult(
-            0,
-            0,
-            jsonEncode({'frameworkVersion': version}),
-            '',
-          );
+      ProcessResult fakeVersionResult(String version) =>
+          ProcessResult(0, 0, jsonEncode({'frameworkVersion': version}), '');
 
       setUp(() {
         // Reset to real runner after each test.
         addTearDown(
-          () => DoctorCommand.doctorFlutterRunner =
-              (exe, args) => Process.run(exe, args),
+          () =>
+              DoctorCommand.doctorFlutterRunner = (exe, args) =>
+                  Process.run(exe, args),
         );
       });
 
       test('version 3.30.0 returns true (exactly at minimum)', () async {
-        DoctorCommand.doctorFlutterRunner =
-            (_, __) async => fakeVersionResult('3.30.0');
+        DoctorCommand.doctorFlutterRunner = (_, _) async =>
+            fakeVersionResult('3.30.0');
 
         final result = await DoctorCommand.checkFlutterSdkVersionForTest();
 
@@ -332,8 +427,8 @@ void main() {
       });
 
       test('version 3.29.0 returns false (below minimum)', () async {
-        DoctorCommand.doctorFlutterRunner =
-            (_, __) async => fakeVersionResult('3.29.0');
+        DoctorCommand.doctorFlutterRunner = (_, _) async =>
+            fakeVersionResult('3.29.0');
 
         final result = await DoctorCommand.checkFlutterSdkVersionForTest();
 
@@ -341,8 +436,8 @@ void main() {
       });
 
       test('version 4.0.0 returns true (above minimum)', () async {
-        DoctorCommand.doctorFlutterRunner =
-            (_, __) async => fakeVersionResult('4.0.0');
+        DoctorCommand.doctorFlutterRunner = (_, _) async =>
+            fakeVersionResult('4.0.0');
 
         final result = await DoctorCommand.checkFlutterSdkVersionForTest();
 
@@ -350,42 +445,48 @@ void main() {
       });
 
       test(
-          'beta channel string 3.30.0-1.0.pre is accepted (parser strips suffix '
-          'to stay aligned with StartCommand.compareSemver)', () async {
-        DoctorCommand.doctorFlutterRunner =
-            (_, __) async => fakeVersionResult('3.30.0-1.0.pre');
+        'beta channel string 3.30.0-1.0.pre is accepted (parser strips suffix '
+        'to stay aligned with StartCommand.compareSemver)',
+        () async {
+          DoctorCommand.doctorFlutterRunner = (_, _) async =>
+              fakeVersionResult('3.30.0-1.0.pre');
 
-        final result = await DoctorCommand.checkFlutterSdkVersionForTest();
+          final result = await DoctorCommand.checkFlutterSdkVersionForTest();
 
-        expect(result, isTrue);
-      });
+          expect(result, isTrue);
+        },
+      );
 
-      test('malformed JSON output returns false (graceful parse failure)',
-          () async {
-        DoctorCommand.doctorFlutterRunner =
-            (_, __) async => ProcessResult(0, 0, 'not-json-at-all', '');
+      test(
+        'malformed JSON output returns false (graceful parse failure)',
+        () async {
+          DoctorCommand.doctorFlutterRunner = (_, _) async =>
+              ProcessResult(0, 0, 'not-json-at-all', '');
 
-        final result = await DoctorCommand.checkFlutterSdkVersionForTest();
+          final result = await DoctorCommand.checkFlutterSdkVersionForTest();
 
-        expect(result, isFalse);
-      });
+          expect(result, isFalse);
+        },
+      );
 
       test('flutter binary missing (exception thrown) returns false', () async {
-        DoctorCommand.doctorFlutterRunner = (_, __) async =>
-            throw ProcessException('flutter', ['--version', '--machine'],
-                'No such file or directory', 2);
+        DoctorCommand.doctorFlutterRunner = (_, _) async =>
+            throw ProcessException(
+              'flutter',
+              ['--version', '--machine'],
+              'No such file or directory',
+              2,
+            );
 
         final result = await DoctorCommand.checkFlutterSdkVersionForTest();
 
         expect(result, isFalse);
       });
 
-      test(
-          'when SDK check fails, doctor exit code is 1 and upgrade warning is emitted',
-          () async {
+      test('when SDK check fails, doctor exit code is 1 and upgrade warning is emitted', () async {
         // Inject a runner that pretends flutter version is below minimum.
-        DoctorCommand.doctorFlutterRunner =
-            (_, __) async => fakeVersionResult('3.10.0');
+        DoctorCommand.doctorFlutterRunner = (_, _) async =>
+            fakeVersionResult('3.10.0');
 
         final output = BufferedOutput();
         final ctx = DowelContext.bare(MapInput(const {}), output);
@@ -395,12 +496,14 @@ void main() {
 
         expect(code, equals(1));
         expect(
-            output.content, contains(DoctorCommand.cdpUpgradeWarningForTest));
+          output.content,
+          contains(DoctorCommand.cdpUpgradeWarningForTest),
+        );
       });
 
       test('when SDK check passes, no upgrade warning is emitted', () async {
-        DoctorCommand.doctorFlutterRunner =
-            (_, __) async => fakeVersionResult('3.30.0');
+        DoctorCommand.doctorFlutterRunner = (_, _) async =>
+            fakeVersionResult('3.30.0');
 
         final output = BufferedOutput();
         final ctx = DowelContext.bare(MapInput(const {}), output);

@@ -11,7 +11,7 @@ import '../../installer/virtual_fs.dart';
 ///   relative path.
 /// - Plugin `pubspec.yaml` gains `resolution: workspace` at the top level.
 ///
-/// Both mutations use [YamlEditor] for safe structural YAML editing — no raw
+/// Both mutations use [YamlEditor] for safe structural YAML editing: no raw
 /// string concatenation.
 ///
 /// ## Usage
@@ -42,7 +42,7 @@ class WorkspaceEnroller {
   /// The search begins at the **parent** of [targetDir] (the plugin's own
   /// pubspec, if any, is deliberately skipped). It stops at the filesystem
   /// root. When multiple ancestors contain `pubspec.yaml`, only those with a
-  /// `flutter:` key qualify — pure Dart packages and workspace roots are
+  /// `flutter:` key qualify: pure Dart packages and workspace roots are
   /// skipped.
   ///
   /// @param targetDir  Absolute path of the plugin (or any directory).
@@ -134,7 +134,7 @@ class WorkspaceEnroller {
       editor.update(['workspace'], <String>[pluginRelativePath]);
     } else {
       if (existing is! List) {
-        // workspace: exists but is not a list — refuse to clobber.
+        // workspace: exists but is not a list: refuse to clobber.
         throw StateError(
           'WorkspaceEnroller: workspace: key in $pubspecPath is not a list '
           '(found ${existing.runtimeType}); refusing to mutate.',

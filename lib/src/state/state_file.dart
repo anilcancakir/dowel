@@ -47,7 +47,7 @@ import 'package:meta/meta.dart';
 /// - `chromePid` (int | null, D6 Chrome capture outcome)
 /// - `tmpProfileDir` (string | null, D6 Chrome capture outcome)
 /// - `cdpPort` (int | null, --cdp-port value passed to start; null when CDP not enabled)
-class StateFile {
+final class StateFile {
   StateFile._();
 
   /// Test injection seam: overrides the resolved home directory.
@@ -109,8 +109,10 @@ class StateFile {
   /// The directory holding one session's state, log and FIFO.
   static String sessionDirFor(String projectRoot) {
     final String key = _canonicalPath(projectRoot);
-    final String digest =
-        sha256.convert(utf8.encode(key)).toString().substring(0, 12);
+    final String digest = sha256
+        .convert(utf8.encode(key))
+        .toString()
+        .substring(0, 12);
     return '${_homePath()}/.dowel/sessions/$digest';
   }
 

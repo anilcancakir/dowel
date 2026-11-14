@@ -20,10 +20,7 @@ void main() {
     test('classAliases stores short-name -> full-name pairs', () {
       Tinker.classAliases['User'] = 'package:magic/src/auth/user.dart';
 
-      expect(
-        Tinker.classAliases['User'],
-        'package:magic/src/auth/user.dart',
-      );
+      expect(Tinker.classAliases['User'], 'package:magic/src/auth/user.dart');
     });
 
     test('casters can be appended and invoked', () {

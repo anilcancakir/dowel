@@ -59,16 +59,13 @@ void main() {
         },
       );
 
-      expect(
-        result,
-        <String, dynamic>{
-          'auth': <String, dynamic>{
-            'login': 'Sign In',
-            'logout': 'Logout',
-            'register': 'Sign Up',
-          },
+      expect(result, <String, dynamic>{
+        'auth': <String, dynamic>{
+          'login': 'Sign In',
+          'logout': 'Logout',
+          'register': 'Sign Up',
         },
-      );
+      });
     });
 
     test('deepMerge additive=true preserves existing leaf values', () {
@@ -82,15 +79,9 @@ void main() {
         additive: true,
       );
 
-      expect(
-        result,
-        <String, dynamic>{
-          'auth': <String, dynamic>{
-            'login': 'Login',
-            'register': 'Sign Up',
-          },
-        },
-      );
+      expect(result, <String, dynamic>{
+        'auth': <String, dynamic>{'login': 'Login', 'register': 'Sign Up'},
+      });
     });
 
     test('mergeJsonFile writes source verbatim when target absent', () {

@@ -18,7 +18,7 @@
 ///   ['Admin', 'Inactive'],
 /// ]));
 /// ```
-class ConsoleStyle {
+final class ConsoleStyle {
   // ANSI color codes
   static const String green = '\x1B[32m';
   static const String red = '\x1B[31m';

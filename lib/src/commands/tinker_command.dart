@@ -14,12 +14,13 @@ import '../tinker/tinker_formatter.dart';
 ///
 /// V1: basic prompt + evaluate loop. cli_repl integration + IsolateReload
 /// autocomplete cache + history persistence deferred V1.x.
-class TinkerCommand extends DowelCommand {
+final class TinkerCommand extends DowelCommand {
   @override
   String get name => 'tinker';
 
   @override
-  String get signature => 'tinker '
+  String get signature =>
+      'tinker '
       '{--eval= : Evaluate a single Dart expression in the running app, '
       'print the formatted result on stdout, and exit. When set, REPL is '
       'skipped. Pipe-friendly: `dart run dowel tinker --eval "1+1"`.}';
@@ -37,6 +38,15 @@ class TinkerCommand extends DowelCommand {
     //    scripts and pipelines that want the evaluated value without the
     //    `>>>` prompt or "Tinker connected" / "Tinker session ended" chatter.
     final eval = (ctx.input.option('eval') ?? '').trim();
+    // An explicit but blank --eval is a mistake, not a request for the REPL.
+    // Under `mcp:serve` the REPL would read the JSON-RPC channel on stdin.
+    if (ctx.input.hasOption('eval') && eval.isEmpty) {
+      ctx.output.error(
+        '--eval needs a Dart expression, e.g. --eval "1 + 1". Omit it to '
+        'start the REPL.',
+      );
+      return 1;
+    }
     if (eval.isNotEmpty) {
       try {
         final result = await ctx.evaluate(eval);

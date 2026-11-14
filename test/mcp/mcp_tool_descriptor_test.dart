@@ -30,9 +30,7 @@ void main() {
       expect(descriptor.extensionMethod, 'ext.tapir.tap');
     });
 
-    test(
-        'toJson includes name + description + inputSchema, excludes extensionMethod',
-        () {
+    test('toJson includes name + description + inputSchema, excludes extensionMethod', () {
       final json = descriptor.toJson();
 
       expect(json.containsKey('name'), isTrue);

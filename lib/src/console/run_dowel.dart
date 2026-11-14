@@ -37,8 +37,13 @@ import 'dowel_service_provider.dart';
 /// run from the substrate binary, never via delegation. Otherwise a stale or
 /// broken `lib/app/_index.g.dart` / `lib/app/_plugins.g.dart` blocks the
 /// wrapper from compiling, blocking the only command that can fix it.
+/// `install` writes the wrapper itself, and the one fluttersdk_artisan left in
+/// a migrating project imports a package that no longer resolves; `doctor`
+/// must run when the wrapper is broken, since it is what reports that.
 const Set<String> _bypassDelegation = <String>{
   'commands:refresh',
+  'doctor',
+  'install',
   'plugins:refresh',
 };
 
@@ -134,8 +139,9 @@ Future<int> runDowel(
     // Back-compat: existing tests inject `wrapperExists: () => true` against
     // tempdirs that have no on-disk wrapper. Honor the boolean override and
     // fall back to the canonical 'dispatcher' token in that case.
-    final hasWrapper =
-        wrapperExists != null ? wrapperExists() : resolvedName != null;
+    final hasWrapper = wrapperExists != null
+        ? wrapperExists()
+        : resolvedName != null;
     final firstArg = args.isEmpty ? '' : args.first;
     final bypassed = _bypassDelegation.contains(firstArg);
     if (hasWrapper && !bypassed) {
@@ -156,10 +162,7 @@ Future<int> runDowel(
   // 2. Standalone path: builtins + baseProviders + autoProviders.
   try {
     final registry = DowelRegistry();
-    registry.registerAll(
-      _builtinCommands(registry),
-      providerName: 'dowel',
-    );
+    registry.registerAll(_builtinCommands(registry), providerName: 'dowel');
     for (final provider in baseProviders) {
       registry.registerProvider(provider);
       if (collectMcpTools) registry.registerMcpToolsFor(provider);
@@ -228,29 +231,29 @@ Future<int> _defaultDelegate(List<String> args) async {
 /// is what lets these commands fix a broken consumer wrapper without first
 /// requiring that same wrapper to compile.
 List<DowelCommand> _builtinCommands(DowelRegistry registry) => <DowelCommand>[
-      StartCommand(),
-      StopCommand(),
-      StatusCommand(),
-      LogsCommand(),
-      ReloadCommand(),
-      HotRestartCommand(),
-      RestartCommand(),
-      DoctorCommand(),
-      ListCommand(registry),
-      HelpCommand(registry),
-      MakeCommandCommand(),
-      MakeFastCliCommand(),
-      MakePluginCommand(),
-      CommandsRefreshCommand(),
-      PluginsRefreshCommand(),
-      PluginInstallCommand(),
-      PluginUninstallCommand(),
-      InstallDowelCommand(),
-      TinkerCommand(),
-      McpServeCommand(),
-      McpInstallCommand(),
-      McpUninstallCommand(),
-    ];
+  StartCommand(),
+  StopCommand(),
+  StatusCommand(),
+  LogsCommand(),
+  ReloadCommand(),
+  HotRestartCommand(),
+  RestartCommand(),
+  DoctorCommand(),
+  ListCommand(registry),
+  HelpCommand(registry),
+  MakeCommandCommand(),
+  MakeFastCliCommand(),
+  MakePluginCommand(),
+  CommandsRefreshCommand(),
+  PluginsRefreshCommand(),
+  PluginInstallCommand(),
+  PluginUninstallCommand(),
+  InstallDowelCommand(),
+  TinkerCommand(),
+  McpServeCommand(),
+  McpInstallCommand(),
+  McpUninstallCommand(),
+];
 
 /// Pulls a leading-or-anywhere `--state=<path>` (or `--state <path>`) out of
 /// [args] and records it on [StateFile].

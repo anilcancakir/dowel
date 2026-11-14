@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -6,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../helpers/platform_helper.dart';
 import 'install_context.dart';
 import 'install_operation.dart';
+import 'install_record.dart';
 
 /// Represents a single file-level conflict detected before committing an
 /// [InstallTransaction].
@@ -21,12 +21,16 @@ import 'install_operation.dart';
 /// - `'unmanaged-file'` -- the file exists but no hash record was found
 ///   (neither in the plugin record nor the global INDEX.json). The installer
 ///   refuses to overwrite an unknown file by default.
-class FileConflict {
+/// - `'unsupported-install-record'` -- [absPath] is the plugin's own install
+///   record, and this version cannot read it (no `version`, absolute
+///   `stubHashes` keys, or not JSON). `--force` rewrites it.
+final class FileConflict {
   /// Absolute path of the conflicting file.
   final String absPath;
 
   /// Machine-readable reason code. One of
-  /// `'modified-since-last-known-stub'` or `'unmanaged-file'`.
+  /// `'modified-since-last-known-stub'`, `'unmanaged-file'` or
+  /// `'unsupported-install-record'`.
   final String reason;
 
   /// The hash that was recorded at install time. `null` for
@@ -65,7 +69,8 @@ class FileConflict {
 /// Detection reads from two JSON sources:
 ///
 /// 1. `<projectRoot>/.dowel/installed/<pluginName>.json` -- per-plugin
-///    record that stores `stubHashes` (absolute path to md5 hex string).
+///    record that stores `stubHashes` (project-relative, forward-slash path
+///    to md5 hex string) under `"version": 1`.
 /// 2. `<projectRoot>/.dowel/installed/INDEX.json` -- global shared-file
 ///    index (V1: existence check only; absence of this file causes any
 ///    unrecorded file to be treated as an `'unmanaged-file'` conflict).
@@ -79,7 +84,7 @@ class FileConflict {
 ///   // Surface to user or pass --force to bypass.
 /// }
 /// ```
-class ConflictDetector {
+final class ConflictDetector {
   /// Creates a [ConflictDetector] bound to [ctx] for filesystem and path
   /// resolution.
   ///
@@ -106,12 +111,25 @@ class ConflictDetector {
     List<InstallOperation> ops, {
     required String pluginName,
   }) {
-    // 1. Load the per-plugin hash record once (null when the file is absent).
-    final pluginRecord = _loadPluginRecord(pluginName);
+    // 1. Load the per-plugin hash record once. A record this version cannot
+    //    read is a conflict of its own, and the ops below are then checked as
+    //    if nothing was recorded.
+    final conflicts = <FileConflict>[];
+    final recordPath = installRecordPath(_ctx.projectRoot, pluginName);
+    final read = readInstallRecord(_ctx.fs, recordPath);
+    if (read.problem != null) {
+      conflicts.add(
+        FileConflict(
+          absPath: recordPath,
+          reason: 'unsupported-install-record',
+          currentHash: _ctx.fs.md5(recordPath),
+        ),
+      );
+    }
+    final stubHashes = read.record?['stubHashes'] as Map<String, dynamic>?;
 
     // 2. Iterate ops, extracting the target absolute path for file-writing
     //    operations. Non-file ops return null and are skipped.
-    final conflicts = <FileConflict>[];
     for (final op in ops) {
       final absPath = _targetAbsPath(op);
       if (absPath == null) continue;
@@ -119,24 +137,24 @@ class ConflictDetector {
       // 3. No pre-existing file means a clean install slot. No conflict.
       if (!_ctx.fs.exists(absPath)) continue;
 
-      // 4. Compute the current on-disk hash once per target.
+      // 4. Helper-backed edits (AddDependency, InjectAndroidPermission, etc.)
+      //    make targeted, idempotent mutations to consumer-owned files
+      //    (pubspec.yaml, AndroidManifest.xml, ...) that the user keeps
+      //    editing after an install. Neither verdict below fits them: the file
+      //    always pre-exists, and a hash that moved since the last install is
+      //    the user's own `dart pub add`. Flagging either made every reinstall
+      //    need --force, which then switched off the checks that matter.
+      if (_isHelperEdit(op)) continue;
+
+      // 5. Compute the current on-disk hash once per target.
       final currentHash = _ctx.fs.md5(absPath);
 
-      // 5. Look up the last-known hash in the plugin record.
-      final lastKnownHash = pluginRecord?['stubHashes']?[absPath] as String?;
+      // 6. Look up the last-known hash in the plugin record.
+      final lastKnownHash =
+          stubHashes?[installRecordKey(_ctx.projectRoot, absPath)] as String?;
 
       if (lastKnownHash == null) {
-        // 5a. Helper-backed edits (AddDependency, InjectAndroidPermission,
-        //     etc.) make targeted, idempotent mutations to consumer-owned
-        //     files (pubspec.yaml, AndroidManifest.xml, ...). Those files
-        //     ALWAYS pre-exist on a real project, so an "unmanaged-file"
-        //     verdict here is a false positive that forces every operator
-        //     to pass --force on first install. Skip the unmanaged branch
-        //     for these op shapes; future installs will see the recorded
-        //     post-install hash and fall into branch 6 / 7 normally.
-        if (_isHelperEdit(op)) continue;
-
-        // 5b. Whole-file writes (WriteFile / PublishFile / CopyFile) do
+        // 6a. Whole-file writes (WriteFile / PublishFile / CopyFile) do
         //     overwrite arbitrary content. Surface unmanaged-file so the
         //     operator confirms with --force before clobbering.
         conflicts.add(
@@ -149,10 +167,10 @@ class ConflictDetector {
         continue;
       }
 
-      // 6. Hash match: the file is unmodified since last install. No conflict.
+      // 7. Hash match: the file is unmodified since last install. No conflict.
       if (lastKnownHash == currentHash) continue;
 
-      // 7. Hash mismatch: user modified the file. Surface the conflict.
+      // 8. Hash mismatch: user modified the file. Surface the conflict.
       conflicts.add(
         FileConflict(
           absPath: absPath,
@@ -168,9 +186,9 @@ class ConflictDetector {
 
   /// True when [op] performs a targeted mutation on an existing consumer file
   /// (pubspec, AndroidManifest.xml, lib/main.dart, .env, ...). Helper-backed
-  /// edits are idempotent and do not overwrite arbitrary content, so a
-  /// pre-existing file without a hash record is NOT a conflict for these op
-  /// shapes, it is the expected first-install scenario.
+  /// edits are idempotent and do not overwrite arbitrary content, so neither
+  /// a pre-existing file without a hash record nor one edited since the
+  /// recorded hash is a conflict for these op shapes.
   ///
   /// Whole-file writes ([WriteFile] / [PublishFile] / [CopyFile]) return
   /// false because they DO overwrite the target.
@@ -245,8 +263,8 @@ class ConflictDetector {
       InjectMainDartImport() => _abs('lib/main.dart'),
       InjectIntoMainDart() => _abs('lib/main.dart'),
       InjectRouteRegistration() => _abs(
-          'lib/app/providers/route_service_provider.dart',
-        ),
+        'lib/app/providers/route_service_provider.dart',
+      ),
       // Pubspec helper writes.
       AddDependency() => _abs('pubspec.yaml'),
       AddPathDependency() => _abs('pubspec.yaml'),
@@ -254,14 +272,14 @@ class ConflictDetector {
       AddPubspecAsset() => _abs('pubspec.yaml'),
       // Android native writes.
       InjectAndroidPermission() => PlatformHelper.androidManifestPath(
-          _ctx.projectRoot,
-        ),
+        _ctx.projectRoot,
+      ),
       InjectAndroidMetaData() => PlatformHelper.androidManifestPath(
-          _ctx.projectRoot,
-        ),
+        _ctx.projectRoot,
+      ),
       InjectAndroidActivity() => PlatformHelper.androidManifestPath(
-          _ctx.projectRoot,
-        ),
+        _ctx.projectRoot,
+      ),
       InjectGradlePlugin() => _appBuildGradlePath(),
       InjectGradleDependency() => _appBuildGradlePath(),
       // iOS / macOS native writes.
@@ -301,22 +319,5 @@ class ConflictDetector {
   /// Mirrors [InstallTransaction]'s Podfile resolution.
   String _podfilePathFor(String platform) {
     return p.join(_ctx.projectRoot, platform, 'Podfile');
-  }
-
-  /// Loads and decodes the per-plugin JSON record from
-  /// `<projectRoot>/.dowel/installed/<pluginName>.json`.
-  ///
-  /// @param pluginName  The plugin identifier.
-  /// @return The parsed JSON map, or `null` when the record file is absent.
-  Map<String, dynamic>? _loadPluginRecord(String pluginName) {
-    final recordPath = p.join(
-      _ctx.projectRoot,
-      '.dowel',
-      'installed',
-      '$pluginName.json',
-    );
-    if (!_ctx.fs.exists(recordPath)) return null;
-    final raw = _ctx.fs.readAsString(recordPath);
-    return jsonDecode(raw) as Map<String, dynamic>;
   }
 }

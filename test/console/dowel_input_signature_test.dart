@@ -12,11 +12,10 @@ void main() {
       final sig = CommandSignature.parse('sync {team} {scope?}');
       final parser = ArgParser();
       sig.applyTo(parser);
-      final input = ArgvInput.parse(
-        parser,
-        <String>['acme', 'active'],
-        signature: sig,
-      );
+      final input = ArgvInput.parse(parser, <String>[
+        'acme',
+        'active',
+      ], signature: sig);
       expect(input.argument('team'), 'acme');
       expect(input.argument('scope'), 'active');
     });
@@ -25,11 +24,7 @@ void main() {
       final sig = CommandSignature.parse('sync {team} {scope=all}');
       final parser = ArgParser();
       sig.applyTo(parser);
-      final input = ArgvInput.parse(
-        parser,
-        <String>['acme'],
-        signature: sig,
-      );
+      final input = ArgvInput.parse(parser, <String>['acme'], signature: sig);
       expect(input.argument('team'), 'acme');
       expect(input.argument('scope'), 'all');
     });
@@ -43,11 +38,7 @@ void main() {
       final sig = CommandSignature.parse('sync {team}');
       final parser = ArgParser();
       sig.applyTo(parser);
-      final input = ArgvInput.parse(
-        parser,
-        <String>['acme'],
-        signature: sig,
-      );
+      final input = ArgvInput.parse(parser, <String>['acme'], signature: sig);
       expect(input.argument('unknown'), isNull);
     });
   });

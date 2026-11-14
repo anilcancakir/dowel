@@ -19,37 +19,41 @@ void main() {
       expect(ctx.vmClient, isNull);
     });
 
-    test('callExtension throws StateError citing connected-mode requirement',
-        () async {
-      final ctx = DowelContext.bare(MapInput(const {}), BufferedOutput());
+    test(
+      'callExtension throws StateError citing connected-mode requirement',
+      () async {
+        final ctx = DowelContext.bare(MapInput(const {}), BufferedOutput());
 
-      expect(
-        () => ctx.callExtension('ext.flutter.reassemble'),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('CommandBoot.connected'),
+        expect(
+          () => ctx.callExtension('ext.flutter.reassemble'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('CommandBoot.connected'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
-    test('evaluate throws StateError citing connected-mode requirement',
-        () async {
-      final ctx = DowelContext.bare(MapInput(const {}), BufferedOutput());
+    test(
+      'evaluate throws StateError citing connected-mode requirement',
+      () async {
+        final ctx = DowelContext.bare(MapInput(const {}), BufferedOutput());
 
-      expect(
-        () => ctx.evaluate('1 + 1'),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('CommandBoot.connected'),
+        expect(
+          () => ctx.evaluate('1 + 1'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('CommandBoot.connected'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   });
 
   group('DowelContext.bare registry', () {

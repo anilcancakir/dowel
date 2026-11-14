@@ -28,7 +28,7 @@ class DowelPathResolver {
     // sibling-of-target cases sometimes).
     if (raw.startsWith('./')) return raw.substring(2);
 
-    // Empty or '.' means same dir — return '.' explicitly per convention.
+    // Empty or '.' means same dir: return '.' explicitly per convention.
     if (raw.isEmpty || raw == '.') return '.';
 
     return raw;

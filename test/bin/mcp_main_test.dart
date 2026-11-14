@@ -14,8 +14,11 @@ void main() {
       final captured = <List<String>>[];
       final capturedFlags = <bool>[];
 
-      Future<int> recorder(List<String> args,
-          {bool collectMcpTools = false, bool delegateToConsumer = true}) {
+      Future<int> recorder(
+        List<String> args, {
+        bool collectMcpTools = false,
+        bool delegateToConsumer = true,
+      }) {
         captured.add(List<String>.from(args));
         capturedFlags.add(collectMcpTools);
         return Future.value(0);
@@ -30,8 +33,11 @@ void main() {
     test('forwards extra args after mcp:serve', () async {
       final captured = <List<String>>[];
 
-      Future<int> recorder(List<String> args,
-          {bool collectMcpTools = false, bool delegateToConsumer = true}) {
+      Future<int> recorder(
+        List<String> args, {
+        bool collectMcpTools = false,
+        bool delegateToConsumer = true,
+      }) {
         captured.add(List<String>.from(args));
         return Future.value(0);
       }
@@ -44,8 +50,11 @@ void main() {
     test('passes collectMcpTools: true to runDowel', () async {
       final capturedFlags = <bool>[];
 
-      Future<int> recorder(List<String> args,
-          {bool collectMcpTools = false, bool delegateToConsumer = true}) {
+      Future<int> recorder(
+        List<String> args, {
+        bool collectMcpTools = false,
+        bool delegateToConsumer = true,
+      }) {
         capturedFlags.add(collectMcpTools);
         return Future.value(0);
       }
@@ -55,13 +64,14 @@ void main() {
       expect(capturedFlags, equals([true]));
     });
 
-    test(
-        'forces delegateToConsumer: false so MCP never routes through a stale consumer wrapper',
-        () async {
+    test('forces delegateToConsumer: false so MCP never routes through a stale consumer wrapper', () async {
       final capturedDelegation = <bool>[];
 
-      Future<int> recorder(List<String> args,
-          {bool collectMcpTools = false, bool delegateToConsumer = true}) {
+      Future<int> recorder(
+        List<String> args, {
+        bool collectMcpTools = false,
+        bool delegateToConsumer = true,
+      }) {
         capturedDelegation.add(delegateToConsumer);
         return Future.value(0);
       }
@@ -72,9 +82,11 @@ void main() {
     });
 
     test('returns exit code from runDowel', () async {
-      Future<int> recorder(List<String> args,
-              {bool collectMcpTools = false, bool delegateToConsumer = true}) =>
-          Future.value(42);
+      Future<int> recorder(
+        List<String> args, {
+        bool collectMcpTools = false,
+        bool delegateToConsumer = true,
+      }) => Future.value(42);
 
       final code = await mcpMain([], runDowel: recorder);
 
@@ -82,9 +94,11 @@ void main() {
     });
 
     test('returns non-zero exit code on error', () async {
-      Future<int> recorder(List<String> args,
-              {bool collectMcpTools = false, bool delegateToConsumer = true}) =>
-          Future.value(1);
+      Future<int> recorder(
+        List<String> args, {
+        bool collectMcpTools = false,
+        bool delegateToConsumer = true,
+      }) => Future.value(1);
 
       final code = await mcpMain([], runDowel: recorder);
 

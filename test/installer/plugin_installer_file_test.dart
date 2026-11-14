@@ -14,8 +14,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      defaultValue ?? '';
+  }) => defaultValue ?? '';
 
   @override
   bool confirm(String question, {bool defaultValue = false}) => defaultValue;
@@ -25,8 +24,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      defaultValue ?? options.first;
+  }) => defaultValue ?? options.first;
 
   @override
   String secret(String question) => '';
@@ -54,8 +52,10 @@ class _MapStubDriver implements StubDriver {
     replacements.forEach((key, value) {
       // Mirror StubLoader's `{{ key }}` placeholder shape with flexible
       // whitespace.
-      rendered =
-          rendered.replaceAll(RegExp(r'\{\{\s*' + key + r'\s*\}\}'), value);
+      rendered = rendered.replaceAll(
+        RegExp(r'\{\{\s*' + key + r'\s*\}\}'),
+        value,
+      );
     });
     return rendered;
   }
@@ -90,12 +90,12 @@ void main() {
     });
 
     test('publishConfig enqueues PublishFile with replacements', () {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').publishConfig(
-        stubName: 'install/logger.dart.stub',
-        targetPath: 'lib/config/logger.dart',
-        replacements: {'PROJECT_ID': 'my-app'},
-      );
+      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+          .publishConfig(
+            stubName: 'install/logger.dart.stub',
+            targetPath: 'lib/config/logger.dart',
+            replacements: {'PROJECT_ID': 'my-app'},
+          );
 
       final op = installer.pendingOps.single as PublishFile;
       expect(op.sourceStubName, 'install/logger.dart.stub');
@@ -104,8 +104,10 @@ void main() {
     });
 
     test('writeFile enqueues WriteFile', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .writeFile(targetPath: 'lib/gen.dart', content: 'generated');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).writeFile(targetPath: 'lib/gen.dart', content: 'generated');
 
       final op = installer.pendingOps.single as WriteFile;
       expect(op.targetPath, 'lib/gen.dart');
@@ -113,16 +115,20 @@ void main() {
     });
 
     test('deleteFile enqueues DeleteFile', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .deleteFile('lib/old.dart');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).deleteFile('lib/old.dart');
 
       final op = installer.pendingOps.single as DeleteFile;
       expect(op.targetPath, 'lib/old.dart');
     });
 
     test('copyFile enqueues CopyFile', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .copyFile(sourcePath: 'a.dart', targetPath: 'b.dart');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).copyFile(sourcePath: 'a.dart', targetPath: 'b.dart');
 
       final op = installer.pendingOps.single as CopyFile;
       expect(op.sourcePath, 'a.dart');
@@ -130,11 +136,11 @@ void main() {
     });
 
     test('mergeJson enqueues MergeJson with additive default', () {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').mergeJson(
-        targetPath: 'assets/lang/en.json',
-        sourceData: const {'auth': 'Login'},
-      );
+      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+          .mergeJson(
+            targetPath: 'assets/lang/en.json',
+            sourceData: const {'auth': 'Login'},
+          );
 
       final op = installer.pendingOps.single as MergeJson;
       expect(op.targetPath, 'assets/lang/en.json');
@@ -154,29 +160,35 @@ void main() {
       if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
     });
 
-    test('publishConfig renders stub with replacements and writes target',
-        () async {
-      final ctx = _ctxFor(tempDir, stubs: {
-        'install/cfg.stub': '// hello {{ name }}',
-      });
-      final installer = PluginInstaller(ctx, pluginName: 'demo').publishConfig(
-        stubName: 'install/cfg.stub',
-        targetPath: 'lib/config/out.dart',
-        replacements: {'name': 'world'},
-      );
+    test(
+      'publishConfig renders stub with replacements and writes target',
+      () async {
+        final ctx = _ctxFor(
+          tempDir,
+          stubs: {'install/cfg.stub': '// hello {{ name }}'},
+        );
+        final installer = PluginInstaller(ctx, pluginName: 'demo')
+            .publishConfig(
+              stubName: 'install/cfg.stub',
+              targetPath: 'lib/config/out.dart',
+              replacements: {'name': 'world'},
+            );
 
-      final result = await installer.commit();
-      expect(result, isA<Success>());
-      final out = File(p.join(tempDir.path, 'lib', 'config', 'out.dart'));
-      expect(out.readAsStringSync(), '// hello world');
-    });
+        final result = await installer.commit();
+        expect(result, isA<InstallSuccess>());
+        final out = File(p.join(tempDir.path, 'lib', 'config', 'out.dart'));
+        expect(out.readAsStringSync(), '// hello world');
+      },
+    );
 
     test('writeFile writes exact content', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .writeFile(targetPath: 'lib/x.dart', content: 'X-content');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).writeFile(targetPath: 'lib/x.dart', content: 'X-content');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final out = File(p.join(tempDir.path, 'lib', 'x.dart'));
       expect(out.readAsStringSync(), 'X-content');
     });
@@ -186,84 +198,91 @@ void main() {
       target.createSync(recursive: true);
       target.writeAsStringSync('rip');
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .deleteFile('lib/doomed.dart');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).deleteFile('lib/doomed.dart');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(target.existsSync(), isFalse);
     });
 
     test('deleteFile is idempotent on missing file', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .deleteFile('lib/never_existed.dart');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).deleteFile('lib/never_existed.dart');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
     });
 
     test('copyFile copies source to target', () async {
       final src = File(p.join(tempDir.path, 'a.txt'));
       src.writeAsStringSync('source');
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .copyFile(sourcePath: 'a.txt', targetPath: 'b.txt');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).copyFile(sourcePath: 'a.txt', targetPath: 'b.txt');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final dst = File(p.join(tempDir.path, 'b.txt'));
       expect(dst.readAsStringSync(), 'source');
     });
 
-    test('mergeJson (additive) preserves existing keys + adds new ones',
-        () async {
-      final target = File(p.join(tempDir.path, 'assets', 'lang', 'en.json'));
-      target.createSync(recursive: true);
-      target.writeAsStringSync('{"auth":{"login":"Login"}}');
+    test(
+      'mergeJson (additive) preserves existing keys + adds new ones',
+      () async {
+        final target = File(p.join(tempDir.path, 'assets', 'lang', 'en.json'));
+        target.createSync(recursive: true);
+        target.writeAsStringSync('{"auth":{"login":"Login"}}');
 
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').mergeJson(
-        targetPath: 'assets/lang/en.json',
-        sourceData: const {
-          'auth': {'login': 'OVERRIDDEN', 'register': 'Sign up'},
-        },
-      );
+        final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+            .mergeJson(
+              targetPath: 'assets/lang/en.json',
+              sourceData: const {
+                'auth': {'login': 'OVERRIDDEN', 'register': 'Sign up'},
+              },
+            );
 
-      // Pre-existing target triggers ConflictDetector unmanaged-file; force
-      // bypasses (matches plugin-install convention for translation merges).
-      final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
-      final content = target.readAsStringSync();
-      // additive = true → existing values WIN.
-      expect(content, contains('"login": "Login"'));
-      expect(content, contains('"register": "Sign up"'));
-    });
+        // Pre-existing target triggers ConflictDetector unmanaged-file; force
+        // bypasses (matches plugin-install convention for translation merges).
+        final result = await installer.commit(force: true);
+        expect(result, isA<InstallSuccess>());
+        final content = target.readAsStringSync();
+        // additive = true → existing values WIN.
+        expect(content, contains('"login": "Login"'));
+        expect(content, contains('"register": "Sign up"'));
+      },
+    );
 
     test('mergeJson (additive=false) overwrites conflicting keys', () async {
       final target = File(p.join(tempDir.path, 'cfg.json'));
       target.writeAsStringSync('{"x":1}');
 
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').mergeJson(
-        targetPath: 'cfg.json',
-        sourceData: const {'x': 99},
-        additive: false,
-      );
+      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+          .mergeJson(
+            targetPath: 'cfg.json',
+            sourceData: const {'x': 99},
+            additive: false,
+          );
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(target.readAsStringSync(), contains('"x": 99'));
     });
 
     test('mergeJson creates the target when absent', () async {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').mergeJson(
-        targetPath: 'fresh.json',
-        sourceData: const {'k': 'v'},
-      );
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).mergeJson(targetPath: 'fresh.json', sourceData: const {'k': 'v'});
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final fresh = File(p.join(tempDir.path, 'fresh.json'));
       expect(fresh.readAsStringSync(), contains('"k": "v"'));
     });

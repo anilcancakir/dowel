@@ -1,4 +1,5 @@
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/installer/dry_run_renderer.dart';
 import 'package:test/test.dart';
 
 BufferedOutput _makeOutput() => BufferedOutput();
@@ -7,11 +8,9 @@ void main() {
   group('DryRunRenderer.render()', () {
     test('header includes op count and plugin name when supplied', () {
       final out = _makeOutput();
-      DryRunRenderer.render(
-        out,
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'a')],
-        pluginName: 'demo',
-      );
+      DryRunRenderer.render(out, const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'a'),
+      ], pluginName: 'demo');
 
       final content = out.content;
       expect(content, contains('1'));
@@ -21,13 +20,10 @@ void main() {
 
     test('header includes op count without plugin name when omitted', () {
       final out = _makeOutput();
-      DryRunRenderer.render(
-        out,
-        const [
-          WriteFile(targetPath: 'lib/a.dart', content: 'a'),
-          WriteFile(targetPath: 'lib/b.dart', content: 'b'),
-        ],
-      );
+      DryRunRenderer.render(out, const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'a'),
+        WriteFile(targetPath: 'lib/b.dart', content: 'b'),
+      ]);
 
       final content = out.content;
       expect(content, contains('2'));
@@ -46,15 +42,11 @@ void main() {
 
     test('each op produces a line via op.describe()', () {
       final out = _makeOutput();
-      DryRunRenderer.render(
-        out,
-        const [
-          AddDependency(name: 'foo', version: '^1.0.0'),
-          WriteFile(targetPath: 'lib/x.dart', content: 'x'),
-          RunShell(command: 'dart', args: ['format', '.']),
-        ],
-        pluginName: 'test_plugin',
-      );
+      DryRunRenderer.render(out, const [
+        AddDependency(name: 'foo', version: '^1.0.0'),
+        WriteFile(targetPath: 'lib/x.dart', content: 'x'),
+        RunShell(command: 'dart', args: ['format', '.']),
+      ], pluginName: 'test_plugin');
 
       final content = out.content;
       expect(content, contains('[add-dep] foo: ^1.0.0'));
@@ -62,20 +54,15 @@ void main() {
       expect(content, contains('[run-shell] dart format .'));
     });
 
-    test(
-        'ops are grouped by category in fixed order: Pubspec then Filesystem '
+    test('ops are grouped by category in fixed order: Pubspec then Filesystem '
         'then Shell', () {
       final out = _makeOutput();
       // Stage in a mixed order: Shell first, then Filesystem, then Pubspec.
-      DryRunRenderer.render(
-        out,
-        const [
-          RunShell(command: 'dart', args: ['format', '.']),
-          WriteFile(targetPath: 'lib/x.dart', content: 'x'),
-          AddDependency(name: 'foo', version: '^1.0.0'),
-        ],
-        pluginName: 'demo',
-      );
+      DryRunRenderer.render(out, const [
+        RunShell(command: 'dart', args: ['format', '.']),
+        WriteFile(targetPath: 'lib/x.dart', content: 'x'),
+        AddDependency(name: 'foo', version: '^1.0.0'),
+      ], pluginName: 'demo');
 
       final content = out.content;
       // Pubspec section must appear before Filesystem section.
@@ -102,13 +89,9 @@ void main() {
       final out = _makeOutput();
       // Only a Shell op: Pubspec, Filesystem, Magic, Native, Web, Env headers
       // must not appear.
-      DryRunRenderer.render(
-        out,
-        const [
-          RunShell(command: 'flutter', args: ['pub', 'get'])
-        ],
-        pluginName: 'demo',
-      );
+      DryRunRenderer.render(out, const [
+        RunShell(command: 'flutter', args: ['pub', 'get']),
+      ], pluginName: 'demo');
 
       final content = out.content;
       expect(content, isNot(contains('[Pubspec]')));

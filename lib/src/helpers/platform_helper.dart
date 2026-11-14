@@ -25,7 +25,7 @@ import 'dart:io';
 ///   XmlEditor.addAndroidPermission(manifestPath, 'android.permission.INTERNET');
 /// }
 /// ```
-class PlatformHelper {
+final class PlatformHelper {
   PlatformHelper._();
 
   /// Canonical ordered list of all Flutter platforms.

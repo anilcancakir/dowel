@@ -47,7 +47,8 @@ class McpUninstallCommand extends DowelCommand {
       return 1;
     }
 
-    final servers = (config['mcpServers'] as Map?)?.cast<String, dynamic>() ??
+    final servers =
+        (config['mcpServers'] as Map?)?.cast<String, dynamic>() ??
         <String, dynamic>{};
 
     // 3. Guard: warn and exit cleanly when the entry is already absent

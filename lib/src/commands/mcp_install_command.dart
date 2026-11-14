@@ -69,8 +69,8 @@ class McpInstallCommand extends DowelCommand {
   /// Production callers omit both; tests pass custom closures to exercise
   /// each branch without touching the filesystem or reading `Platform`.
   McpInstallCommand({bool Function()? hasDowel, bool Function()? isWindows})
-      : _hasDowel = hasDowel ?? _defaultHasDowel,
-        _isWindows = isWindows ?? _defaultIsWindows;
+    : _hasDowel = hasDowel ?? _defaultHasDowel,
+      _isWindows = isWindows ?? _defaultIsWindows;
 
   final bool Function() _hasDowel;
   final bool Function() _isWindows;
@@ -81,7 +81,8 @@ class McpInstallCommand extends DowelCommand {
   String get name => 'mcp:install';
 
   @override
-  String get description => 'Add the dowel MCP server entry to .mcp.json '
+  String get description =>
+      'Add the dowel MCP server entry to .mcp.json '
       '(idempotent; preserves other server entries).';
 
   @override
@@ -96,7 +97,8 @@ class McpInstallCommand extends DowelCommand {
     );
     parser.addOption(
       'invocation',
-      help: 'Plugin executable name to write into .mcp.json command/args '
+      help:
+          'Plugin executable name to write into .mcp.json command/args '
           'when fastcli is absent (e.g., tapir). Optional; falls back '
           'to the :dispatcher shape when omitted.',
     );
@@ -126,7 +128,8 @@ class McpInstallCommand extends DowelCommand {
 
     // 2. Merge the dowel entry into mcpServers using the appropriate
     //    payload shape: dowel fastcli, dart-run-invocation, or :dispatcher fallback.
-    final servers = (config['mcpServers'] as Map?)?.cast<String, dynamic>() ??
+    final servers =
+        (config['mcpServers'] as Map?)?.cast<String, dynamic>() ??
         <String, dynamic>{};
     final useDowel = _hasDowel() && !_isWindows();
     if (useDowel) {

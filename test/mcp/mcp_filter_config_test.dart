@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/mcp/mcp_filter_config.dart';
 
 /// Helper: build a [McpToolDescriptor] with a given [name] and provider prefix.
 McpToolDescriptor _tool(String name, String extensionMethod) =>
@@ -31,10 +32,12 @@ void main() {
 
     test('parses null allow-list as "allow all" (packagesAllow is null)', () {
       final file = File('${tempDir.path}/mcp.json');
-      file.writeAsStringSync(jsonEncode({
-        'packages': {'allow': null, 'deny': []},
-        'tools': {'allow': null, 'deny': []},
-      }));
+      file.writeAsStringSync(
+        jsonEncode({
+          'packages': {'allow': null, 'deny': []},
+          'tools': {'allow': null, 'deny': []},
+        }),
+      );
 
       final config = McpFilterConfig.fromFile(file.path);
 
@@ -44,10 +47,12 @@ void main() {
 
     test('parses empty deny list as "deny none"', () {
       final file = File('${tempDir.path}/mcp.json');
-      file.writeAsStringSync(jsonEncode({
-        'packages': {'allow': null, 'deny': []},
-        'tools': {'allow': null, 'deny': []},
-      }));
+      file.writeAsStringSync(
+        jsonEncode({
+          'packages': {'allow': null, 'deny': []},
+          'tools': {'allow': null, 'deny': []},
+        }),
+      );
 
       final config = McpFilterConfig.fromFile(file.path);
 
@@ -57,16 +62,18 @@ void main() {
 
     test('parses explicit allow list as a Set<String>', () {
       final file = File('${tempDir.path}/mcp.json');
-      file.writeAsStringSync(jsonEncode({
-        'packages': {
-          'allow': ['x', 'y'],
-          'deny': ['z'],
-        },
-        'tools': {
-          'allow': ['tapir_snap'],
-          'deny': ['crumbs_tail'],
-        },
-      }));
+      file.writeAsStringSync(
+        jsonEncode({
+          'packages': {
+            'allow': ['x', 'y'],
+            'deny': ['z'],
+          },
+          'tools': {
+            'allow': ['tapir_snap'],
+            'deny': ['crumbs_tail'],
+          },
+        }),
+      );
 
       final config = McpFilterConfig.fromFile(file.path);
 
@@ -113,10 +120,7 @@ void main() {
         'DOWEL_MCP_TOOLS_DENY': 'crumbs_http',
       });
 
-      expect(
-        config.packagesAllow,
-        equals({'tapir', 'crumbs'}),
-      );
+      expect(config.packagesAllow, equals({'tapir', 'crumbs'}));
       expect(config.packagesDeny, equals({'tinker_fixture'}));
       expect(config.toolsAllow, equals({'tapir_snap', 'tapir_tap'}));
       expect(config.toolsDeny, equals({'crumbs_http'}));
@@ -131,9 +135,7 @@ void main() {
     });
 
     test('CSV parsing: empty string yields null allow-list', () {
-      final config = McpFilterConfig.fromEnv({
-        'DOWEL_MCP_PACKAGES_ALLOW': '',
-      });
+      final config = McpFilterConfig.fromEnv({'DOWEL_MCP_PACKAGES_ALLOW': ''});
 
       expect(config.packagesAllow, isNull);
     });
@@ -168,10 +170,7 @@ void main() {
         excludeTool: ['crumbs_http'],
       );
 
-      expect(
-        config.packagesAllow,
-        equals({'tapir', 'crumbs'}),
-      );
+      expect(config.packagesAllow, equals({'tapir', 'crumbs'}));
       expect(config.packagesDeny, equals({'tinker_fixture'}));
       expect(config.toolsAllow, equals({'tapir_snap'}));
       expect(config.toolsDeny, equals({'crumbs_http'}));
@@ -206,32 +205,34 @@ void main() {
   // McpFilterConfig.merge (Cargo-style replace + deny-wins)
   // ---------------------------------------------------------------------------
   group('McpFilterConfig.merge', () {
-    test('CLI allow-list replaces env and file allow-lists (Cargo precedence)',
-        () {
-      final file = McpFilterConfig(
-        packagesAllow: const {'x', 'y'},
-        packagesDeny: const {},
-        toolsAllow: null,
-        toolsDeny: const {},
-      );
-      final env = McpFilterConfig(
-        packagesAllow: const {'z'},
-        packagesDeny: const {},
-        toolsAllow: null,
-        toolsDeny: const {},
-      );
-      final cli = McpFilterConfig(
-        packagesAllow: const {'a', 'b'},
-        packagesDeny: const {},
-        toolsAllow: null,
-        toolsDeny: const {},
-      );
+    test(
+      'CLI allow-list replaces env and file allow-lists (Cargo precedence)',
+      () {
+        final file = McpFilterConfig(
+          packagesAllow: const {'x', 'y'},
+          packagesDeny: const {},
+          toolsAllow: null,
+          toolsDeny: const {},
+        );
+        final env = McpFilterConfig(
+          packagesAllow: const {'z'},
+          packagesDeny: const {},
+          toolsAllow: null,
+          toolsDeny: const {},
+        );
+        final cli = McpFilterConfig(
+          packagesAllow: const {'a', 'b'},
+          packagesDeny: const {},
+          toolsAllow: null,
+          toolsDeny: const {},
+        );
 
-      final merged = McpFilterConfig.merge(file, env, cli);
+        final merged = McpFilterConfig.merge(file, env, cli);
 
-      // CLI replaces both env and file: only {a, b} survive.
-      expect(merged.packagesAllow, equals({'a', 'b'}));
-    });
+        // CLI replaces both env and file: only {a, b} survive.
+        expect(merged.packagesAllow, equals({'a', 'b'}));
+      },
+    );
 
     test('env allow-list replaces file allow-list when no CLI allow-list', () {
       final file = McpFilterConfig(
@@ -269,9 +270,7 @@ void main() {
       expect(merged.packagesAllow, equals({'x', 'y'}));
     });
 
-    test(
-        'null allow-list cascades: if CLI is null, env wins; if env null, file wins',
-        () {
+    test('null allow-list cascades: if CLI is null, env wins; if env null, file wins', () {
       final file = McpFilterConfig(
         packagesAllow: null,
         packagesDeny: const {},
@@ -320,8 +319,7 @@ void main() {
     // -------------------------------------------------------------------------
     // Oracle I6 LOAD-BEARING worked example
     // -------------------------------------------------------------------------
-    test(
-        'Oracle I6: file={x,y} env={z} cli={a,b} -> packagesAllow={a,b}; '
+    test('Oracle I6: file={x,y} env={z} cli={a,b} -> packagesAllow={a,b}; '
         'env deny={a} -> apply returns only tools from package {b}', () {
       // Step 1: build the three layers exactly as specified in Oracle I6.
       final fileConfig = McpFilterConfig(
@@ -406,7 +404,9 @@ void main() {
 
       expect(result, hasLength(allTools.length));
       expect(
-          result.map((t) => t.name), containsAll(allTools.map((t) => t.name)));
+        result.map((t) => t.name),
+        containsAll(allTools.map((t) => t.name)),
+      );
     });
 
     test('packagesDeny=[crumbs] removes all crumbs tools', () {
@@ -453,20 +453,21 @@ void main() {
     });
 
     test(
-        'packagesAllow restricts to named packages; tools from others excluded',
-        () {
-      final config = McpFilterConfig(
-        packagesAllow: const {'tapir'},
-        packagesDeny: const {},
-        toolsAllow: null,
-        toolsDeny: const {},
-      );
+      'packagesAllow restricts to named packages; tools from others excluded',
+      () {
+        final config = McpFilterConfig(
+          packagesAllow: const {'tapir'},
+          packagesDeny: const {},
+          toolsAllow: null,
+          toolsDeny: const {},
+        );
 
-      final result = config.apply(allTools, packageOf);
+        final result = config.apply(allTools, packageOf);
 
-      expect(result.every((t) => t.name.startsWith('tapir_')), isTrue);
-      expect(result, hasLength(2));
-    });
+        expect(result.every((t) => t.name.startsWith('tapir_')), isTrue);
+        expect(result, hasLength(2));
+      },
+    );
 
     test('toolsDeny wins over toolsAllow when same tool is in both', () {
       final config = McpFilterConfig(
@@ -482,19 +483,21 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test('packagesDeny wins over packagesAllow when same package is in both',
-        () {
-      final config = McpFilterConfig(
-        packagesAllow: const {'tapir'},
-        packagesDeny: const {'tapir'},
-        toolsAllow: null,
-        toolsDeny: const {},
-      );
+    test(
+      'packagesDeny wins over packagesAllow when same package is in both',
+      () {
+        final config = McpFilterConfig(
+          packagesAllow: const {'tapir'},
+          packagesDeny: const {'tapir'},
+          toolsAllow: null,
+          toolsDeny: const {},
+        );
 
-      final result = config.apply(allTools, packageOf);
+        final result = config.apply(allTools, packageOf);
 
-      expect(result.any((t) => t.name.startsWith('tapir_')), isFalse);
-    });
+        expect(result.any((t) => t.name.startsWith('tapir_')), isFalse);
+      },
+    );
 
     test('name matching is case-sensitive', () {
       final config = McpFilterConfig(

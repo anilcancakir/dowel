@@ -20,9 +20,7 @@ import 'package:test/test.dart';
 /// lock.
 void main() {
   group('bin_dowel.sh.stub staleness check condition 4', () {
-    test(
-        'condition 4 compares pubspec.yaml against STAMP_FILE, not pubspec.lock',
-        () {
+    test('condition 4 compares pubspec.yaml against STAMP_FILE, not pubspec.lock', () {
       // Regression guard: a prior shape compared pubspec.yaml -nt pubspec.lock
       // to detect "user edited pubspec.yaml without running pub get". In
       // practice, `dart pub add` updates pubspec.yaml AFTER pub get writes
@@ -38,22 +36,26 @@ void main() {
       expect(
         stub,
         contains(r'"$PROJECT_ROOT/pubspec.yaml" -nt "$STAMP_FILE"'),
-        reason: 'staleness check must compare pubspec.yaml mtime against '
+        reason:
+            'staleness check must compare pubspec.yaml mtime against '
             'STAMP_FILE so normal pub-add workflows do not force a rebuild',
       );
       expect(
         stub,
-        isNot(contains(
-            r'"$PROJECT_ROOT/pubspec.yaml" -nt "$PROJECT_ROOT/pubspec.lock"')),
-        reason: 'pre-fix shape compared against pubspec.lock and tripped on '
+        isNot(
+          contains(
+            r'"$PROJECT_ROOT/pubspec.yaml" -nt "$PROJECT_ROOT/pubspec.lock"',
+          ),
+        ),
+        reason:
+            'pre-fix shape compared against pubspec.lock and tripped on '
             'every freshly-installed consumer',
       );
     });
   });
 
   group('bin_dowel.sh.stub staleness check condition 5', () {
-    test(
-        'condition 5 compares lib/app/_plugins.g.dart against STAMP_FILE so '
+    test('condition 5 compares lib/app/_plugins.g.dart against STAMP_FILE so '
         'plugin install invalidates the AOT bundle', () {
       // Regression guard for issue #9 GAP A: when plugin:install or
       // plugins:refresh regenerates lib/app/_plugins.g.dart, the bin/dowel
@@ -67,14 +69,19 @@ void main() {
       expect(
         stub,
         contains(r'"$PROJECT_ROOT/lib/app/_plugins.g.dart" -nt "$STAMP_FILE"'),
-        reason: 'condition 5 must invalidate the AOT bundle when '
+        reason:
+            'condition 5 must invalidate the AOT bundle when '
             'plugin:install regenerates lib/app/_plugins.g.dart',
       );
       expect(
         stub,
-        isNot(contains(
-            r'"$PROJECT_ROOT/lib/app/_plugins.g.dart" -nt "$PROJECT_ROOT/pubspec.lock"')),
-        reason: 'the comparison target must be STAMP_FILE, mirroring the '
+        isNot(
+          contains(
+            r'"$PROJECT_ROOT/lib/app/_plugins.g.dart" -nt "$PROJECT_ROOT/pubspec.lock"',
+          ),
+        ),
+        reason:
+            'the comparison target must be STAMP_FILE, mirroring the '
             'condition-4 fix shape',
       );
     });
@@ -93,7 +100,8 @@ void main() {
       expect(
         stub,
         contains('LOCK_DIR/pid'),
-        reason: 'lock acquisition must persist the owner PID inside the '
+        reason:
+            'lock acquisition must persist the owner PID inside the '
             'lock dir for future invocations to inspect',
       );
     });
@@ -149,7 +157,8 @@ void main() {
       );
       final fnSource = fnMatch!.group(1)!;
 
-      final driver = '''
+      final driver =
+          '''
 LOCK_DIR="$lockDir"
 $fnSource
 acquire_lock
@@ -177,7 +186,8 @@ rm -rf "\$LOCK_DIR"
       expect(
         code,
         0,
-        reason: 'acquire_lock with stale PID must succeed without deadlock; '
+        reason:
+            'acquire_lock with stale PID must succeed without deadlock; '
             'stdout: ${stdoutBuf.join()}',
       );
       expect(stdoutBuf.join(), contains('ACQUIRED'));
@@ -185,9 +195,7 @@ rm -rf "\$LOCK_DIR"
   });
 
   group('bin_dowel.sh.stub lock lifetime', () {
-    test(
-        'the lock is released before exec, so a long-lived binary never holds it',
-        () async {
+    test('the lock is released before exec, so a long-lived binary never holds it', () async {
       // `exec` replaces the shell, so an EXIT trap set before it never runs. A
       // build followed by `exec` into a long-running process (`mcp:serve`) used
       // to keep `.dowel.lock` for that process's whole life, and every other
@@ -222,21 +230,28 @@ printf '#!/bin/sh\n[ "$1" = mcp:serve ] && sleep 3\nexit 0\n' > "$out/bundle/bin
 chmod +x "$out/bundle/bin/dispatcher"
 """);
       await Process.run('chmod', ['+x', fakeDart.path]);
-      final env = {
-        'PATH': '${fakeBin.path}:${Platform.environment['PATH']}',
-      };
+      final env = {'PATH': '${fakeBin.path}:${Platform.environment['PATH']}'};
 
       // A scratch directory a killed build left behind.
-      final orphan =
-          Directory(p.join(root.path, '.dowel', 'cli-bundle.build.99999999'))
-            ..createSync(recursive: true);
+      final orphan = Directory(
+        p.join(root.path, '.dowel', 'cli-bundle.build.99999999'),
+      )..createSync(recursive: true);
 
       // 3. The first call builds, then execs into the long-lived binary.
-      final first =
-          await Process.start(dowel.path, ['mcp:serve'], environment: env);
+      final first = await Process.start(dowel.path, [
+        'mcp:serve',
+      ], environment: env);
       final lockDir = Directory(p.join(root.path, '.dowel', '.dowel.lock'));
-      final binary = File(p.join(
-          root.path, '.dowel', 'cli-bundle', 'bundle', 'bin', 'dispatcher'));
+      final binary = File(
+        p.join(
+          root.path,
+          '.dowel',
+          'cli-bundle',
+          'bundle',
+          'bin',
+          'dispatcher',
+        ),
+      );
       final deadline = DateTime.now().add(const Duration(seconds: 5));
       while (!binary.existsSync() && DateTime.now().isBefore(deadline)) {
         await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -244,14 +259,21 @@ chmod +x "$out/bundle/bin/dispatcher"
       await Future<void>.delayed(const Duration(milliseconds: 300));
 
       // 4. While it runs, the lock is gone and a second call finishes at once.
-      expect(lockDir.existsSync(), isFalse,
-          reason: 'the lock must not outlive the build');
-      expect(orphan.existsSync(), isFalse,
-          reason: "a killed build's scratch directory is removed");
+      expect(
+        lockDir.existsSync(),
+        isFalse,
+        reason: 'the lock must not outlive the build',
+      );
+      expect(
+        orphan.existsSync(),
+        isFalse,
+        reason: "a killed build's scratch directory is removed",
+      );
       final touch = File(p.join(root.path, 'pubspec.yaml'));
       touch.setLastModifiedSync(DateTime.now().add(const Duration(seconds: 2)));
-      final second =
-          await Process.start(dowel.path, ['list'], environment: env);
+      final second = await Process.start(dowel.path, [
+        'list',
+      ], environment: env);
       final secondCode = await second.exitCode.timeout(
         const Duration(seconds: 2),
         onTimeout: () {
@@ -259,8 +281,11 @@ chmod +x "$out/bundle/bin/dispatcher"
           return -1;
         },
       );
-      expect(secondCode, isNot(-1),
-          reason: 'a second dowel call must not wait on the running binary');
+      expect(
+        secondCode,
+        isNot(-1),
+        reason: 'a second dowel call must not wait on the running binary',
+      );
 
       first.kill(ProcessSignal.sigkill);
       await first.exitCode;

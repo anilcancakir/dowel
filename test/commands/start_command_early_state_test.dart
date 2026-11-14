@@ -127,8 +127,7 @@ void main() {
         List<String> arguments, {
         String? workingDirectory,
         ProcessStartMode? mode,
-      }) async =>
-          _FakeFlutterProcess(holderPid: 4241, flutterPid: 4242);
+      }) async => _FakeFlutterProcess(holderPid: 4241, flutterPid: 4242);
       StartCommand.cdpVmServiceScraper = (File _) async {
         throw TimeoutException('Timed out after 90s');
       };
@@ -138,13 +137,13 @@ void main() {
       StateFile.debugHomeOverride = null;
       StateFile.debugProjectRootOverride = null;
       StartCommand.cdpFifoMaker = null;
-      StartCommand.cdpProcessStarter = (
-        String executable,
-        List<String> arguments, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) =>
-          Process.start(
+      StartCommand.cdpProcessStarter =
+          (
+            String executable,
+            List<String> arguments, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) => Process.start(
             executable,
             arguments,
             workingDirectory: workingDirectory,
@@ -174,31 +173,33 @@ void main() {
       expect(state['pid'], 4242);
     });
 
-    test('a flutter run that exited during the wait fails with exit 1',
-        () async {
-      StartCommand.startIsAlive = (int _) => false;
-      final List<int> killed = <int>[];
-      StartCommand.cdpKillPid = (int pid, [ProcessSignal? _]) {
-        killed.add(pid);
-        return true;
-      };
+    test(
+      'a flutter run that exited during the wait fails with exit 1',
+      () async {
+        StartCommand.startIsAlive = (int _) => false;
+        final List<int> killed = <int>[];
+        StartCommand.cdpKillPid = (int pid, [ProcessSignal? _]) {
+          killed.add(pid);
+          return true;
+        };
 
-      final result = await startMacos();
+        final result = await startMacos();
 
-      expect(result.code, 1);
-      expect(result.content, contains('exited before'));
-      expect(result.content, contains('flutter-dev.log'));
-      expect(result.content, isNot(contains('still building')));
-      // A session left behind would have `status` report a dead app as
-      // still booting, and the FIFO holder would outlive it for good.
-      expect(await StateFile.read(), isNull);
-      expect(killed, contains(4241), reason: 'the FIFO holder is reaped');
-      expect(
-        File('${File(StateFile.path).parent.path}/flutter-dev.fifo')
-            .existsSync(),
-        isFalse,
-      );
-    });
+        expect(result.code, 1);
+        expect(result.content, contains('exited before'));
+        expect(result.content, contains('flutter-dev.log'));
+        expect(result.content, isNot(contains('still building')));
+        // A session left behind would have `status` report a dead app as
+        // still booting, and the FIFO holder would outlive it for good.
+        expect(await StateFile.read(), isNull);
+        expect(killed, contains(4241), reason: 'the FIFO holder is reaped');
+        expect(
+          File('${File(StateFile.path).parent.path}/flutter-dev.fifo')
+              .existsSync(),
+          isFalse,
+        );
+      },
+    );
   });
 }
 
@@ -219,8 +220,8 @@ class _FakeFlutterProcess implements Process {
 
   @override
   Stream<List<int>> get stdout => Stream<List<int>>.value(
-        'HOLDER=$holderPid\nFLUTTER=$flutterPid\n'.codeUnits,
-      );
+    'HOLDER=$holderPid\nFLUTTER=$flutterPid\n'.codeUnits,
+  );
 
   @override
   Stream<List<int>> get stderr => const Stream<List<int>>.empty();

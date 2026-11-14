@@ -6,6 +6,7 @@ import 'package:meta/meta.dart';
 import '../console/dowel_command.dart';
 import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
+import 'helpers/artisan_leftovers.dart';
 
 /// Advisory warning emitted when `.mcp.json` still references the removed
 /// `fluttersdk_mcp` package. Those entries live under the `fluttersdk` key,
@@ -17,17 +18,18 @@ String _staleMcpWarning(String key) =>
     '.mcp.json, then run: ./bin/dowel mcp:install (or: '
     'dart run dowel mcp:install).';
 
-/// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
-/// `fluttersdk_artisan:mcp` args shape. That shape routes through the substrate
-/// standalone, which never loads consumer plugin providers. It lives under the
+/// Advisory warning emitted when `.mcp.json` still starts the old
+/// `fluttersdk_artisan:mcp` server. That server runs the substrate standalone,
+/// which never loads consumer plugin providers. It lives under the
 /// `fluttersdk` key as well, so the user deletes it before `mcp:install`
 /// writes the branched entry shape under `dowel`. [key] is the entry's server
 /// name, usually `fluttersdk`.
-String _preFixMcpWarning(String key) =>
-    'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
-    'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Delete the "$key" entry from .mcp.json, then run: '
-    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
+String _outdatedMcpWarning(String key) =>
+    'WARN: Outdated MCP entry detected. The "$key" server in .mcp.json starts '
+    'fluttersdk_artisan:mcp, the MCP server of a package that no longer '
+    'exists, and it never loads your plugins. Delete the "$key" entry from '
+    '.mcp.json, then run: ./bin/dowel mcp:install (or: dart run dowel '
+    'mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still has the `fluttersdk` server
 /// key that fluttersdk_artisan's `mcp:install` wrote, whatever its args:
@@ -56,10 +58,10 @@ const _cdpUpgradeWarning =
 class DoctorCommand extends DowelCommand {
   /// Creates a [DoctorCommand].
   ///
-  /// [workingDir] pins the directory used for `.mcp.json` detection. Defaults
+  /// [_workingDir] pins the directory used for `.mcp.json` detection. Defaults
   /// to [Directory.current.path] when omitted. Inject a temp directory in
   /// tests to avoid depending on the real working directory.
-  DoctorCommand({String? workingDir}) : _workingDir = workingDir;
+  DoctorCommand({this._workingDir});
 
   /// Pinned working directory for `.mcp.json` lookup.
   ///
@@ -85,7 +87,7 @@ class DoctorCommand extends DowelCommand {
   /// real process.
   @visibleForTesting
   static Future<ProcessResult> Function(String, List<String>)
-      doctorFlutterRunner = Process.run;
+  doctorFlutterRunner = Process.run;
 
   /// Exposes [_cdpUpgradeWarning] for assertion in unit tests.
   @visibleForTesting
@@ -116,18 +118,46 @@ class DoctorCommand extends DowelCommand {
     }
 
     // 2. Advisory: warn if .mcp.json still targets the removed fluttersdk_mcp.
-    _checkStaleMcpJson(_workingDir ?? Directory.current.path, ctx);
+    final dir = _workingDir ?? Directory.current.path;
+    _checkStaleMcpJson(dir, ctx);
 
-    // 3. Advisory: warn when Flutter SDK is too old for CDP commands.
+    // 3. Advisory: warn about files fluttersdk_artisan left behind.
+    _checkArtisanLeftovers(dir, ctx);
+
+    // 4. Advisory: warn when Flutter SDK is too old for CDP commands.
     await _checkCdpReadiness(ctx);
 
     return allPass ? 0 : 1;
   }
 
-  /// Checks whether `.mcp.json` in [dir] contains a stale or pre-fix
+  /// Warns with the migration steps when [dir] still holds files from
+  /// fluttersdk_artisan: a project renamed by hand keeps an old dispatcher
+  /// that no longer compiles, and every command delegated to it fails with a
+  /// compiler error instead of saying why. Advisory only.
+  /// A file or directory it cannot read ends this check with a warning naming
+  /// the path, so the checks after it still run.
+  static void _checkArtisanLeftovers(String dir, DowelContext ctx) {
+    final List<String> leftovers;
+    try {
+      leftovers = artisanLeftovers(dir);
+    } on FileSystemException catch (e) {
+      ctx.output.writeln(
+        'WARN: The fluttersdk_artisan leftovers check was incomplete: '
+        '${e.path ?? dir} could not be read (${e.message}).',
+      );
+      return;
+    }
+    if (leftovers.isEmpty) return;
+
+    ctx.output.writeln(
+      'WARN: fluttersdk_artisan leftovers. ${artisanMigrationSteps(leftovers)}',
+    );
+  }
+
+  /// Checks whether `.mcp.json` in [dir] contains a stale or outdated
   /// `mcpServers` entry. Emits [_staleMcpWarning] when `fluttersdk_mcp:server`
   /// appears in any entry's args (legacy removed-package shape), or emits
-  /// [_preFixMcpWarning] when `fluttersdk_artisan:mcp` appears (the pre-Bug-B
+  /// [_outdatedMcpWarning] when `fluttersdk_artisan:mcp` appears (the
   /// substrate-standalone shape that never loads consumer plugin providers),
   /// or [_oldKeyMcpWarning] when only the `fluttersdk` server key gives an
   /// entry away. Does nothing when the file is absent or cannot be parsed.
@@ -160,7 +190,7 @@ class DoctorCommand extends DowelCommand {
       }
     }
 
-    // 2. Scan all server entries for the pre-Bug-B fluttersdk_artisan:mcp shape
+    // 2. Scan all server entries for the fluttersdk_artisan:mcp shape
     //    (routes through the substrate standalone, which never loads consumer
     //    plugin providers; upgrading via mcp:install writes the correct shape).
     for (final server in servers.entries) {
@@ -169,7 +199,7 @@ class DoctorCommand extends DowelCommand {
       final args = entry['args'];
       if (args is! List<dynamic>) continue;
       if (args.contains('fluttersdk_artisan:mcp')) {
-        ctx.output.writeln(_preFixMcpWarning(server.key));
+        ctx.output.writeln(_outdatedMcpWarning(server.key));
         return;
       }
     }

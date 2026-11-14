@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -29,8 +30,9 @@ class LogsCommand extends DowelCommand {
     // directory. An app started by an older dowel wrote it to the shared
     // `~/.dowel/` instead, so fall back there rather than reporting no
     // log for a run that has one.
-    final sessionLog =
-        File('${File(StateFile.path).parent.path}/flutter-dev.log');
+    final sessionLog = File(
+      '${File(StateFile.path).parent.path}/flutter-dev.log',
+    );
     final logFile = sessionLog.existsSync()
         ? sessionLog
         : File('${StateFile.homeDir}/flutter-dev.log');
@@ -40,23 +42,83 @@ class LogsCommand extends DowelCommand {
       );
       return 1;
     }
+    // Every write goes through ctx.output: under `mcp:serve` stdout is the
+    // JSON-RPC channel, and a raw write there corrupts the protocol stream
+    // while the tool result comes back empty.
     final follow = (ctx.input.option('follow') as bool?) ?? false;
     if (!follow) {
-      stdout.write(await logFile.readAsString());
+      _writeLines(ctx, await logFile.readAsString());
       return 0;
     }
     int pos = 0;
+    // Bytes after the last newline read so far. Output is line-based, so a
+    // line split across two reads is held back until it is complete. A
+    // newline byte never occurs inside a UTF-8 sequence, so splitting there
+    // cannot cut a character in half.
+    final pending = <int>[];
     while (true) {
       final size = logFile.lengthSync();
       if (size > pos) {
         final raf = await logFile.open();
         await raf.setPosition(pos);
-        final bytes = await raf.read(size - pos);
+        pending.addAll(await raf.read(size - pos));
         await raf.close();
-        stdout.add(bytes);
         pos = size;
+        final lastNewline = pending.lastIndexOf(0x0A);
+        if (lastNewline >= 0) {
+          _flush(ctx, pending, lastNewline + 1);
+        } else if (pending.length > _maxPendingBytes) {
+          // Carriage-return progress never ends a line, and holding it back
+          // grew this buffer for as long as the app ran.
+          _flush(ctx, pending, _characterBoundary(pending));
+        }
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
+  }
+
+  /// The most bytes a line without a newline is held back for.
+  static const int _maxPendingBytes = 64 * 1024;
+
+  /// Writes the first [end] bytes of [pending] and removes them.
+  void _flush(DowelContext ctx, List<int> pending, int end) {
+    _writeLines(
+      ctx,
+      utf8.decode(pending.sublist(0, end), allowMalformed: true),
+    );
+    pending.removeRange(0, end);
+  }
+
+  /// The length of [bytes] without a UTF-8 sequence its last read cut short,
+  /// so a flush never splits a character in two.
+  static int _characterBoundary(List<int> bytes) {
+    // 1. Find the lead byte of the last sequence: continuation bytes are
+    //    `10xxxxxx`, and a sequence holds at most three of them.
+    var lead = bytes.length - 1;
+    while (lead > 0 && bytes.length - lead < 4 && bytes[lead] & 0xC0 == 0x80) {
+      lead--;
+    }
+
+    // 2. Its high bits give the sequence length; keep it only when complete.
+    final first = bytes[lead];
+    final length = first & 0x80 == 0
+        ? 1
+        : first & 0xE0 == 0xC0
+        ? 2
+        : first & 0xF0 == 0xE0
+        ? 3
+        : first & 0xF8 == 0xF0
+        ? 4
+        : 1;
+    return lead + length > bytes.length ? lead : bytes.length;
+  }
+
+  // Writes `text` as-is: `writeln` adds the final newline, so the one the
+  // log already ends with is dropped first.
+  void _writeLines(DowelContext ctx, String text) {
+    if (text.isEmpty) return;
+    ctx.output.writeln(
+      text.endsWith('\n') ? text.substring(0, text.length - 1) : text,
+    );
   }
 }

@@ -2,7 +2,7 @@
 
 The signature DSL compresses a command's name, positional arguments, and
 options into a single Dart string. `CommandSignature.parse`
-(`lib/src/console/command_signature.dart:57`) splits that string at
+(`lib/src/console/command_signature.dart`) splits that string at
 registration time; the registry applies it to the underlying `ArgParser`.
 
 - [Overview](#overview)
@@ -47,19 +47,19 @@ modifier   := '?' | '*' | '?*' | '=' default
 value-spec := '=' | '=' default
 ```
 
-`CommandSignature.parse` (`command_signature.dart:57`) runs four stages:
+`CommandSignature.parse` runs four stages:
 
-1. **Extract name** (`command_signature.dart:65`): split on the first
+1. **Extract name**: split on the first
    whitespace or `{` via `RegExp(r'[\s{]')`; everything before is the name.
-2. **Extract token blocks** (`command_signature.dart:82`): scan the tail with
+2. **Extract token blocks**: scan the tail with
    `RegExp(r'\{([^}]+)\}')`; each capture is one token body.
-3. **Classify each token** (`command_signature.dart:86`): bodies starting
+3. **Classify each token**: bodies starting
    with `--` route to `_parseOption`; others route to `_parseArgument`.
 4. **Parse modifiers**: arguments check `=` first (default value), then
    suffix `?*` / `*` / `?`. Options check `=` to distinguish a value option
    from a boolean flag.
 
-A ` : ` separator (`RegExp(r'\s+:\s+')`, `command_signature.dart:218`)
+A ` : ` separator (`RegExp(r'\s+:\s+')`)
 strips the description annotation before modifier parsing in both branches.
 
 ---
@@ -87,7 +87,7 @@ strips the description annotation before modifier parsing in both branches.
 | `{name*}` | false | true | null | Variadic, one or more trailing values. |
 | `{name?*}` | true | true | null | Optional variadic, zero or more. |
 
-Modifiers are parsed in declaration order (`command_signature.dart:125`):
+Modifiers are parsed in declaration order:
 `=` check first, then suffix `?*` before `*` before `?`.
 
 ---
@@ -101,7 +101,7 @@ Modifiers are parsed in declaration order (`command_signature.dart:125`):
 | `{--option=}` | false | null | Value option; `option()` returns null when absent. |
 | `{--option=value}` | false | `"value"` | Value option with inline default. |
 
-`CommandSignature.applyTo` (`command_signature.dart:103`) calls
+`CommandSignature.applyTo` calls
 `parser.addFlag` (with `negatable: false`) for booleans and
 `parser.addOption(defaultsTo: opt.defaultValue)` for value options.
 
@@ -118,7 +118,7 @@ Append ` : text` after a token's name and modifiers to attach a description:
 {--option=default : Value option description}
 ```
 
-`_splitDescription` (`command_signature.dart:205`) matches the first
+`_splitDescription` matches the first
 `\s+:\s+` in the body and returns `(head, description)`. The `description`
 flows into `ArgParser` as `help` for options and flags; for arguments it is
 stored on `ArgumentSpec` for introspection.
@@ -128,7 +128,7 @@ stored on `ArgumentSpec` for introspection.
 <a name="name-validation"></a>
 ## Name Validation
 
-Both patterns are defined in `command_signature.dart:214-216`.
+Both patterns are defined in `command_signature.dart`.
 
 **Command name** (`_namePattern`):
 ```
@@ -179,7 +179,7 @@ behave exactly as before.
 <a name="examples"></a>
 ## Examples
 
-### tinker (`lib/src/commands/tinker_command.dart:22`)
+### tinker (`lib/src/commands/tinker_command.dart`)
 
 ```dart
 String get signature => 'tinker '
@@ -209,7 +209,7 @@ flag), plus the options from `baseFlags` expansion.
 
 ---
 
-### plugin:uninstall (`lib/src/commands/plugin_uninstall_command.dart:54`)
+### plugin:uninstall (`lib/src/commands/plugin_uninstall_command.dart`)
 
 ```dart
 String get signature => 'plugin:uninstall '

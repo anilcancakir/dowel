@@ -25,10 +25,11 @@ void main() {
       Directory(p.join(projectRoot.path, 'android')).createSync();
       Directory(p.join(projectRoot.path, 'macos')).createSync();
 
-      expect(
-        PlatformHelper.detectPlatforms(projectRoot.path),
-        <String>['android', 'web', 'macos'],
-      );
+      expect(PlatformHelper.detectPlatforms(projectRoot.path), <String>[
+        'android',
+        'web',
+        'macos',
+      ]);
     });
 
     test('hasPlatform returns true only when the directory exists', () {
@@ -66,10 +67,14 @@ void main() {
         Directory(p.join(projectRoot.path, platform)).createSync();
       }
 
-      expect(
-        PlatformHelper.detectPlatforms(projectRoot.path),
-        <String>['android', 'ios', 'web', 'macos', 'linux', 'windows'],
-      );
+      expect(PlatformHelper.detectPlatforms(projectRoot.path), <String>[
+        'android',
+        'ios',
+        'web',
+        'macos',
+        'linux',
+        'windows',
+      ]);
     });
   });
 }

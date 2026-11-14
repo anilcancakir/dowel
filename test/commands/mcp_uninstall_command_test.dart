@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/mcp_uninstall_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -40,185 +41,208 @@ void main() {
   });
 
   group(
-      'McpUninstallCommand handle: entry shapes (./bin/dowel mcp:serve, '
-      'dart run :dispatcher mcp:serve) and the old fluttersdk_artisan:mcp args',
-      () {
-    test(
-        'removes dowel entry that uses the post-fix dowel shape (./bin/dowel mcp:serve)',
+    'McpUninstallCommand handle: entry shapes (./bin/dowel mcp:serve, '
+    'dart run :dispatcher mcp:serve) and the old fluttersdk_artisan:mcp args',
+    () {
+      test('removes dowel entry that uses the post-fix dowel shape (./bin/dowel mcp:serve)', () async {
+        final mcpPath = p.join(tempDir.path, '.mcp.json');
+        // 1. Seed the post-fix dowel entry shape.
+        File(mcpPath).writeAsStringSync(
+          jsonEncode({
+            'mcpServers': {
+              'dowel': {
+                'command': './bin/dowel',
+                'args': ['mcp:serve'],
+                'cwd': '.',
+              },
+            },
+          }),
+        );
+
+        final command = McpUninstallCommand();
+        final ctx = _ctx({'path': mcpPath});
+        final code = await command.handle(ctx);
+
+        expect(code, 0);
+        final decoded = jsonDecode(
+          File(mcpPath).readAsStringSync(),
+        ) as Map<String, dynamic>;
+        final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
+        expect(servers, isNot(contains('dowel')));
+      });
+
+      test('removes dowel entry that uses the post-fix dart fallback shape (dart run :dispatcher mcp:serve)', () async {
+        final mcpPath = p.join(tempDir.path, '.mcp.json');
+        // 1. Seed the post-fix dart-fallback entry shape.
+        File(mcpPath).writeAsStringSync(
+          jsonEncode({
+            'mcpServers': {
+              'dowel': {
+                'command': 'dart',
+                'args': ['run', ':dispatcher', 'mcp:serve'],
+                'cwd': '.',
+              },
+            },
+          }),
+        );
+
+        final command = McpUninstallCommand();
+        final ctx = _ctx({'path': mcpPath});
+        final code = await command.handle(ctx);
+
+        expect(code, 0);
+        final decoded = jsonDecode(
+          File(mcpPath).readAsStringSync(),
+        ) as Map<String, dynamic>;
+        final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
+        expect(servers, isNot(contains('dowel')));
+      });
+
+      test('removes dowel entry that uses the new dowel args shape', () async {
+        final mcpPath = p.join(tempDir.path, '.mcp.json');
+        // 1. Seed new-shape entry.
+        File(mcpPath).writeAsStringSync(
+          jsonEncode({
+            'mcpServers': {
+              'dowel': {
+                'command': 'dart',
+                'args': ['run', 'fluttersdk_artisan:mcp'],
+                'cwd': '.',
+              },
+            },
+          }),
+        );
+
+        final command = McpUninstallCommand();
+        final ctx = _ctx({'path': mcpPath});
+        final code = await command.handle(ctx);
+
+        expect(code, 0);
+        final decoded = jsonDecode(
+          File(mcpPath).readAsStringSync(),
+        ) as Map<String, dynamic>;
+        final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
+        expect(servers, isNot(contains('dowel')));
+      });
+
+      test(
+        'preserves laravel-boost entry when removing new-shape dowel entry',
         () async {
-      final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed the post-fix dowel entry shape.
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'dowel': {
-            'command': './bin/dowel',
-            'args': ['mcp:serve'],
-            'cwd': '.',
-          },
+          final mcpPath = p.join(tempDir.path, '.mcp.json');
+          // 1. Seed both entries.
+          File(mcpPath).writeAsStringSync(
+            jsonEncode({
+              'mcpServers': {
+                'laravel-boost': {
+                  'command': 'npx',
+                  'args': ['-y', 'laravel-boost'],
+                },
+                'dowel': {
+                  'command': 'dart',
+                  'args': ['run', 'fluttersdk_artisan:mcp'],
+                  'cwd': '.',
+                },
+              },
+            }),
+          );
+
+          final command = McpUninstallCommand();
+          final ctx = _ctx({'path': mcpPath});
+          final code = await command.handle(ctx);
+
+          expect(code, 0);
+          final decoded = jsonDecode(
+            File(mcpPath).readAsStringSync(),
+          ) as Map<String, dynamic>;
+          final servers = decoded['mcpServers'] as Map<String, dynamic>;
+          expect(servers, containsPair('laravel-boost', isA<Map>()));
+          expect(servers, isNot(contains('dowel')));
         },
-      }));
+      );
+    },
+  );
 
-      final command = McpUninstallCommand();
-      final ctx = _ctx({'path': mcpPath});
-      final code = await command.handle(ctx);
+  group(
+    'McpUninstallCommand handle: old args shape (fluttersdk_mcp:server)',
+    () {
+      test('removes a dowel entry that uses the old mcp args shape', () async {
+        final mcpPath = p.join(tempDir.path, '.mcp.json');
+        // 1. Seed an entry with the old args shape.
+        File(mcpPath).writeAsStringSync(
+          jsonEncode({
+            'mcpServers': {
+              'dowel': {
+                'command': 'dart',
+                'args': ['run', 'fluttersdk_mcp:server'],
+                'cwd': '.',
+              },
+            },
+          }),
+        );
 
-      expect(code, 0);
-      final decoded =
-          jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
-      final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
-      expect(servers, isNot(contains('dowel')));
-    });
+        final command = McpUninstallCommand();
+        final ctx = _ctx({'path': mcpPath});
+        final code = await command.handle(ctx);
 
-    test(
-        'removes dowel entry that uses the post-fix dart fallback shape (dart run :dispatcher mcp:serve)',
+        expect(code, 0);
+        final decoded = jsonDecode(
+          File(mcpPath).readAsStringSync(),
+        ) as Map<String, dynamic>;
+        final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
+        expect(servers, isNot(contains('dowel')));
+      });
+
+      test(
+        'preserves laravel-boost entry when removing legacy-shape dowel entry',
         () async {
-      final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed the post-fix dart-fallback entry shape.
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'dowel': {
-            'command': 'dart',
-            'args': ['run', ':dispatcher', 'mcp:serve'],
-            'cwd': '.',
-          },
+          final mcpPath = p.join(tempDir.path, '.mcp.json');
+          // 1. Seed both entries.
+          File(mcpPath).writeAsStringSync(
+            jsonEncode({
+              'mcpServers': {
+                'laravel-boost': {
+                  'command': 'npx',
+                  'args': ['-y', 'laravel-boost'],
+                },
+                'dowel': {
+                  'command': 'dart',
+                  'args': ['run', 'fluttersdk_mcp:server'],
+                  'cwd': '.',
+                },
+              },
+            }),
+          );
+
+          final command = McpUninstallCommand();
+          final ctx = _ctx({'path': mcpPath});
+          final code = await command.handle(ctx);
+
+          expect(code, 0);
+          final decoded = jsonDecode(
+            File(mcpPath).readAsStringSync(),
+          ) as Map<String, dynamic>;
+          final servers = decoded['mcpServers'] as Map<String, dynamic>;
+          expect(servers, containsPair('laravel-boost', isA<Map>()));
+          expect(servers, isNot(contains('dowel')));
         },
-      }));
-
-      final command = McpUninstallCommand();
-      final ctx = _ctx({'path': mcpPath});
-      final code = await command.handle(ctx);
-
-      expect(code, 0);
-      final decoded =
-          jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
-      final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
-      expect(servers, isNot(contains('dowel')));
-    });
-
-    test('removes dowel entry that uses the new dowel args shape', () async {
-      final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed new-shape entry.
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'dowel': {
-            'command': 'dart',
-            'args': ['run', 'fluttersdk_artisan:mcp'],
-            'cwd': '.',
-          },
-        },
-      }));
-
-      final command = McpUninstallCommand();
-      final ctx = _ctx({'path': mcpPath});
-      final code = await command.handle(ctx);
-
-      expect(code, 0);
-      final decoded =
-          jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
-      final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
-      expect(servers, isNot(contains('dowel')));
-    });
-
-    test('preserves laravel-boost entry when removing new-shape dowel entry',
-        () async {
-      final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed both entries.
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'laravel-boost': {
-            'command': 'npx',
-            'args': ['-y', 'laravel-boost'],
-          },
-          'dowel': {
-            'command': 'dart',
-            'args': ['run', 'fluttersdk_artisan:mcp'],
-            'cwd': '.',
-          },
-        },
-      }));
-
-      final command = McpUninstallCommand();
-      final ctx = _ctx({'path': mcpPath});
-      final code = await command.handle(ctx);
-
-      expect(code, 0);
-      final decoded =
-          jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
-      final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      expect(servers, containsPair('laravel-boost', isA<Map>()));
-      expect(servers, isNot(contains('dowel')));
-    });
-  });
-
-  group('McpUninstallCommand handle: old args shape (fluttersdk_mcp:server)',
-      () {
-    test('removes a dowel entry that uses the old mcp args shape', () async {
-      final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed an entry with the old args shape.
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'dowel': {
-            'command': 'dart',
-            'args': ['run', 'fluttersdk_mcp:server'],
-            'cwd': '.',
-          },
-        },
-      }));
-
-      final command = McpUninstallCommand();
-      final ctx = _ctx({'path': mcpPath});
-      final code = await command.handle(ctx);
-
-      expect(code, 0);
-      final decoded =
-          jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
-      final servers = (decoded['mcpServers'] as Map<String, dynamic>?) ?? {};
-      expect(servers, isNot(contains('dowel')));
-    });
-
-    test('preserves laravel-boost entry when removing legacy-shape dowel entry',
-        () async {
-      final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed both entries.
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'laravel-boost': {
-            'command': 'npx',
-            'args': ['-y', 'laravel-boost'],
-          },
-          'dowel': {
-            'command': 'dart',
-            'args': ['run', 'fluttersdk_mcp:server'],
-            'cwd': '.',
-          },
-        },
-      }));
-
-      final command = McpUninstallCommand();
-      final ctx = _ctx({'path': mcpPath});
-      final code = await command.handle(ctx);
-
-      expect(code, 0);
-      final decoded =
-          jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
-      final servers = decoded['mcpServers'] as Map<String, dynamic>;
-      expect(servers, containsPair('laravel-boost', isA<Map>()));
-      expect(servers, isNot(contains('dowel')));
-    });
-  });
+      );
+    },
+  );
 
   group('McpUninstallCommand handle — idempotency', () {
     test('running twice does not error when entry already removed', () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'dowel': {
-            'command': 'dart',
-            'args': ['run', 'fluttersdk_artisan:mcp'],
-            'cwd': '.',
+      File(mcpPath).writeAsStringSync(
+        jsonEncode({
+          'mcpServers': {
+            'dowel': {
+              'command': 'dart',
+              'args': ['run', 'fluttersdk_artisan:mcp'],
+              'cwd': '.',
+            },
           },
-        },
-      }));
+        }),
+      );
 
       final command = McpUninstallCommand();
       // First run removes the entry.
@@ -233,26 +257,30 @@ void main() {
   });
 
   group('McpUninstallCommand handle — missing entry', () {
-    test('warns and returns 0 when dowel key is absent from mcpServers',
-        () async {
-      final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // 1. Seed .mcp.json without a dowel entry.
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'laravel-boost': {
-            'command': 'npx',
-            'args': ['-y', 'laravel-boost'],
-          },
-        },
-      }));
+    test(
+      'warns and returns 0 when dowel key is absent from mcpServers',
+      () async {
+        final mcpPath = p.join(tempDir.path, '.mcp.json');
+        // 1. Seed .mcp.json without a dowel entry.
+        File(mcpPath).writeAsStringSync(
+          jsonEncode({
+            'mcpServers': {
+              'laravel-boost': {
+                'command': 'npx',
+                'args': ['-y', 'laravel-boost'],
+              },
+            },
+          }),
+        );
 
-      final command = McpUninstallCommand();
-      final ctx = _ctx({'path': mcpPath});
-      final code = await command.handle(ctx);
+        final command = McpUninstallCommand();
+        final ctx = _ctx({'path': mcpPath});
+        final code = await command.handle(ctx);
 
-      expect(code, 0);
-      expect(_output(ctx).toLowerCase(), contains('nothing to uninstall'));
-    });
+        expect(code, 0);
+        expect(_output(ctx).toLowerCase(), contains('nothing to uninstall'));
+      },
+    );
 
     test('warns and returns 0 when .mcp.json file does not exist', () async {
       final mcpPath = p.join(tempDir.path, 'nonexistent.json');
@@ -268,42 +296,48 @@ void main() {
 
   group('McpUninstallCommand handle — file preservation', () {
     test(
-        'does NOT delete the .mcp.json file even when mcpServers becomes empty',
-        () async {
-      final mcpPath = p.join(tempDir.path, '.mcp.json');
-      // Only entry is dowel: after removal mcpServers is empty.
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'mcpServers': {
-          'dowel': {
-            'command': 'dart',
-            'args': ['run', 'fluttersdk_artisan:mcp'],
-            'cwd': '.',
-          },
-        },
-      }));
+      'does NOT delete the .mcp.json file even when mcpServers becomes empty',
+      () async {
+        final mcpPath = p.join(tempDir.path, '.mcp.json');
+        // Only entry is dowel: after removal mcpServers is empty.
+        File(mcpPath).writeAsStringSync(
+          jsonEncode({
+            'mcpServers': {
+              'dowel': {
+                'command': 'dart',
+                'args': ['run', 'fluttersdk_artisan:mcp'],
+                'cwd': '.',
+              },
+            },
+          }),
+        );
 
-      final command = McpUninstallCommand();
-      final ctx = _ctx({'path': mcpPath});
-      await command.handle(ctx);
+        final command = McpUninstallCommand();
+        final ctx = _ctx({'path': mcpPath});
+        await command.handle(ctx);
 
-      // File must still exist with an empty mcpServers map.
-      expect(File(mcpPath).existsSync(), isTrue);
-      final decoded =
-          jsonDecode(File(mcpPath).readAsStringSync()) as Map<String, dynamic>;
-      expect(decoded['mcpServers'], isEmpty);
-    });
+        // File must still exist with an empty mcpServers map.
+        expect(File(mcpPath).existsSync(), isTrue);
+        final decoded = jsonDecode(
+          File(mcpPath).readAsStringSync(),
+        ) as Map<String, dynamic>;
+        expect(decoded['mcpServers'], isEmpty);
+      },
+    );
 
     test('does NOT touch non-mcpServers keys', () async {
       final mcpPath = p.join(tempDir.path, '.mcp.json');
-      File(mcpPath).writeAsStringSync(jsonEncode({
-        'version': 1,
-        'mcpServers': {
-          'dowel': {
-            'command': 'dart',
-            'args': ['run', 'fluttersdk_artisan:mcp'],
+      File(mcpPath).writeAsStringSync(
+        jsonEncode({
+          'version': 1,
+          'mcpServers': {
+            'dowel': {
+              'command': 'dart',
+              'args': ['run', 'fluttersdk_artisan:mcp'],
+            },
           },
-        },
-      }));
+        }),
+      );
 
       final command = McpUninstallCommand();
       final ctx = _ctx({'path': mcpPath});

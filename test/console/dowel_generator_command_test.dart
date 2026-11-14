@@ -11,9 +11,8 @@ void main() {
 
     setUp(() {
       projectRoot = Directory.systemTemp.createTempSync('dowel_gen_project_');
-      File(p.join(projectRoot.path, 'pubspec.yaml')).writeAsStringSync(
-        'name: host_app\nversion: 0.0.1\n',
-      );
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: host_app\nversion: 0.0.1\n');
 
       stubsDir = Directory.systemTemp.createTempSync('dowel_gen_stubs_');
       File(p.join(stubsDir.path, 'fake.stub'))
@@ -76,15 +75,19 @@ void main() {
       // getStub() returns a string with spaces. We use it to exercise the
       // _replaceClass / _replaceNamespace branches without touching the
       // package's real assets/stubs directory.
-      final raw =
-          _FakeGenerator(projectRoot.path, rawStub: 'class {{ className }} {}');
+      final raw = _FakeGenerator(
+        projectRoot.path,
+        rawStub: 'class {{ className }} {}',
+      );
 
       expect(raw.buildClass('Foo'), 'class Foo {}');
     });
 
     test('handle exits 1 when name argument is missing', () async {
-      final command =
-          _FakeGenerator(projectRoot.path, rawStub: 'class {{ className }} {}');
+      final command = _FakeGenerator(
+        projectRoot.path,
+        rawStub: 'class {{ className }} {}',
+      );
       final output = BufferedOutput();
       final ctx = DowelContext.bare(MapInput(const {}), output);
 
@@ -94,26 +97,32 @@ void main() {
       expect(output.content, contains('missing: "name"'));
     });
 
-    test('handle exits 1 when file already exists and --force absent',
-        () async {
-      final command =
-          _FakeGenerator(projectRoot.path, rawStub: 'class {{ className }} {}');
-      final ctx = DowelContext.bare(
-        MapInput(const {}, positional: <String>['UserController']),
-        BufferedOutput(),
-      );
-      final preExisting = command.getPath('UserController');
-      File(preExisting).createSync(recursive: true);
-      File(preExisting).writeAsStringSync('existing');
+    test(
+      'handle exits 1 when file already exists and --force absent',
+      () async {
+        final command = _FakeGenerator(
+          projectRoot.path,
+          rawStub: 'class {{ className }} {}',
+        );
+        final ctx = DowelContext.bare(
+          MapInput(const {}, positional: <String>['UserController']),
+          BufferedOutput(),
+        );
+        final preExisting = command.getPath('UserController');
+        File(preExisting).createSync(recursive: true);
+        File(preExisting).writeAsStringSync('existing');
 
-      final code = await command.handle(ctx);
+        final code = await command.handle(ctx);
 
-      expect(code, 1);
-    });
+        expect(code, 1);
+      },
+    );
 
     test('handle writes the rendered file and exits 0', () async {
-      final command =
-          _FakeGenerator(projectRoot.path, rawStub: 'class {{ className }} {}');
+      final command = _FakeGenerator(
+        projectRoot.path,
+        rawStub: 'class {{ className }} {}',
+      );
       final output = BufferedOutput();
       final ctx = DowelContext.bare(
         MapInput(const {}, positional: <String>['UserController']),

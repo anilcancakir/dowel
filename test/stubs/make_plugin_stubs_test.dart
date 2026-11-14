@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
@@ -113,19 +114,22 @@ void main() {
       }
     });
 
-    test('generic/ contains exactly the 7 expected stubs — no extras, no gaps',
-        () {
-      final actualNames = Directory(genericDir)
-          .listSync(recursive: false)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.stub'))
-          .map((f) {
-        final base = p.basename(f.path);
-        return base.substring(0, base.length - '.stub'.length);
-      }).toSet();
+    test(
+      'generic/ contains exactly the 7 expected stubs — no extras, no gaps',
+      () {
+        final actualNames = Directory(genericDir)
+            .listSync(recursive: false)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.stub'))
+            .map((f) {
+              final base = p.basename(f.path);
+              return base.substring(0, base.length - '.stub'.length);
+            })
+            .toSet();
 
-      expect(actualNames, equals(_genericStubNames.toSet()));
-    });
+        expect(actualNames, equals(_genericStubNames.toSet()));
+      },
+    );
   });
 
   group('make_plugin stub bundle — magic load', () {
@@ -143,19 +147,22 @@ void main() {
       }
     });
 
-    test('magic/ contains exactly the 10 expected stubs — no extras, no gaps',
-        () {
-      final actualNames = Directory(magicDir)
-          .listSync(recursive: false)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.stub'))
-          .map((f) {
-        final base = p.basename(f.path);
-        return base.substring(0, base.length - '.stub'.length);
-      }).toSet();
+    test(
+      'magic/ contains exactly the 10 expected stubs — no extras, no gaps',
+      () {
+        final actualNames = Directory(magicDir)
+            .listSync(recursive: false)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.stub'))
+            .map((f) {
+              final base = p.basename(f.path);
+              return base.substring(0, base.length - '.stub'.length);
+            })
+            .toSet();
 
-      expect(actualNames, equals(_magicStubNames.toSet()));
-    });
+        expect(actualNames, equals(_magicStubNames.toSet()));
+      },
+    );
   });
 
   group('make_plugin stub bundle — combined layout', () {
@@ -185,8 +192,7 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('make_plugin stub bundle — generic render', () {
-    test('every generic stub has zero known scaffold placeholders after render',
-        () {
+    test('every generic stub has zero known scaffold placeholders after render', () {
       for (final name in _genericStubNames) {
         final raw = StubLoader.load(name, searchPaths: <String>[genericDir]);
         final rendered = StubLoader.replace(raw, _sampleReplacements());
@@ -203,8 +209,10 @@ void main() {
     });
 
     test('generic pubspec.yaml parses as valid YAML after rendering', () {
-      final raw =
-          StubLoader.load('pubspec.yaml', searchPaths: <String>[genericDir]);
+      final raw = StubLoader.load(
+        'pubspec.yaml',
+        searchPaths: <String>[genericDir],
+      );
       final rendered = StubLoader.replace(raw, _sampleReplacements());
 
       expect(
@@ -234,8 +242,9 @@ void main() {
         final raw = StubLoader.load(name, searchPaths: <String>[genericDir]);
         final rendered = StubLoader.replace(raw, _sampleReplacements());
 
-        final hasAnchor =
-            declarationAnchors.any((anchor) => anchor.hasMatch(rendered));
+        final hasAnchor = declarationAnchors.any(
+          (anchor) => anchor.hasMatch(rendered),
+        );
         expect(
           hasAnchor,
           isTrue,
@@ -247,37 +256,41 @@ void main() {
   });
 
   group('make_plugin stub bundle — magic render', () {
-    test('every magic stub has zero known scaffold placeholders after render',
-        () {
-      for (final name in _magicStubNames) {
-        final raw = StubLoader.load(name, searchPaths: <String>[magicDir]);
-        final rendered = StubLoader.replace(raw, _sampleReplacements());
+    test(
+      'every magic stub has zero known scaffold placeholders after render',
+      () {
+        for (final name in _magicStubNames) {
+          final raw = StubLoader.load(name, searchPaths: <String>[magicDir]);
+          final rendered = StubLoader.replace(raw, _sampleReplacements());
 
-        for (final key in _knownScaffoldPlaceholders) {
+          for (final key in _knownScaffoldPlaceholders) {
+            expect(
+              rendered.contains('{{ $key }}'),
+              isFalse,
+              reason:
+                  'magic/$name.stub still contains {{ $key }} after rendering',
+            );
+          }
+        }
+      },
+    );
+
+    test(
+      'magic pubspec.yaml and install.yaml parse as valid YAML after render',
+      () {
+        const yamlStubs = <String>['pubspec.yaml', 'install.yaml'];
+        for (final name in yamlStubs) {
+          final raw = StubLoader.load(name, searchPaths: <String>[magicDir]);
+          final rendered = StubLoader.replace(raw, _sampleReplacements());
+
           expect(
-            rendered.contains('{{ $key }}'),
-            isFalse,
-            reason:
-                'magic/$name.stub still contains {{ $key }} after rendering',
+            () => loadYaml(rendered),
+            returnsNormally,
+            reason: 'magic/$name.stub did not round-trip into valid YAML',
           );
         }
-      }
-    });
-
-    test('magic pubspec.yaml and install.yaml parse as valid YAML after render',
-        () {
-      const yamlStubs = <String>['pubspec.yaml', 'install.yaml'];
-      for (final name in yamlStubs) {
-        final raw = StubLoader.load(name, searchPaths: <String>[magicDir]);
-        final rendered = StubLoader.replace(raw, _sampleReplacements());
-
-        expect(
-          () => loadYaml(rendered),
-          returnsNormally,
-          reason: 'magic/$name.stub did not round-trip into valid YAML',
-        );
-      }
-    });
+      },
+    );
 
     test('every magic Dart stub passes a smoke check after rendering', () {
       const dartStubs = <String>[
@@ -302,8 +315,9 @@ void main() {
         final raw = StubLoader.load(name, searchPaths: <String>[magicDir]);
         final rendered = StubLoader.replace(raw, _sampleReplacements());
 
-        final hasAnchor =
-            declarationAnchors.any((anchor) => anchor.hasMatch(rendered));
+        final hasAnchor = declarationAnchors.any(
+          (anchor) => anchor.hasMatch(rendered),
+        );
         expect(
           hasAnchor,
           isTrue,
@@ -314,35 +328,40 @@ void main() {
     });
 
     test(
-        'install.yaml.stub preserves install-time tokens after scaffold render',
-        () {
-      // The manifest renderer (ManifestInstaller) resolves
-      // `{{ prompts.configPath }}` at install time. The scaffolder MUST NOT
-      // touch that token — its replacement map only knows the six scaffold
-      // keys, so any `{{ <unknown> }}` survives by design.
-      // `configFilePath` is a YAML key (not a placeholder), so it appears as
-      // plain text in the rendered output.
-      final raw =
-          StubLoader.load('install.yaml', searchPaths: <String>[magicDir]);
-      final rendered = StubLoader.replace(raw, _sampleReplacements());
+      'install.yaml.stub preserves install-time tokens after scaffold render',
+      () {
+        // The manifest renderer (ManifestInstaller) resolves
+        // `{{ prompts.configPath }}` at install time. The scaffolder MUST NOT
+        // touch that token — its replacement map only knows the six scaffold
+        // keys, so any `{{ <unknown> }}` survives by design.
+        // `configFilePath` is a YAML key (not a placeholder), so it appears as
+        // plain text in the rendered output.
+        final raw = StubLoader.load(
+          'install.yaml',
+          searchPaths: <String>[magicDir],
+        );
+        final rendered = StubLoader.replace(raw, _sampleReplacements());
 
-      expect(rendered, contains('{{ prompts.configPath }}'));
-      expect(rendered, contains('configFilePath'));
-    });
+        expect(rendered, contains('{{ prompts.configPath }}'));
+        expect(rendered, contains('configFilePath'));
+      },
+    );
 
-    test('install.yaml.stub publish key renders without double .stub suffix',
-        () {
+    test('install.yaml.stub publish key renders without double .stub suffix', () {
       // Change B regression: the publish map key previously rendered as
       // `install/magic_logger_config.dart.stub` because the scaffold was
       // appending `.stub` to the template token. The fix in install.yaml.stub
       // removed the erroneous suffix so only `install/magic_logger_config.dart`
       // reaches the installer at runtime.
-      final raw =
-          StubLoader.load('install.yaml', searchPaths: <String>[magicDir]);
+      final raw = StubLoader.load(
+        'install.yaml',
+        searchPaths: <String>[magicDir],
+      );
       final rendered = StubLoader.replace(raw, _sampleReplacements());
       final yaml = loadYaml(rendered) as YamlMap;
-      final publishKeys =
-          (yaml['publish'] as YamlMap).keys.cast<String>().toList();
+      final publishKeys = (yaml['publish'] as YamlMap).keys
+          .cast<String>()
+          .toList();
 
       expect(
         publishKeys.any((k) => k.endsWith('.stub.stub')),
@@ -356,9 +375,7 @@ void main() {
       );
     });
 
-    test(
-        'install_command.dart.stub stubName arg references stubName without .stub suffix',
-        () {
+    test('install_command.dart.stub stubName arg references stubName without .stub suffix', () {
       // Change B regression: the publishConfig call previously passed
       // `stubName: 'install/magic_logger_config.dart.stub'`, which caused the
       // installer to look for a file that did not exist. The fix removed the
@@ -382,83 +399,190 @@ void main() {
     });
 
     test(
-        'magic pubspec.yaml contains both dowelPath and magicPath after render',
-        () {
-      final raw =
-          StubLoader.load('pubspec.yaml', searchPaths: <String>[magicDir]);
-      final rendered = StubLoader.replace(raw, _sampleReplacements());
+      'magic pubspec.yaml contains both dowelPath and magicPath after render',
+      () {
+        final raw = StubLoader.load(
+          'pubspec.yaml',
+          searchPaths: <String>[magicDir],
+        );
+        final rendered = StubLoader.replace(raw, _sampleReplacements());
 
-      // Both path: entries must be resolved.
-      expect(rendered, isNot(contains('{{ dowelPath }}')));
-      expect(rendered, isNot(contains('{{ magicPath }}')));
-      expect(rendered, contains('../dowel'));
-      expect(rendered, contains('../magic'));
-    });
+        // Both path: entries must be resolved.
+        expect(rendered, isNot(contains('{{ dowelPath }}')));
+        expect(rendered, isNot(contains('{{ magicPath }}')));
+        expect(rendered, contains('../dowel'));
+        expect(rendered, contains('../magic'));
+      },
+    );
 
-    test(
-        'magic runtime.dart.stub re-exports the ServiceProvider for ManifestInstaller resolution',
-        () {
+    test('magic runtime.dart.stub re-exports the ServiceProvider for ManifestInstaller resolution', () {
       // Change C: magic/runtime.dart.stub must export the generated
       // ServiceProvider so that `package:magic_logger/magic_logger.dart`
       // surfaces `MagicLoggerServiceProvider` for `ManifestInstaller` to
       // resolve via `installer.injectProvider(magic.provider!)`.
       // If the export line were absent (or still using the generic template),
       // the installer would fail to locate the symbol at runtime.
-      final raw =
-          StubLoader.load('runtime.dart', searchPaths: <String>[magicDir]);
+      final raw = StubLoader.load(
+        'runtime.dart',
+        searchPaths: <String>[magicDir],
+      );
       final rendered = StubLoader.replace(raw, _sampleReplacements());
 
       expect(
         rendered,
         contains("export 'src/magic_logger_service_provider.dart';"),
-        reason: 'magic/runtime.dart.stub must re-export the ServiceProvider so '
+        reason:
+            'magic/runtime.dart.stub must re-export the ServiceProvider so '
             'ManifestInstaller can resolve it via the package barrel',
       );
     });
 
-    test(
-        'magic provider.dart.stub renders with pre-implemented empty mcpTools() override',
-        () {
+    test('magic provider.dart.stub renders with pre-implemented empty mcpTools() override', () {
       // Step 24: the magic stub ships a ready-to-override mcpTools() so plugin
       // authors see the extension point without needing to look up the base
       // class API. The override must use the correct return type and an empty
       // const list so generated plugins compile without additional imports
       // (McpToolDescriptor is already in the dowel barrel).
-      final raw =
-          StubLoader.load('provider.dart', searchPaths: <String>[magicDir]);
+      final raw = StubLoader.load(
+        'provider.dart',
+        searchPaths: <String>[magicDir],
+      );
       final rendered = StubLoader.replace(raw, _sampleReplacements());
 
       expect(
         rendered,
         contains('mcpTools()'),
-        reason:
-            'magic/provider.dart.stub must contain an mcpTools() override after rendering',
+        reason: 'magic/provider.dart.stub must contain an mcpTools() override after rendering',
       );
       expect(
         rendered,
         contains('List<McpToolDescriptor>'),
-        reason:
-            'magic/provider.dart.stub mcpTools() must declare the correct return type',
+        reason: 'magic/provider.dart.stub mcpTools() must declare the correct return type',
       );
       expect(
         rendered,
         contains('const <McpToolDescriptor>[]'),
-        reason:
-            'magic/provider.dart.stub mcpTools() must return an empty const list',
+        reason: 'magic/provider.dart.stub mcpTools() must return an empty const list',
       );
     });
   });
 
-  group('make_plugin stub bundle — generic mcpTools hint', () {
+  group('make_plugin stub bundle, install result names', () {
+    test('no rendered stub names a TransactionResult by a bare pre-1.0 class', () {
+      // 1.0.0 renamed Success/DryRun/Conflict/Error to Install*; a bare `Error()`
+      // silently resolves to dart:core, so the stub compiled against nothing.
+      final bareResult = RegExp(r'(?<![\w.])(Success|DryRun|Conflict|Error)\(');
+      final stubs = Directory(p.dirname(stubsDir))
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.stub'));
+
+      expect(stubs, isNotEmpty);
+      for (final stub in stubs) {
+        final rendered = StubLoader.replace(
+          stub.readAsStringSync(),
+          _sampleReplacements(),
+        );
+
+        expect(
+          bareResult.hasMatch(rendered),
+          isFalse,
+          reason:
+              '${p.relative(stub.path, from: stubsDir)} switches on a result '
+              'class that no longer exists; use InstallSuccess, InstallDryRun, '
+              'InstallConflict or InstallError',
+        );
+      }
+    });
+
     test(
-        'generic provider.dart.stub renders with MCP tools hint comment after commands()',
-        () {
+      'the rendered magic plugin analyzes clean against this checkout',
+      () async {
+        final packageRoot = p.dirname(p.dirname(p.dirname(stubsDir)));
+        final plugin = Directory.systemTemp.createTempSync('mkplugin_analyze_');
+        addTearDown(() => plugin.deleteSync(recursive: true));
+
+        void render(String stub, String target) {
+          final raw = StubLoader.load(stub, searchPaths: <String>[magicDir]);
+          final file = File(p.join(plugin.path, target))
+            ..createSync(recursive: true);
+          file.writeAsStringSync(
+            StubLoader.replace(raw, _sampleReplacements()),
+          );
+        }
+
+        render('cli.dart', 'lib/cli.dart');
+        render('provider.dart', 'lib/src/magic_logger_dowel_provider.dart');
+        render('install_command.dart', 'lib/src/commands/install_command.dart');
+        render(
+          'uninstall_command.dart',
+          'lib/src/commands/uninstall_command.dart',
+        );
+        render('install_command_test.dart', 'test/install_command_test.dart');
+        File(p.join(plugin.path, 'pubspec.yaml')).writeAsStringSync(
+          'name: magic_logger\nenvironment:\n  sdk: ^3.13.0\n',
+        );
+
+        // Resolve the plugin against this checkout's packages without a network
+        // `pub get`: reuse its package_config with absolute roots, plus the plugin.
+        final config = jsonDecode(
+          File(p.join(packageRoot, '.dart_tool', 'package_config.json'))
+              .readAsStringSync(),
+        ) as Map<String, Object?>;
+        final packages = <Object?>[
+          for (final entry
+              in (config['packages']! as List<Object?>)
+                  .cast<Map<String, Object?>>())
+            <String, Object?>{
+              ...entry,
+              'rootUri': p
+                  .toUri(
+                    p.normalize(
+                      p.join(
+                        p.join(packageRoot, '.dart_tool'),
+                        Uri.parse(entry['rootUri']! as String).toFilePath(),
+                      ),
+                    ),
+                  )
+                  .toString(),
+            },
+          <String, Object?>{
+            'name': 'magic_logger',
+            'rootUri': '../',
+            'packageUri': 'lib/',
+            'languageVersion': '3.13',
+          },
+        ];
+        File(p.join(plugin.path, '.dart_tool', 'package_config.json'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(
+            jsonEncode(<String, Object?>{
+              'configVersion': 2,
+              'packages': packages,
+            }),
+          );
+
+        final result = await Process.run(Platform.resolvedExecutable, <String>[
+          'analyze',
+          '--fatal-infos',
+          plugin.path,
+        ]);
+
+        expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
+      },
+    );
+  });
+
+  group('make_plugin stub bundle — generic mcpTools hint', () {
+    test('generic provider.dart.stub renders with MCP tools hint comment after commands()', () {
       // Step 24: generic mode gets a discoverable hint comment so authors know
       // the extension point exists. It is intentionally lighter than the magic
       // stub (no pre-implemented override) because generic plugins may not
       // depend on the dowel barrel's McpToolDescriptor type at scaffold time.
-      final raw =
-          StubLoader.load('provider.dart', searchPaths: <String>[genericDir]);
+      final raw = StubLoader.load(
+        'provider.dart',
+        searchPaths: <String>[genericDir],
+      );
       final rendered = StubLoader.replace(raw, _sampleReplacements());
 
       expect(
@@ -466,8 +590,7 @@ void main() {
         contains(
           '// To expose MCP tools, override mcpTools() returning your descriptor list.',
         ),
-        reason:
-            'generic/provider.dart.stub must contain the MCP tools hint comment after rendering',
+        reason: 'generic/provider.dart.stub must contain the MCP tools hint comment after rendering',
       );
     });
   });

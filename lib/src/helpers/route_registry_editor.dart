@@ -163,8 +163,9 @@ class RouteRegistryEditor {
 
     // Remove every line whose trimmed content equals the call expression.
     final List<String> lines = content.split('\n');
-    final List<String> filtered =
-        lines.where((String line) => line.trim() != callSuffix).toList();
+    final List<String> filtered = lines
+        .where((String line) => line.trim() != callSuffix)
+        .toList();
 
     FileHelper.writeFile(providerPath, filtered.join('\n'));
   }

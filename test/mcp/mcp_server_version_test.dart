@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/mcp/mcp_filter_config.dart';
+import 'package:dowel/src/mcp/mcp_server.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 
@@ -21,8 +23,10 @@ import 'package:test/test.dart';
 void main() {
   group('McpServer handshake version', () {
     test('matches the version declared in pubspec.yaml', () async {
-      final Match? declared = RegExp(r'^version:\s*(\S+)', multiLine: true)
-          .firstMatch(File('pubspec.yaml').readAsStringSync());
+      final Match? declared = RegExp(
+        r'^version:\s*(\S+)',
+        multiLine: true,
+      ).firstMatch(File('pubspec.yaml').readAsStringSync());
       expect(declared, isNotNull, reason: 'pubspec.yaml has no version: line');
 
       final controller = StreamChannelController<String>(sync: true);

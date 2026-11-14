@@ -9,7 +9,7 @@ import 'command_signature.dart';
 /// index (positional lookup) OR a String name (resolved against the
 /// command's signature). [option] returns the value of a flag / option
 /// declared in the signature.
-abstract class DowelInput {
+abstract interface class DowelInput {
   /// Get a named option / flag value (returns null if absent).
   dynamic option(String name);
 
@@ -30,9 +30,8 @@ abstract class DowelInput {
 }
 
 /// Parses [List<String>] argv typical of CLI invocation.
-class ArgvInput implements DowelInput {
-  ArgvInput(this._results, {CommandSignature? signature})
-      : _signature = signature {
+final class ArgvInput implements DowelInput {
+  ArgvInput(this._results, {this._signature}) {
     _verbosity = _detectVerbosity(_results.arguments);
   }
 
@@ -100,15 +99,13 @@ class ArgvInput implements DowelInput {
 }
 
 /// In-memory map input for programmatic invocation (tests, command-from-command).
-class MapInput implements DowelInput {
+final class MapInput implements DowelInput {
   MapInput(
     this._options, {
     List<String>? positional,
-    int verbosity = 1,
-    CommandSignature? signature,
-  })  : _positional = positional ?? const [],
-        _verbosity = verbosity,
-        _signature = signature;
+    this._verbosity = 1,
+    this._signature,
+  }) : _positional = positional ?? const [];
 
   final Map<String, dynamic> _options;
   final List<String> _positional;

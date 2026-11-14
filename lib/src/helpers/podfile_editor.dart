@@ -203,12 +203,15 @@ end''';
   /// @param token  CocoaPods platform token, `'ios'` or `'osx'`.
   static void _createFlutterPodfile(File file, String token) {
     final isIos = token == 'ios';
-    final version =
-        isIos ? _iosCreatedPlatformVersion : _macosCreatedPlatformVersion;
-    final flutterRoot =
-        isIos ? _iosFlutterRootFunction : _macosFlutterRootFunction;
-    final podfileSetup =
-        isIos ? 'flutter_ios_podfile_setup' : 'flutter_macos_podfile_setup';
+    final version = isIos
+        ? _iosCreatedPlatformVersion
+        : _macosCreatedPlatformVersion;
+    final flutterRoot = isIos
+        ? _iosFlutterRootFunction
+        : _macosFlutterRootFunction;
+    final podfileSetup = isIos
+        ? 'flutter_ios_podfile_setup'
+        : 'flutter_macos_podfile_setup';
     final installAllPods = isIos
         ? 'flutter_install_all_ios_pods'
         : 'flutter_install_all_macos_pods';

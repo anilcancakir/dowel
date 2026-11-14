@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/helpers/podfile_editor.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -76,14 +76,15 @@ void main() {
     // -------------------------------------------------------------------------
 
     test(
-        'setPlatformVersion :ios updates existing platform line (12.0 -> 13.0)',
-        () {
-      PodfileEditor.setPlatformVersion(podfilePath, 'ios', '13.0');
+      'setPlatformVersion :ios updates existing platform line (12.0 -> 13.0)',
+      () {
+        PodfileEditor.setPlatformVersion(podfilePath, 'ios', '13.0');
 
-      final content = File(podfilePath).readAsStringSync();
-      expect(content, contains("platform :ios, '13.0'"));
-      expect(content, isNot(contains("platform :ios, '12.0'")));
-    });
+        final content = File(podfilePath).readAsStringSync();
+        expect(content, contains("platform :ios, '13.0'"));
+        expect(content, isNot(contains("platform :ios, '12.0'")));
+      },
+    );
 
     test('setPlatformVersion :ios inserts when no platform line exists', () {
       File(podfilePath).writeAsStringSync(_noPlatformFixture);
@@ -128,17 +129,19 @@ void main() {
       expect(occurrences, 1);
     });
 
-    test('addPostInstallHook creates post_install block when one is missing',
-        () {
-      File(podfilePath).writeAsStringSync(_noPostInstallFixture);
-      const hookContent = "  installer.generate_module_map = false";
+    test(
+      'addPostInstallHook creates post_install block when one is missing',
+      () {
+        File(podfilePath).writeAsStringSync(_noPostInstallFixture);
+        const hookContent = "  installer.generate_module_map = false";
 
-      PodfileEditor.addPostInstallHook(podfilePath, hookContent);
+        PodfileEditor.addPostInstallHook(podfilePath, hookContent);
 
-      final content = File(podfilePath).readAsStringSync();
-      expect(content, contains('post_install do |installer|'));
-      expect(content, contains(hookContent));
-    });
+        final content = File(podfilePath).readAsStringSync();
+        expect(content, contains('post_install do |installer|'));
+        expect(content, contains(hookContent));
+      },
+    );
 
     // -------------------------------------------------------------------------
     // addPodLine
@@ -226,8 +229,7 @@ void main() {
       expect(_platformLinesIn(content), hasLength(1));
     });
 
-    test(
-        'setPlatformVersion :macos REPLACES the platform line of a Podfile it '
+    test('setPlatformVersion :macos REPLACES the platform line of a Podfile it '
         'just created', () {
       final absentPodfilePath = p.join(tempDir.path, 'macos', 'Podfile');
 
@@ -246,8 +248,7 @@ void main() {
       expect(content, contains('flutter_install_all_macos_pods'));
     });
 
-    test(
-        'setPlatformVersion :ios REPLACES the platform line of a Podfile it '
+    test('setPlatformVersion :ios REPLACES the platform line of a Podfile it '
         'just created', () {
       final absentPodfilePath = p.join(tempDir.path, 'ios', 'Podfile');
 
@@ -296,56 +297,57 @@ void main() {
     });
 
     test(
-        'a created iOS Podfile defines the helper it calls: podhelper require, '
-        'flutter_root, setup', () {
-      final absentPodfilePath = p.join(tempDir.path, 'ios', 'Podfile');
+      'a created iOS Podfile defines the helper it calls: podhelper require, '
+      'flutter_root, setup',
+      () {
+        final absentPodfilePath = p.join(tempDir.path, 'ios', 'Podfile');
 
-      PodfileEditor.addPodLine(
-        absentPodfilePath,
-        'Runner',
-        "pod 'Firebase/Core'",
-        platform: 'ios',
-      );
+        PodfileEditor.addPodLine(
+          absentPodfilePath,
+          'Runner',
+          "pod 'Firebase/Core'",
+          platform: 'ios',
+        );
 
-      final content = File(absentPodfilePath).readAsStringSync();
+        final content = File(absentPodfilePath).readAsStringSync();
 
-      // 1. The require that DEFINES flutter_install_all_ios_pods, and the
-      //    flutter_root it needs, resolved from Generated.xcconfig the way
-      //    Flutter's own templates/cocoapods/Podfile-ios resolves it.
-      expect(content, contains(_podhelperRequire));
-      expect(content, contains('def flutter_root'));
-      expect(
-        content,
-        contains("File.join('..', 'Flutter', 'Generated.xcconfig')"),
-      );
-      expect(
-        content,
-        contains('unless File.exist?(generated_xcode_build_settings_path)'),
-      );
-      expect(content, contains('raise'));
-      expect(content, contains(r'line.match(/FLUTTER_ROOT\=(.*)/)'));
+        // 1. The require that DEFINES flutter_install_all_ios_pods, and the
+        //    flutter_root it needs, resolved from Generated.xcconfig the way
+        //    Flutter's own templates/cocoapods/Podfile-ios resolves it.
+        expect(content, contains(_podhelperRequire));
+        expect(content, contains('def flutter_root'));
+        expect(
+          content,
+          contains("File.join('..', 'Flutter', 'Generated.xcconfig')"),
+        );
+        expect(
+          content,
+          contains('unless File.exist?(generated_xcode_build_settings_path)'),
+        );
+        expect(content, contains('raise'));
+        expect(content, contains(r'line.match(/FLUTTER_ROOT\=(.*)/)'));
 
-      // 2. The iOS setup call, after the require and before the target block.
-      expect(content, contains('flutter_ios_podfile_setup'));
-      expect(content, isNot(contains('flutter_macos_podfile_setup')));
-      expect(
-        content.indexOf('flutter_ios_podfile_setup'),
-        greaterThan(content.indexOf(_podhelperRequire)),
-      );
-      expect(
-        content.indexOf(_podhelperRequire),
-        lessThan(content.indexOf("target 'Runner' do")),
-      );
+        // 2. The iOS setup call, after the require and before the target block.
+        expect(content, contains('flutter_ios_podfile_setup'));
+        expect(content, isNot(contains('flutter_macos_podfile_setup')));
+        expect(
+          content.indexOf('flutter_ios_podfile_setup'),
+          greaterThan(content.indexOf(_podhelperRequire)),
+        );
+        expect(
+          content.indexOf(_podhelperRequire),
+          lessThan(content.indexOf("target 'Runner' do")),
+        );
 
-      // 3. The platform-matched install and build-settings helpers, once.
-      expect(content, contains('flutter_install_all_ios_pods'));
-      expect(content, contains('flutter_additional_ios_build_settings'));
-      expect(content, isNot(contains('_macos_')));
-      expect(_platformLinesIn(content), ["platform :ios, '15.0'"]);
-    });
+        // 3. The platform-matched install and build-settings helpers, once.
+        expect(content, contains('flutter_install_all_ios_pods'));
+        expect(content, contains('flutter_additional_ios_build_settings'));
+        expect(content, isNot(contains('_macos_')));
+        expect(_platformLinesIn(content), ["platform :ios, '15.0'"]);
+      },
+    );
 
-    test(
-        'a created macOS Podfile defines the helper it calls: podhelper '
+    test('a created macOS Podfile defines the helper it calls: podhelper '
         'require, flutter_root, setup', () {
       final absentPodfilePath = p.join(tempDir.path, 'macos', 'Podfile');
 
@@ -431,19 +433,20 @@ void main() {
     });
 
     test(
-        'addPostInstallHook refuses to create a Podfile with no platform given',
-        () {
-      final absentPodfilePath = p.join(tempDir.path, 'unknown', 'Podfile');
+      'addPostInstallHook refuses to create a Podfile with no platform given',
+      () {
+        final absentPodfilePath = p.join(tempDir.path, 'unknown', 'Podfile');
 
-      expect(
-        () => PodfileEditor.addPostInstallHook(
-          absentPodfilePath,
-          '  installer.generate_module_map = false',
-        ),
-        throwsA(isA<FileSystemException>()),
-      );
-      expect(File(absentPodfilePath).existsSync(), isFalse);
-    });
+        expect(
+          () => PodfileEditor.addPostInstallHook(
+            absentPodfilePath,
+            '  installer.generate_module_map = false',
+          ),
+          throwsA(isA<FileSystemException>()),
+        );
+        expect(File(absentPodfilePath).existsSync(), isFalse);
+      },
+    );
 
     test('a rejected platform never creates a Podfile', () {
       final absentPodfilePath = p.join(tempDir.path, 'tvos', 'Podfile');
@@ -471,8 +474,8 @@ void main() {
 /// @param content  Full Podfile text read back off disk.
 /// @return The matched declaration lines, in file order.
 List<String> _platformLinesIn(String content) {
-  return RegExp(r"^platform :\w+, '[^']*'", multiLine: true)
-      .allMatches(content)
-      .map((match) => match.group(0)!)
-      .toList();
+  return RegExp(
+    r"^platform :\w+, '[^']*'",
+    multiLine: true,
+  ).allMatches(content).map((match) => match.group(0)!).toList();
 }

@@ -126,7 +126,7 @@ Future<Process> _defaultProcessStart(
 ///
 /// D6 Chrome reaper (POSIX, chrome target only) defers to V1.x; V1 ships
 /// the basic spawn + URI scrape + state.json write.
-class StartCommand extends DowelCommand {
+final class StartCommand extends DowelCommand {
   @override
   String get name => 'start';
 
@@ -230,14 +230,14 @@ class StartCommand extends DowelCommand {
       ..addOption(
         'device',
         defaultsTo: 'chrome',
-        help:
-            'Flutter device target (chrome / macos / linux / windows / iOS UDID / Android serial).',
+        help: 'Flutter device target (chrome / macos / linux / windows / iOS UDID / Android serial).',
       )
       ..addOption('port', defaultsTo: '3100', help: 'Web port (chrome only).')
       ..addOption(
         'vm-service-port',
         defaultsTo: '8181',
-        help: 'Host VM Service port. Forwarded to flutter run as '
+        help:
+            'Host VM Service port. Forwarded to flutter run as '
             '--host-vmservice-port=N and recorded in state.json so tools '
             'can reach the running app. Change when 8181 is already taken.',
       )
@@ -246,14 +246,16 @@ class StartCommand extends DowelCommand {
       ..addOption(
         'cdp-port',
         defaultsTo: null,
-        help: 'Chrome DevTools Protocol port. When set, pre-launches Chrome '
+        help:
+            'Chrome DevTools Protocol port. When set, pre-launches Chrome '
             'with --remote-debugging-port=N and runs flutter with -d web-server. '
-            'Required for tapir:resize / tapir:device commands.',
+            'Required for the commands that need the CDP port.',
       )
       ..addOption(
         'timeout',
         defaultsTo: '90',
-        help: 'Seconds to wait for the VM Service URI to appear in the flutter '
+        help:
+            'Seconds to wait for the VM Service URI to appear in the flutter '
             'run log, and on the --cdp-port branch for the web server to '
             'report that it is being served. Increase on cold starts where '
             'build + DartDev init takes longer than the default.',
@@ -268,10 +270,11 @@ class StartCommand extends DowelCommand {
         // the caller wrote was gone. Silently, against a help text that says
         // verbatim. Repetition is how a caller passes more than one.
         splitCommas: false,
-        help: 'Extra argument forwarded verbatim to flutter run, repeatable. '
+        help:
+            'Extra argument forwarded verbatim to flutter run, repeatable. '
             'Use it for anything this command has no flag of its own for: '
             '--flutter-arg=--dart-define=KEY=VALUE, --flutter-arg=--flavor=dev, '
-            '--flutter-arg=--web-renderer=html. Forwarded after the arguments '
+            '--flutter-arg=--dart-define-from-file=config.json. Forwarded after the arguments '
             'this command builds, so a repeated flag overrides the default it '
             'chose. Carried across a restart.',
       );
@@ -420,11 +423,13 @@ class StartCommand extends DowelCommand {
     final resolvedProfileStatic =
         (ctx.input.option('profile-static') as bool?) ?? profileStatic ?? false;
     // Flag wins over the value a restart carried, same as every setting above.
-    // An empty flag list means "not given" rather than "given as empty": the
-    // multi-option always parses to a list, so there is no null to test.
+    // The multi-option always parses to a list, so whether it was given is
+    // `hasOption`: on the CLI that is `wasParsed`, false when the flag never
+    // appears, and an MCP call that sends `"flutter-arg": []` has the key,
+    // which is how it clears the carried arguments.
     final List<String> flagFlutterArgs =
         (ctx.input.option('flutter-arg') as List<String>?) ?? const <String>[];
-    final List<String> resolvedFlutterArgs = flagFlutterArgs.isNotEmpty
+    final List<String> resolvedFlutterArgs = ctx.input.hasOption('flutter-arg')
         ? flagFlutterArgs
         : (flutterArgs ?? const <String>[]);
 
@@ -631,7 +636,7 @@ class StartCommand extends DowelCommand {
     // 3. Resolve Chrome binary inline (no cross-package import on
     //    tapir; chrome_reaper has no binary-resolution helper).
     final chromeBinary = cdpChromeBinaryResolver(
-      Platform.environment['TAPIR_CHROME_BIN'],
+      Platform.environment['DOWEL_CHROME_BIN'],
     );
     if (chromeBinary == null) {
       ctx.output.error(
@@ -667,57 +672,54 @@ class StartCommand extends DowelCommand {
 
     // 5. Launch Chrome detached with debug port + dedicated user-data-dir.
     final tmpRoot = cdpTmpProfileDirRoot ?? '/tmp';
-    final tmpProfileDir = '$tmpRoot/tapir-chrome-$cdpPort';
-    final chromeProcess = await cdpProcessStarter(
-        chromeBinary,
-        <String>[
-          // CDP wiring (load-bearing for tapir + this start command).
-          '--remote-debugging-port=$cdpPort',
-          '--remote-allow-origins=*',
-          '--user-data-dir=$tmpProfileDir',
-          // Tells Chrome it is automated. Shows the "Chrome is being controlled
-          // by automated test software" banner and implies several behaviors
-          // that quiet first-run noise without us listing each one.
-          '--enable-automation',
-          // First-run flow + default-browser prompt (fresh tmp profile would
-          // trigger Welcome dialog that blocks CDP Page.navigate).
-          '--no-first-run',
-          '--no-default-browser-check',
-          // Save-password + autofill prompts (Flutter web forms trigger these
-          // and the popups can intercept tapir:tap on the underlying widget).
-          '--disable-save-password-bubble',
-          '--password-store=basic',
-          '--use-mock-keychain',
-          '--disable-features=AutofillServerCommunication,PasswordLeakDetection,'
-              'PasswordManagerOnboarding,Translate,MediaRouter,OptimizationHints,'
-              'InterestFeedContentSuggestions,CalculateNativeWinOcclusion,'
-              'GlobalMediaControls,DestroyProfileOnBrowserClose,'
-              'AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync',
-          // Misc noise suppression. None of these change user-observable app
-          // behavior; they only quiet Chrome internals so automation is clean.
-          '--disable-translate',
-          '--disable-sync',
-          '--disable-background-networking',
-          '--disable-default-apps',
-          '--disable-extensions',
-          '--disable-component-extensions-with-background-pages',
-          '--disable-client-side-phishing-detection',
-          '--disable-hang-monitor',
-          '--disable-popup-blocking',
-          '--disable-prompt-on-repost',
-          '--disable-domain-reliability',
-          '--metrics-recording-only',
-          '--no-pings',
-          '--no-service-autorun',
-          // Performance: keep timers + renderer active when window not focused
-          // so tapir actions land on a live frame.
-          '--disable-background-timer-throttling',
-          '--disable-renderer-backgrounding',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-ipc-flooding-protection',
-          'about:blank',
-        ],
-        mode: ProcessStartMode.detached);
+    final tmpProfileDir = '$tmpRoot/dowel-chrome-$cdpPort';
+    final chromeProcess = await cdpProcessStarter(chromeBinary, <String>[
+      // CDP wiring (load-bearing for tapir + this start command).
+      '--remote-debugging-port=$cdpPort',
+      '--remote-allow-origins=*',
+      '--user-data-dir=$tmpProfileDir',
+      // Tells Chrome it is automated. Shows the "Chrome is being controlled
+      // by automated test software" banner and implies several behaviors
+      // that quiet first-run noise without us listing each one.
+      '--enable-automation',
+      // First-run flow + default-browser prompt (fresh tmp profile would
+      // trigger Welcome dialog that blocks CDP Page.navigate).
+      '--no-first-run',
+      '--no-default-browser-check',
+      // Save-password + autofill prompts (Flutter web forms trigger these
+      // and the popups can intercept tapir:tap on the underlying widget).
+      '--disable-save-password-bubble',
+      '--password-store=basic',
+      '--use-mock-keychain',
+      '--disable-features=AutofillServerCommunication,PasswordLeakDetection,'
+          'PasswordManagerOnboarding,Translate,MediaRouter,OptimizationHints,'
+          'InterestFeedContentSuggestions,CalculateNativeWinOcclusion,'
+          'GlobalMediaControls,DestroyProfileOnBrowserClose,'
+          'AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync',
+      // Misc noise suppression. None of these change user-observable app
+      // behavior; they only quiet Chrome internals so automation is clean.
+      '--disable-translate',
+      '--disable-sync',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-extensions',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-client-side-phishing-detection',
+      '--disable-hang-monitor',
+      '--disable-popup-blocking',
+      '--disable-prompt-on-repost',
+      '--disable-domain-reliability',
+      '--metrics-recording-only',
+      '--no-pings',
+      '--no-service-autorun',
+      // Performance: keep timers + renderer active when window not focused
+      // so tapir actions land on a live frame.
+      '--disable-background-timer-throttling',
+      '--disable-renderer-backgrounding',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-ipc-flooding-protection',
+      'about:blank',
+    ], mode: ProcessStartMode.detached);
 
     // 6. Probe Chrome to confirm it opened the debug port; on failure kill it
     //    so we never leak a runaway Chrome with no parent supervision.
@@ -822,8 +824,9 @@ class StartCommand extends DowelCommand {
       //     is the ORIGINAL throw, never a cleanup error.
       // A TimeoutException prints its Duration first; the message already
       // names the deadline.
-      final Object reason =
-          error is TimeoutException ? (error.message ?? error) : error;
+      final Object reason = error is TimeoutException
+          ? (error.message ?? error)
+          : error;
       ctx.output.error('CDP start failed after launch: $reason');
       await _reapAfterCdpFailure(
         ctx: ctx,
@@ -940,20 +943,11 @@ class StartCommand extends DowelCommand {
     //    run's stdin does not EOF when the keystroke writer closes.
     // 2. `nohup flutter run ... < fifo` reads from the FIFO on stdin.
     final wrapperArgs = <String>['nohup', 'flutter', ...flutterArgs];
-    return await cdpProcessStarter(
-        'sh',
-        <String>[
-          '-c',
-          'tail -f /dev/null > ${shellQuoteTokens([
-                fifoPath
-              ])} & echo HOLDER=\$! ; '
-              '${shellQuoteTokens(wrapperArgs)} < ${shellQuoteTokens([
-                fifoPath
-              ])} >> ${shellQuoteTokens([
-                logFile.path
-              ])} 2>&1 & echo FLUTTER=\$!',
-        ],
-        mode: ProcessStartMode.detachedWithStdio);
+    return await cdpProcessStarter('sh', <String>[
+      '-c',
+      'tail -f /dev/null > ${shellQuoteTokens([fifoPath])} & echo HOLDER=\$! ; '
+          '${shellQuoteTokens(wrapperArgs)} < ${shellQuoteTokens([fifoPath])} >> ${shellQuoteTokens([logFile.path])} 2>&1 & echo FLUTTER=\$!',
+    ], mode: ProcessStartMode.detachedWithStdio);
   }
 
   /// Creates the FIFO at [path]. Delegates to a test seam when [cdpFifoMaker]
@@ -1065,28 +1059,33 @@ class StartCommand extends DowelCommand {
         .toList(growable: false);
   }
 
-  /// Resolves the Chrome binary path: macOS canonical bundle, then Linux
-  /// PATH lookup. Returns null on Windows or when neither candidate exists.
-  /// [envOverride] is reserved for V1.x `TAPIR_CHROME_BIN`; currently ignored.
+  /// Resolves the Chrome binary path: the `DOWEL_CHROME_BIN` override, then
+  /// the macOS canonical bundle, then Linux PATH lookup. Returns null on
+  /// Windows or when no candidate exists. [envOverride] carries
+  /// `DOWEL_CHROME_BIN`.
   @visibleForTesting
   static String? Function(String? envOverride) get defaultChromeBinary =>
       (envOverride) => resolveChromeBinary(
-            isMacOs: Platform.isMacOS,
-            isLinux: Platform.isLinux,
-            macAppExists: (p) => File(p).existsSync(),
-            pathLookup: _whichPosix,
-          );
+        isMacOs: Platform.isMacOS,
+        isLinux: Platform.isLinux,
+        macAppExists: (p) => File(p).existsSync(),
+        pathLookup: _whichPosix,
+        envOverride: envOverride,
+      );
 
-  /// Pure resolver for testability: macOS bundle path, Linux PATH `google-chrome`,
-  /// otherwise null. Injects platform booleans and lookup functions so the
-  /// real Platform / File / which dependencies stay out of unit tests.
+  /// Pure resolver for testability: a non-empty [envOverride] first, then the
+  /// macOS bundle path, then Linux PATH `google-chrome`, otherwise null.
+  /// Injects platform booleans and lookup functions so the real Platform /
+  /// File / which dependencies stay out of unit tests.
   @visibleForTesting
   static String? resolveChromeBinary({
     required bool isMacOs,
     required bool isLinux,
     required bool Function(String) macAppExists,
     required String? Function(String) pathLookup,
+    String? envOverride,
   }) {
+    if (envOverride != null && envOverride.isNotEmpty) return envOverride;
     const macPath =
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     if (isMacOs && macAppExists(macPath)) return macPath;
@@ -1157,81 +1156,78 @@ class StartCommand extends DowelCommand {
   /// + JSON-RPC send + close. Inline duplicate of tapir's CdpClient at smaller
   /// scope (V1 cross-package inversion avoidance).
   @visibleForTesting
-  static Future<void> Function(int, String) get defaultChromeNavigate =>
-      (port, url) async {
-        // Page.navigate requires a TARGET (page) WebSocket, not the
-        // BROWSER-level WS that /json/version exposes. /json lists every
-        // attached target with its own webSocketDebuggerUrl. Pick the first
-        // page-type target (the about:blank tab Chrome opened on launch).
-        final client = HttpClient();
-        String wsUrl;
-        try {
-          final req =
-              await client.getUrl(Uri.parse('http://localhost:$port/json'));
-          final resp = await req.close();
-          if (resp.statusCode != 200) {
-            throw StateError(
-              'Chrome /json returned ${resp.statusCode} on port $port.',
+  static Future<void> Function(int, String)
+  get defaultChromeNavigate => (port, url) async {
+    // Page.navigate requires a TARGET (page) WebSocket, not the
+    // BROWSER-level WS that /json/version exposes. /json lists every
+    // attached target with its own webSocketDebuggerUrl. Pick the first
+    // page-type target (the about:blank tab Chrome opened on launch).
+    final client = HttpClient();
+    String wsUrl;
+    try {
+      final req = await client.getUrl(Uri.parse('http://localhost:$port/json'));
+      final resp = await req.close();
+      if (resp.statusCode != 200) {
+        throw StateError(
+          'Chrome /json returned ${resp.statusCode} on port $port.',
+        );
+      }
+      final body = await resp.transform(utf8.decoder).join();
+      final targets = jsonDecode(body) as List<dynamic>;
+      final pageTarget = targets.whereType<Map<String, dynamic>>().firstWhere(
+        (t) => t['type'] == 'page',
+        orElse: () => throw StateError(
+          'No page-type target in Chrome /json on port $port.',
+        ),
+      );
+      wsUrl = pageTarget['webSocketDebuggerUrl'] as String;
+    } finally {
+      client.close(force: true);
+    }
+
+    final ws = await WebSocket.connect(wsUrl);
+    try {
+      final completer = Completer<void>();
+      ws.listen(
+        (raw) {
+          if (completer.isCompleted) return;
+          try {
+            final decoded = jsonDecode(raw as String);
+            if (decoded is Map && decoded['id'] == 1) {
+              if (decoded['error'] != null) {
+                completer.completeError(
+                  StateError('CDP Page.navigate failed: ${decoded['error']}'),
+                );
+              } else {
+                completer.complete();
+              }
+            }
+          } catch (e, st) {
+            completer.completeError(e, st);
+          }
+        },
+        onError: completer.completeError,
+        onDone: () {
+          if (!completer.isCompleted) {
+            completer.completeError(
+              StateError('CDP WebSocket closed before Page.navigate ack.'),
             );
           }
-          final body = await resp.transform(utf8.decoder).join();
-          final targets = jsonDecode(body) as List<dynamic>;
-          final pageTarget =
-              targets.whereType<Map<String, dynamic>>().firstWhere(
-                    (t) => t['type'] == 'page',
-                    orElse: () => throw StateError(
-                      'No page-type target in Chrome /json on port $port.',
-                    ),
-                  );
-          wsUrl = pageTarget['webSocketDebuggerUrl'] as String;
-        } finally {
-          client.close(force: true);
-        }
-
-        final ws = await WebSocket.connect(wsUrl);
-        try {
-          final completer = Completer<void>();
-          ws.listen(
-            (raw) {
-              if (completer.isCompleted) return;
-              try {
-                final decoded = jsonDecode(raw as String);
-                if (decoded is Map && decoded['id'] == 1) {
-                  if (decoded['error'] != null) {
-                    completer.completeError(
-                      StateError(
-                          'CDP Page.navigate failed: ${decoded['error']}'),
-                    );
-                  } else {
-                    completer.complete();
-                  }
-                }
-              } catch (e, st) {
-                completer.completeError(e, st);
-              }
-            },
-            onError: completer.completeError,
-            onDone: () {
-              if (!completer.isCompleted) {
-                completer.completeError(
-                  StateError('CDP WebSocket closed before Page.navigate ack.'),
-                );
-              }
-            },
-            cancelOnError: true,
-          );
-          ws.add(
-            jsonEncode(<String, dynamic>{
-              'id': 1,
-              'method': 'Page.navigate',
-              'params': <String, dynamic>{'url': url},
-            }),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-        } finally {
-          await ws.close();
-        }
-      };
+        },
+        cancelOnError: true,
+      );
+      ws.add(
+        jsonEncode(<String, dynamic>{
+          'id': 1,
+          'method': 'Page.navigate',
+          'params': <String, dynamic>{'url': url},
+        }),
+      );
+      await completer.future.timeout(const Duration(seconds: 10));
+    } finally {
+      await ws.close();
+    }
+  };
 
   /// Delegates to [normalizeVmServiceUriString]; kept as a static so the
   /// existing public entry point does not move.
@@ -1249,13 +1245,13 @@ class StartCommand extends DowelCommand {
         .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
         .listen((line) {
-      final parsed = parsePidLines(<String>[line]);
-      captured.addAll(parsed);
-      if (captured.length == 2 && !completer.isCompleted) {
-        completer.complete(captured);
-        sub.cancel();
-      }
-    });
+          final parsed = parsePidLines(<String>[line]);
+          captured.addAll(parsed);
+          if (captured.length == 2 && !completer.isCompleted) {
+            completer.complete(captured);
+            sub.cancel();
+          }
+        });
     return await completer.future.timeout(const Duration(seconds: 10));
   }
 

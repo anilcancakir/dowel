@@ -13,7 +13,7 @@ import '../console/prompt.dart';
 /// final name = driver.ask('Plugin name?', defaultValue: 'my_plugin');
 /// if (driver.confirm('Publish stubs?')) { ... }
 /// ```
-abstract class PromptDriver {
+abstract interface class PromptDriver {
   /// Ask a free-form question and return the user's trimmed answer.
   ///
   /// When the user presses ENTER without typing, [defaultValue] is returned.
@@ -84,8 +84,7 @@ class RealPromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      Prompt.ask(question, defaultValue: defaultValue, validator: validator);
+  }) => Prompt.ask(question, defaultValue: defaultValue, validator: validator);
 
   @override
   bool confirm(String question, {bool defaultValue = false}) =>
@@ -96,8 +95,7 @@ class RealPromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      Prompt.choice(question, options: options, defaultValue: defaultValue);
+  }) => Prompt.choice(question, options: options, defaultValue: defaultValue);
 
   @override
   String secret(String question) => Prompt.secret(question);

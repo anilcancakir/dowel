@@ -22,7 +22,8 @@ import '../stubs/stub_loader.dart';
 /// POSIX-only V1 (macOS + Linux); Windows support is deferred.
 final class MakeFastCliCommand extends DowelCommand {
   @override
-  String get signature => 'make:fast-cli '
+  String get signature =>
+      'make:fast-cli '
       '{--force : Overwrite bin/dowel even when it already exists}';
 
   @override
@@ -51,14 +52,16 @@ final class MakeFastCliCommand extends DowelCommand {
     String,
     List<String>, {
     String? workingDirectory,
-  }) processRunner = Process.run;
+  })
+  processRunner = Process.run;
 
   /// Testable entry point. Writes `bin/dowel`, sets executable bit, patches
   /// `.gitignore`, compiles the AOT bundle, and writes the build stamp.
   ///
   /// Idempotent across all phases:
   /// - `bin/dowel` write skips when the target already exists unless [force].
-  /// - `.gitignore` append is a no-op when `.dowel/` is already present.
+  /// - `.gitignore` is left alone when it already ignores the `.dowel/`
+  ///   cache entries.
   /// - AOT compile is skipped on subsequent runs when `bin/dowel` exists and
   ///   [force] is false (stamp is written only on first compile).
   ///
@@ -72,7 +75,7 @@ final class MakeFastCliCommand extends DowelCommand {
     required bool force,
     required DowelContext ctx,
   }) async {
-    // 1. Validate pubspec.yaml — confirms we are inside a Dart/Flutter project.
+    // 1. Validate pubspec.yaml: confirms we are inside a Dart/Flutter project.
     final pubspecPath = p.join(root, 'pubspec.yaml');
     if (!File(pubspecPath).existsSync()) {
       ctx.output.error(
@@ -82,7 +85,7 @@ final class MakeFastCliCommand extends DowelCommand {
       return 1;
     }
 
-    // 2. Validate bin/dispatcher.dart — the consumer wrapper must exist before
+    // 2. Validate bin/dispatcher.dart: the consumer wrapper must exist before
     //    we scaffold the fast-CLI layer on top of it.
     final dowelBinPath = p.join(root, 'bin', 'dispatcher.dart');
     if (!File(dowelBinPath).existsSync()) {
@@ -115,22 +118,8 @@ final class MakeFastCliCommand extends DowelCommand {
       }
     }
 
-    // 5. Patch .gitignore: append `.dowel/` if not already present.
-    //    Creates the file from scratch when it does not exist yet.
-    final gitignorePath = p.join(root, '.gitignore');
-    final gitignoreFile = File(gitignorePath);
-    if (gitignoreFile.existsSync()) {
-      final existing = gitignoreFile.readAsStringSync();
-      if (!existing.contains('.dowel/')) {
-        gitignoreFile.writeAsStringSync(
-          existing.endsWith('\n')
-              ? '$existing.dowel/\n'
-              : '$existing\n.dowel/\n',
-        );
-      }
-    } else {
-      gitignoreFile.writeAsStringSync('.dowel/\n');
-    }
+    // 5. Patch .gitignore with the machine-local cache under `.dowel/`.
+    _ignoreCache(File(p.join(root, '.gitignore')));
 
     // When bin/dowel was not rewritten (idempotent skip), skip the expensive
     // compile so repeated runs do not trigger a multi-second dart build cli.
@@ -143,8 +132,9 @@ final class MakeFastCliCommand extends DowelCommand {
 
     // 6. Compute pubspec.lock SHA256 for the build stamp.
     final lockFile = File(p.join(root, 'pubspec.lock'));
-    final lockBytes =
-        lockFile.existsSync() ? lockFile.readAsBytesSync() : <int>[];
+    final lockBytes = lockFile.existsSync()
+        ? lockFile.readAsBytesSync()
+        : <int>[];
     final pubspecLockSha = sha256.convert(lockBytes).toString();
 
     // 7. Resolve the Dart SDK version for the build stamp.
@@ -158,17 +148,14 @@ final class MakeFastCliCommand extends DowelCommand {
     // 8. Compile the AOT bundle via dart build cli. Forward stdout + stderr
     //    so the user sees compiler progress. On non-zero exit, report the
     //    error details and surface a non-zero exit code.
-    final buildResult = await processRunner(
-        'dart',
-        [
-          'build',
-          'cli',
-          '-t',
-          'bin/dispatcher.dart',
-          '-o',
-          '.dowel/cli-bundle',
-        ],
-        workingDirectory: root);
+    final buildResult = await processRunner('dart', [
+      'build',
+      'cli',
+      '-t',
+      'bin/dispatcher.dart',
+      '-o',
+      '.dowel/cli-bundle',
+    ], workingDirectory: root);
     if (buildResult.stdout is String &&
         (buildResult.stdout as String).isNotEmpty) {
       ctx.output.writeln(buildResult.stdout as String);
@@ -196,9 +183,50 @@ final class MakeFastCliCommand extends DowelCommand {
     tmp.renameSync(stampPath);
 
     // 10. Signal success to the user.
-    ctx.output
-        .success('dowel: ready. Run ./bin/dowel <cmd> for a ~50ms startup.');
+    ctx.output.success(
+      'dowel: ready. Run ./bin/dowel <cmd> for a ~50ms startup.',
+    );
     return 0;
+  }
+
+  /// The `.dowel/` entries that are machine-local cache: the AOT bundle, its
+  /// staleness stamp and the build lock directory, all rebuilt on demand by
+  /// `bin/dowel`. The rest of `.dowel/` is source of truth and is committed:
+  /// `plugins.json` regenerates `lib/app/_plugins.g.dart`, `installed/` holds
+  /// the records `plugin:uninstall` reverses, `mcp.json` is the tool filter.
+  ///
+  /// The globs also cover the scratch paths of a build: `bin/dowel` compiles
+  /// into `cli-bundle.build.<pid>`, parks the old bundle at
+  /// `cli-bundle.old.<pid>` and stages the stamp at `build.stamp.tmp`.
+  static const List<String> _cacheEntries = <String>[
+    '.dowel/cli-bundle*',
+    '.dowel/build.stamp*',
+    '.dowel/.dowel.lock/',
+  ];
+
+  /// Adds every missing [_cacheEntries] line to [gitignore], creating the
+  /// file when absent.
+  ///
+  /// A bare `.dowel/` line, which earlier versions wrote, is replaced by the
+  /// cache entries: it ignored `plugins.json` too, so a fresh clone read an
+  /// empty registry and the next `plugin:install` regenerated the barrel with
+  /// that one plugin, dropping every other provider.
+  static void _ignoreCache(File gitignore) {
+    final lines = gitignore.existsSync()
+        ? gitignore.readAsLinesSync()
+        : const <String>[];
+    final kept = <String>[];
+    for (final line in lines) {
+      if (line.trim() != '.dowel/' && line.trim() != '/.dowel/') {
+        kept.add(line);
+        continue;
+      }
+      kept.addAll(_cacheEntries.where((entry) => !lines.contains(entry)));
+    }
+    kept.addAll(_cacheEntries.where((entry) => !kept.contains(entry)));
+    if (kept.join('\n') == lines.join('\n')) return;
+
+    gitignore.writeAsStringSync('${kept.join('\n')}\n');
   }
 
   /// Returns true when [path] does not exist OR [force] is set.

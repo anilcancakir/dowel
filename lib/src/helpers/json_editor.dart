@@ -29,7 +29,7 @@ import 'dart:io';
 ///   JsonEditor.mergeKey(...);
 /// }
 /// ```
-class JsonEditor {
+final class JsonEditor {
   JsonEditor._();
 
   // -------------------------------------------------------------------------

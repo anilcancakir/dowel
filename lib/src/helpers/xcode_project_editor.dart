@@ -244,9 +244,7 @@ final class XcodeProjectEditor {
       final current = configuration.settings.valueFor(_entitlementsSetting);
       if (current == null) continue;
       if (current is _PbxString && current.value == wantedPath) continue;
-      conflicting.add(
-        current is _PbxString ? current.value : _nonStringValue,
-      );
+      conflicting.add(current is _PbxString ? current.value : _nonStringValue);
     }
     if (conflicting.isNotEmpty) return conflicting;
 
@@ -267,8 +265,9 @@ final class XcodeProjectEditor {
     if (changed) {
       // The installer does not roll helper-backed writes back and a truncated
       // .pbxproj cannot be opened, so land the new content through a sibling
-      // temp file and one rename rather than in place.
-      final staged = File('$pbxprojPath.tmp')
+      // temp file and one rename rather than in place. The pid keeps two
+      // concurrent installs off each other's temp.
+      final staged = File('$pbxprojPath.$pid.tmp')
         ..writeAsStringSync(document.emit());
       staged.renameSync(pbxprojPath);
     }
@@ -359,41 +358,55 @@ final class XcodeProjectEditor {
   ) {
     final listId = target.stringFor('buildConfigurationList');
     if (listId == null) {
-      throw StateError('Application target in $path has no '
-          'buildConfigurationList.');
+      throw StateError(
+        'Application target in $path has no '
+        'buildConfigurationList.',
+      );
     }
     final list = objects.valueFor(listId);
     if (list is! _PbxDict) {
-      throw StateError('buildConfigurationList $listId is missing from the '
-          'objects of $path.');
+      throw StateError(
+        'buildConfigurationList $listId is missing from the '
+        'objects of $path.',
+      );
     }
     final configurations = list.arrayFor('buildConfigurations');
     if (configurations == null || configurations.items.isEmpty) {
-      throw StateError('Configuration list $listId in $path holds no build '
-          'configurations.');
+      throw StateError(
+        'Configuration list $listId in $path holds no build '
+        'configurations.',
+      );
     }
 
     final settings = <({String name, _PbxDict settings})>[];
     for (final item in configurations.items) {
       final reference = item.value;
       if (reference is! _PbxString) {
-        throw StateError('Configuration list $listId in $path holds a '
-            'non-identifier entry.');
+        throw StateError(
+          'Configuration list $listId in $path holds a '
+          'non-identifier entry.',
+        );
       }
       final configuration = objects.valueFor(reference.value);
       if (configuration is! _PbxDict) {
-        throw StateError('Build configuration ${reference.value} is missing '
-            'from the objects of $path.');
+        throw StateError(
+          'Build configuration ${reference.value} is missing '
+          'from the objects of $path.',
+        );
       }
       final buildSettings = configuration.dictFor('buildSettings');
       if (buildSettings == null) {
-        throw StateError('Build configuration ${reference.value} in $path has '
-            'no buildSettings dictionary.');
+        throw StateError(
+          'Build configuration ${reference.value} in $path has '
+          'no buildSettings dictionary.',
+        );
       }
       final name = configuration.stringFor('name');
       if (name == null) {
-        throw StateError('Build configuration ${reference.value} in $path has '
-            'no name, so it cannot be addressed by one.');
+        throw StateError(
+          'Build configuration ${reference.value} in $path has '
+          'no name, so it cannot be addressed by one.',
+        );
       }
       settings.add((name: name, settings: buildSettings));
     }
@@ -414,8 +427,9 @@ final class XcodeProjectEditor {
       if (entry.key == key) return false;
     }
 
-    final index =
-        settings.entries.indexWhere((entry) => entry.key.compareTo(key) > 0);
+    final index = settings.entries.indexWhere(
+      (entry) => entry.key.compareTo(key) > 0,
+    );
     final anchor = index >= 0
         ? settings.entries[index]
         : (settings.entries.isEmpty ? null : settings.entries.last);

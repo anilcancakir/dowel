@@ -98,8 +98,9 @@ abstract class DowelCommand {
 
   String get _recommendedName {
     final raw = runtimeType.toString();
-    final withoutSuffix =
-        raw.endsWith('Command') ? raw.substring(0, raw.length - 7) : raw;
+    final withoutSuffix = raw.endsWith('Command')
+        ? raw.substring(0, raw.length - 7)
+        : raw;
     final kebab = withoutSuffix
         .replaceAllMapped(
           RegExp(r'([a-z0-9])([A-Z])'),

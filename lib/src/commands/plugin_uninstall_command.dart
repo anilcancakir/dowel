@@ -14,6 +14,7 @@ import '../installer/install_context.dart';
 import '../installer/install_exception.dart';
 import '../installer/install_manifest.dart';
 import '../installer/install_operation.dart';
+import '../installer/install_record.dart';
 import '../installer/install_transaction.dart';
 import '../installer/manifest_installer.dart';
 import '../installer/manifest_parser.dart';
@@ -39,7 +40,7 @@ import 'plugins_refresh_command.dart';
 ///      and exits without touching the filesystem.
 ///   5. Otherwise, delegates to [ManifestInstaller.uninstall] which derives
 ///      the reverse [InstallOperation]s from the record, commits a fresh
-///      reverse transaction, and deletes the record on Success.
+///      reverse transaction, and deletes the record on InstallSuccess.
 ///
 /// V1 limitation: only `WriteFile` / `DeleteFile` / `CopyFile` carry full
 /// payload in the install record. Every other op type is recorded as a
@@ -52,7 +53,8 @@ class PluginUninstallCommand extends DowelInstallCommand {
   PluginUninstallCommand();
 
   @override
-  String get signature => 'plugin:uninstall '
+  String get signature =>
+      'plugin:uninstall '
       '$baseFlags'
       '{name : Plugin pubspec package name}';
 
@@ -133,12 +135,20 @@ class PluginUninstallCommand extends DowelInstallCommand {
     //    never installed via the manifest path OR the record was deleted
     //    manually; either way the command cannot derive a reverse plan.
     final root = getProjectRoot();
-    final recordPath = p.join(root, '.dowel', 'installed', '$name.json');
+    final recordPath = installRecordPath(root, name);
     if (!File(recordPath).existsSync()) {
       ctx.output.error(
         'Plugin "$name" is not installed via the manifest path '
         '(no install record at $recordPath). Nothing to uninstall.',
       );
+      return 1;
+    }
+
+    // 2a. A record this version cannot read is refused before the dry run
+    //     too, so the preview never promises a reversal the real run refuses.
+    final problem = readInstallRecord(const RealFs(), recordPath).problem;
+    if (problem != null) {
+      ctx.output.error(problem);
       return 1;
     }
 
@@ -189,12 +199,12 @@ class PluginUninstallCommand extends DowelInstallCommand {
     }
 
     // 7. Delegate to ManifestInstaller. The reverse transaction deletes the
-    //    record on Success (see ManifestInstaller.uninstall).
+    //    record on InstallSuccess (see ManifestInstaller.uninstall).
     final installer = ManifestInstaller(installContext, manifest);
     final result = await installer.uninstall(force: isForce(ctx));
 
     switch (result) {
-      case Success():
+      case InstallSuccess():
         ctx.output.success(result.describe());
         // 8. Drop the plugin from the registry and regenerate the barrel,
         //    otherwise the next run still loads its commands.
@@ -203,15 +213,15 @@ class PluginUninstallCommand extends DowelInstallCommand {
         //    against the updated lib/app/_plugins.g.dart (issue #9 GAP A).
         CliBundleCache.purge(root);
         return 0;
-      case DryRun():
+      case InstallDryRun():
         // Unreachable in practice; ManifestInstaller.uninstall has no
         // dryRun parameter and the --dry-run branch returned above.
         ctx.output.info(result.describe());
         return 0;
-      case Conflict():
+      case InstallConflict():
         ctx.output.error(result.describe());
         return 2;
-      case Error():
+      case InstallError():
         ctx.output.error(result.describe());
         return 1;
     }
@@ -236,8 +246,8 @@ class PluginUninstallCommand extends DowelInstallCommand {
     if (!File(p.join(root, '.dowel', 'plugins.json')).existsSync()) return;
     try {
       await PluginsRegistryFile(const RealFs(), root).removePlugin(name);
-      final refreshed =
-          await PluginsRefreshCommand(projectRoot: root).handle(ctx);
+      final refreshed = await PluginsRefreshCommand(projectRoot: root)
+          .handle(ctx);
       if (refreshed != 0) {
         ctx.output.warning(
           'Plugin "$name" was uninstalled but lib/app/_plugins.g.dart was not '

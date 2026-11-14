@@ -14,8 +14,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      defaultValue ?? '';
+  }) => defaultValue ?? '';
 
   @override
   bool confirm(String question, {bool defaultValue = false}) => defaultValue;
@@ -25,8 +24,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      defaultValue ?? options.first;
+  }) => defaultValue ?? options.first;
 
   @override
   String secret(String question) => '';
@@ -110,23 +108,21 @@ void main() {
     });
 
     test('injectImport enqueues InjectImport', () {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').injectImport(
-        targetFile: 'lib/x.dart',
-        importStatement: "import 'package:y/y.dart';",
-      );
+      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+          .injectImport(
+            targetFile: 'lib/x.dart',
+            importStatement: "import 'package:y/y.dart';",
+          );
       final op = installer.pendingOps.single as InjectImport;
       expect(op.targetFile, 'lib/x.dart');
       expect(op.importStatement, "import 'package:y/y.dart';");
     });
 
     test('injectBefore enqueues InjectBeforePattern', () {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').injectBefore(
-        targetFile: 'lib/x.dart',
-        pattern: 'MARK',
-        code: 'B\n',
-      );
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectBefore(targetFile: 'lib/x.dart', pattern: 'MARK', code: 'B\n');
       final op = installer.pendingOps.single as InjectBeforePattern;
       expect(op.targetFile, 'lib/x.dart');
       expect(op.pattern, 'MARK');
@@ -134,25 +130,24 @@ void main() {
     });
 
     test('injectAfter enqueues InjectAfterPattern', () {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').injectAfter(
-        targetFile: 'lib/x.dart',
-        pattern: 'MARK',
-        code: '\nA',
-      );
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectAfter(targetFile: 'lib/x.dart', pattern: 'MARK', code: '\nA');
       final op = installer.pendingOps.single as InjectAfterPattern;
       expect(op.code, '\nA');
     });
 
     test('injectMainDartImport enqueues InjectMainDartImport', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectMainDartImport("import 'package:a/a.dart';");
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectMainDartImport("import 'package:a/a.dart';");
       final op = installer.pendingOps.single as InjectMainDartImport;
       expect(op.importStatement, "import 'package:a/a.dart';");
     });
 
-    test(
-        'injectBeforeMagicInit / injectAfterMagicInit / wrapRunApp enqueue '
+    test('injectBeforeMagicInit / injectAfterMagicInit / wrapRunApp enqueue '
         'placements', () {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectBeforeMagicInit('A.boot();')
@@ -160,43 +155,56 @@ void main() {
           .wrapRunApp('SentryWidget');
 
       expect(installer.pendingCount, 3);
-      expect((installer.pendingOps[0] as InjectIntoMainDart).placement,
-          MainDartPlacement.beforeInit);
-      expect((installer.pendingOps[1] as InjectIntoMainDart).placement,
-          MainDartPlacement.afterInit);
-      expect((installer.pendingOps[2] as InjectIntoMainDart).placement,
-          MainDartPlacement.wrapRunApp);
       expect(
-          (installer.pendingOps[2] as InjectIntoMainDart).code, 'SentryWidget');
+        (installer.pendingOps[0] as InjectIntoMainDart).placement,
+        MainDartPlacement.beforeInit,
+      );
+      expect(
+        (installer.pendingOps[1] as InjectIntoMainDart).placement,
+        MainDartPlacement.afterInit,
+      );
+      expect(
+        (installer.pendingOps[2] as InjectIntoMainDart).placement,
+        MainDartPlacement.wrapRunApp,
+      );
+      expect(
+        (installer.pendingOps[2] as InjectIntoMainDart).code,
+        'SentryWidget',
+      );
     });
 
-    test('injectProvider enqueues composite InjectImport + InjectAfterPattern',
-        () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectProvider('DemoServiceProvider');
+    test(
+      'injectProvider enqueues composite InjectImport + InjectAfterPattern',
+      () {
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).injectProvider('DemoServiceProvider');
 
-      expect(installer.pendingCount, 2);
-      final imp = installer.pendingOps[0] as InjectImport;
-      final inj = installer.pendingOps[1] as InjectAfterPattern;
-      expect(imp.targetFile, 'lib/config/app.dart');
-      expect(imp.importStatement, "import 'package:demo/demo.dart';");
-      expect(inj.targetFile, 'lib/config/app.dart');
-      expect(inj.code, contains('DemoServiceProvider(app)'));
-    });
+        expect(installer.pendingCount, 2);
+        final imp = installer.pendingOps[0] as InjectImport;
+        final inj = installer.pendingOps[1] as InjectAfterPattern;
+        expect(imp.targetFile, 'lib/config/app.dart');
+        expect(imp.importStatement, "import 'package:demo/demo.dart';");
+        expect(inj.targetFile, 'lib/config/app.dart');
+        expect(inj.code, contains('DemoServiceProvider(app)'));
+      },
+    );
 
     test('injectProvider honours custom package override', () {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').injectProvider(
-        'CustomProvider',
-        package: 'package:other/other.dart',
-      );
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectProvider('CustomProvider', package: 'package:other/other.dart');
       final imp = installer.pendingOps[0] as InjectImport;
       expect(imp.importStatement, "import 'package:other/other.dart';");
     });
 
     test('injectConfigFactory enqueues import + main.dart insertion', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectConfigFactory('demoConfig');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectConfigFactory('demoConfig');
 
       expect(installer.pendingCount, 2);
       expect(installer.pendingOps[0], isA<InjectMainDartImport>());
@@ -206,8 +214,10 @@ void main() {
     });
 
     test('injectRoute enqueues InjectRouteRegistration', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectRoute('registerDemoRoutes');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectRoute('registerDemoRoutes');
       final op = installer.pendingOps.single as InjectRouteRegistration;
       expect(op.functionName, 'registerDemoRoutes');
     });
@@ -223,8 +233,13 @@ void main() {
       tempDir = Directory.systemTemp.createTempSync('plinst_inj_disp_');
       mainDartPath = p.join(tempDir.path, 'lib', 'main.dart');
       appConfigPath = p.join(tempDir.path, 'lib', 'config', 'app.dart');
-      routeProviderPath = p.join(tempDir.path, 'lib', 'app', 'providers',
-          'route_service_provider.dart');
+      routeProviderPath = p.join(
+        tempDir.path,
+        'lib',
+        'app',
+        'providers',
+        'route_service_provider.dart',
+      );
 
       File(mainDartPath).createSync(recursive: true);
       File(mainDartPath).writeAsStringSync(_mainDartFixture);
@@ -241,16 +256,17 @@ void main() {
     test('injectImport adds import to a generic Dart file', () async {
       final target = File(p.join(tempDir.path, 'lib', 'x.dart'));
       target.writeAsStringSync(
-          "import 'package:meta/meta.dart';\n\nvoid main() {}\n");
-
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').injectImport(
-        targetFile: 'lib/x.dart',
-        importStatement: "import 'package:y/y.dart';",
+        "import 'package:meta/meta.dart';\n\nvoid main() {}\n",
       );
 
+      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+          .injectImport(
+            targetFile: 'lib/x.dart',
+            importStatement: "import 'package:y/y.dart';",
+          );
+
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(target.readAsStringSync(), contains("package:y/y.dart"));
     });
 
@@ -258,10 +274,7 @@ void main() {
       final target = File(p.join(tempDir.path, 'snippet.dart'));
       target.writeAsStringSync('A\nMARK\nC\n');
 
-      final result = await PluginInstaller(
-        _ctxFor(tempDir),
-        pluginName: 'demo',
-      )
+      final result = await PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectBefore(
             targetFile: 'snippet.dart',
             pattern: 'MARK',
@@ -274,28 +287,34 @@ void main() {
           )
           .commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = target.readAsStringSync();
       expect(content, contains('B-before'));
       expect(content, contains('B-after'));
     });
 
     test('injectMainDartImport adds import to lib/main.dart', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectMainDartImport("import 'package:demo/demo.dart';");
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectMainDartImport("import 'package:demo/demo.dart';");
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
-      expect(File(mainDartPath).readAsStringSync(),
-          contains("import 'package:demo/demo.dart';"));
+      expect(result, isA<InstallSuccess>());
+      expect(
+        File(mainDartPath).readAsStringSync(),
+        contains("import 'package:demo/demo.dart';"),
+      );
     });
 
     test('injectBeforeMagicInit inserts before Magic.init', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectBeforeMagicInit('Demo.boot();');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectBeforeMagicInit('Demo.boot();');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       final initIdx = content.indexOf('Magic.init');
       final demoIdx = content.indexOf('Demo.boot();');
@@ -304,58 +323,72 @@ void main() {
     });
 
     test('injectAfterMagicInit inserts after the init block', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectAfterMagicInit('Demo.warm();');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectAfterMagicInit('Demo.warm();');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       expect(content, contains('Demo.warm();'));
     });
 
     test('wrapRunApp wraps runApp argument', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .wrapRunApp('SentryWidget');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).wrapRunApp('SentryWidget');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
-      expect(File(mainDartPath).readAsStringSync(),
-          contains('runApp(SentryWidget(MyApp()))'));
+      expect(result, isA<InstallSuccess>());
+      expect(
+        File(mainDartPath).readAsStringSync(),
+        contains('runApp(SentryWidget(MyApp()))'),
+      );
     });
 
     test('injectProvider adds import + provider closure entry', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectProvider('DemoServiceProvider');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectProvider('DemoServiceProvider');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(appConfigPath).readAsStringSync();
       expect(content, contains("import 'package:demo/demo.dart';"));
       expect(content, contains('(app) => DemoServiceProvider(app),'));
     });
 
     test('injectConfigFactory adds import + factories list entry', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectConfigFactory('demoConfig');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectConfigFactory('demoConfig');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       expect(content, contains("import 'package:demo/demo.dart';"));
       expect(content, contains('() => demoConfig,'));
     });
 
-    test('injectRoute inserts a call into RouteServiceProvider.boot()',
-        () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectRoute('registerDemoRoutes');
+    test(
+      'injectRoute inserts a call into RouteServiceProvider.boot()',
+      () async {
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).injectRoute('registerDemoRoutes');
 
-      final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
-      final content = File(routeProviderPath).readAsStringSync();
-      expect(content, contains('registerDemoRoutes();'));
-      expect(content, contains('registerAppRoutes();'));
-    });
+        final result = await installer.commit(force: true);
+        expect(result, isA<InstallSuccess>());
+        final content = File(routeProviderPath).readAsStringSync();
+        expect(content, contains('registerDemoRoutes();'));
+        expect(content, contains('registerAppRoutes();'));
+      },
+    );
 
     test('inject chain returns this across all methods', () {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo');
@@ -425,62 +458,66 @@ void main() async {
 ''';
 
     test(
-        'injectProvider appends to the END of the providers list (not the top)',
-        () async {
-      // Seed the multi-provider fixture to disk.
-      final appConfigPath = p.join(tempDir.path, 'lib', 'config', 'app.dart');
-      File(appConfigPath).createSync(recursive: true);
-      File(appConfigPath).writeAsStringSync(appConfigFixtureMultiProvider);
+      'injectProvider appends to the END of the providers list (not the top)',
+      () async {
+        // Seed the multi-provider fixture to disk.
+        final appConfigPath = p.join(tempDir.path, 'lib', 'config', 'app.dart');
+        File(appConfigPath).createSync(recursive: true);
+        File(appConfigPath).writeAsStringSync(appConfigFixtureMultiProvider);
 
-      final result =
-          await PluginInstaller(_ctxFor(tempDir), pluginName: 'mytest')
-              .injectProvider('MyTestProvider')
-              .commit(force: true);
+        final result = await PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'mytest',
+        ).injectProvider('MyTestProvider').commit(force: true);
 
-      expect(result, isA<Success>());
-      final content = File(appConfigPath).readAsStringSync();
-      // The new entry must land AFTER the last existing provider, not before it.
-      final newIdx = content.indexOf('MyTestProvider');
-      final lastExistingIdx = content.indexOf('LoggingServiceProvider');
-      expect(newIdx, greaterThan(lastExistingIdx));
-    });
+        expect(result, isA<InstallSuccess>());
+        final content = File(appConfigPath).readAsStringSync();
+        // The new entry must land AFTER the last existing provider, not before it.
+        final newIdx = content.indexOf('MyTestProvider');
+        final lastExistingIdx = content.indexOf('LoggingServiceProvider');
+        expect(newIdx, greaterThan(lastExistingIdx));
+      },
+    );
 
     test(
-        'injectProvider uses 6-space indent matching the surrounding list style',
-        () async {
-      final appConfigPath = p.join(tempDir.path, 'lib', 'config', 'app.dart');
-      File(appConfigPath).createSync(recursive: true);
-      File(appConfigPath).writeAsStringSync(appConfigFixtureMultiProvider);
+      'injectProvider uses 6-space indent matching the surrounding list style',
+      () async {
+        final appConfigPath = p.join(tempDir.path, 'lib', 'config', 'app.dart');
+        File(appConfigPath).createSync(recursive: true);
+        File(appConfigPath).writeAsStringSync(appConfigFixtureMultiProvider);
 
-      final result =
-          await PluginInstaller(_ctxFor(tempDir), pluginName: 'mytest')
-              .injectProvider('MyTestProvider')
-              .commit(force: true);
+        final result = await PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'mytest',
+        ).injectProvider('MyTestProvider').commit(force: true);
 
-      expect(result, isA<Success>());
-      final content = File(appConfigPath).readAsStringSync();
-      // The injected line must start with exactly 6 spaces (matching list peers).
-      expect(
-        content,
-        matches(
-          RegExp(r'^      \(app\) => MyTestProvider\(app\),$', multiLine: true),
-        ),
-      );
-    });
+        expect(result, isA<InstallSuccess>());
+        final content = File(appConfigPath).readAsStringSync();
+        // The injected line must start with exactly 6 spaces (matching list peers).
+        expect(
+          content,
+          matches(
+            RegExp(
+              r'^      \(app\) => MyTestProvider\(app\),$',
+              multiLine: true,
+            ),
+          ),
+        );
+      },
+    );
 
-    test('injectConfigFactory appends to the END of the configFactories list',
-        () async {
+    test('injectConfigFactory appends to the END of the configFactories list', () async {
       // Seed the multi-factory main.dart fixture to disk.
       final mainDartPath = p.join(tempDir.path, 'lib', 'main.dart');
       File(mainDartPath).createSync(recursive: true);
       File(mainDartPath).writeAsStringSync(mainDartFixtureMultiFactory);
 
-      final result =
-          await PluginInstaller(_ctxFor(tempDir), pluginName: 'mytest')
-              .injectConfigFactory('myConfig')
-              .commit(force: true);
+      final result = await PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'mytest',
+      ).injectConfigFactory('myConfig').commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       // The new entry must land AFTER the last existing factory, not before it.
       final newIdx = content.indexOf('myConfig');
@@ -493,12 +530,12 @@ void main() async {
       File(mainDartPath).createSync(recursive: true);
       File(mainDartPath).writeAsStringSync(mainDartFixtureMultiFactory);
 
-      final result =
-          await PluginInstaller(_ctxFor(tempDir), pluginName: 'mytest')
-              .injectConfigFactory('myConfig')
-              .commit(force: true);
+      final result = await PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'mytest',
+      ).injectConfigFactory('myConfig').commit(force: true);
 
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final content = File(mainDartPath).readAsStringSync();
       // The injected line must start with exactly 6 spaces (matching list peers).
       expect(

@@ -37,7 +37,10 @@ void main() {
 
     test('setStringKey inserts a new <key>/<string> pair', () {
       PlistWriter.setStringKey(
-          plistPath, 'NSCameraUsageDescription', 'Camera access');
+        plistPath,
+        'NSCameraUsageDescription',
+        'Camera access',
+      );
 
       final content = File(plistPath).readAsStringSync();
       expect(content, contains('<key>NSCameraUsageDescription</key>'));
@@ -54,16 +57,18 @@ void main() {
       expect(content, contains('<string>MyApp</string>'));
     });
 
-    test('setStringKey replaces value when key exists with different value',
-        () {
-      PlistWriter.setStringKey(plistPath, 'CFBundleName', 'UpdatedApp');
+    test(
+      'setStringKey replaces value when key exists with different value',
+      () {
+        PlistWriter.setStringKey(plistPath, 'CFBundleName', 'UpdatedApp');
 
-      final content = File(plistPath).readAsStringSync();
-      expect(content, contains('<string>UpdatedApp</string>'));
-      expect(content, isNot(contains('<string>MyApp</string>')));
-      final keyCount = '<key>CFBundleName</key>'.allMatches(content).length;
-      expect(keyCount, 1);
-    });
+        final content = File(plistPath).readAsStringSync();
+        expect(content, contains('<string>UpdatedApp</string>'));
+        expect(content, isNot(contains('<string>MyApp</string>')));
+        final keyCount = '<key>CFBundleName</key>'.allMatches(content).length;
+        expect(keyCount, 1);
+      },
+    );
 
     // -------------------------------------------------------------------------
     // setBoolKey
@@ -92,8 +97,9 @@ void main() {
       final content = File(plistPath).readAsStringSync();
       expect(content, contains('<false/>'));
       expect(content, isNot(contains('<true/>')));
-      final keyCount =
-          '<key>UIFileSharingEnabled</key>'.allMatches(content).length;
+      final keyCount = '<key>UIFileSharingEnabled</key>'
+          .allMatches(content)
+          .length;
       expect(keyCount, 1);
     });
 
@@ -111,9 +117,13 @@ void main() {
       expect(content, contains('<key>UISupportedInterfaceOrientations</key>'));
       expect(content, contains('<array>'));
       expect(
-          content, contains('<string>UIInterfaceOrientationPortrait</string>'));
-      expect(content,
-          contains('<string>UIInterfaceOrientationLandscapeLeft</string>'));
+        content,
+        contains('<string>UIInterfaceOrientationPortrait</string>'),
+      );
+      expect(
+        content,
+        contains('<string>UIInterfaceOrientationLandscapeLeft</string>'),
+      );
     });
 
     test('setArrayKey replaces an existing array', () {
@@ -125,10 +135,14 @@ void main() {
       ]);
 
       final content = File(plistPath).readAsStringSync();
-      expect(content,
-          isNot(contains('<string>UIInterfaceOrientationPortrait</string>')));
-      expect(content,
-          contains('<string>UIInterfaceOrientationLandscapeLeft</string>'));
+      expect(
+        content,
+        isNot(contains('<string>UIInterfaceOrientationPortrait</string>')),
+      );
+      expect(
+        content,
+        contains('<string>UIInterfaceOrientationLandscapeLeft</string>'),
+      );
       final keyCount = '<key>UISupportedInterfaceOrientations</key>'
           .allMatches(content)
           .length;
@@ -142,7 +156,10 @@ void main() {
     test('appendToArrayKey appends to an existing array', () {
       PlistWriter.setArrayKey(plistPath, 'UIBackgroundModes', ['fetch']);
       PlistWriter.appendToArrayKey(
-          plistPath, 'UIBackgroundModes', 'remote-notification');
+        plistPath,
+        'UIBackgroundModes',
+        'remote-notification',
+      );
 
       final content = File(plistPath).readAsStringSync();
       expect(content, contains('<string>fetch</string>'));
@@ -257,7 +274,9 @@ void main() {
     test('addUrlScheme throws for a missing Info.plist', () {
       expect(
         () => PlistWriter.addUrlScheme(
-            p.join(tempDir.path, 'Missing.plist'), 'com.example.app'),
+          p.join(tempDir.path, 'Missing.plist'),
+          'com.example.app',
+        ),
         throwsA(isA<FileSystemException>()),
       );
     });
@@ -307,15 +326,20 @@ void main() {
     // Create-if-absent (entitlements only)
     // -------------------------------------------------------------------------
 
-    test(
-        'setStringKey creates a minimal plist when the entitlements path is absent',
-        () {
-      final entitlementsPath =
-          p.join(tempDir.path, 'ios', 'Runner', 'Runner.entitlements');
+    test('setStringKey creates a minimal plist when the entitlements path is absent', () {
+      final entitlementsPath = p.join(
+        tempDir.path,
+        'ios',
+        'Runner',
+        'Runner.entitlements',
+      );
       expect(File(entitlementsPath).existsSync(), isFalse);
 
       PlistWriter.setStringKey(
-          entitlementsPath, 'aps-environment', 'development');
+        entitlementsPath,
+        'aps-environment',
+        'development',
+      );
 
       final content = File(entitlementsPath).readAsStringSync();
       expect(() => XmlDocument.parse(content), returnsNormally);
@@ -325,7 +349,10 @@ void main() {
       // The key round-trips through PlistWriter's own reading path: a second
       // call with the same value is idempotent and does not duplicate the key.
       PlistWriter.setStringKey(
-          entitlementsPath, 'aps-environment', 'development');
+        entitlementsPath,
+        'aps-environment',
+        'development',
+      );
       final keyCount = '<key>aps-environment</key>'
           .allMatches(File(entitlementsPath).readAsStringSync())
           .length;
@@ -338,7 +365,10 @@ void main() {
 
       expect(
         () => PlistWriter.setStringKey(
-            missingInfoPlist, 'NSCameraUsageDescription', 'Camera access'),
+          missingInfoPlist,
+          'NSCameraUsageDescription',
+          'Camera access',
+        ),
         throwsA(isA<FileSystemException>()),
       );
     });

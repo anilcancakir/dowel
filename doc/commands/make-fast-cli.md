@@ -1,6 +1,6 @@
 # make:fast-cli
 
-Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for about 100 ms startup, avoiding the 3-second `dart run` overhead with build hooks.
+Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for a startup of tens of milliseconds, avoiding the 3-second `dart run` overhead with build hooks.
 
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
@@ -21,7 +21,7 @@ Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for a
 dart run dowel make:fast-cli
 ```
 
-Writes four files and directories: `bin/dowel` (POSIX shell wrapper, executable), `.dowel/cli-bundle/` (compiled binary + runtime libraries), `.dowel/build.stamp` (staleness marker), and patches `.gitignore` to ignore the cache. Caches the build result so subsequent invocations are cached (real time under 100ms on hit).
+Writes `bin/dowel` (POSIX shell wrapper, executable), `.dowel/cli-bundle/` (compiled binary + runtime libraries) and `.dowel/build.stamp` (staleness marker), and patches `.gitignore` to ignore that cache. Caches the build result so subsequent invocations are cached (tens of milliseconds on a hit).
 
 ---
 
@@ -49,7 +49,7 @@ make:fast-cli {--force : Overwrite bin/dowel even when it already exists}
 
 4. **Compiles the binary.** Runs `dart build cli -t bin/dispatcher.dart -o .dowel/cli-bundle`, producing an AOT-native binary at `.dowel/cli-bundle/bundle/bin/dispatcher`.
 
-5. **Patches `.gitignore`.** Appends `.dowel/` if not already present, ensuring the compiled cache is excluded from version control and never tracked. Idempotent.
+5. **Patches `.gitignore`.** Appends the cache entries `.dowel/cli-bundle*`, `.dowel/build.stamp*` and `.dowel/.dowel.lock/` when they are missing, so the compiled cache is never tracked. The globs also cover the scratch paths of a build: `bin/dowel` compiles into `.dowel/cli-bundle.build.<pid>`, parks the old bundle at `.dowel/cli-bundle.old.<pid>` and stages the stamp at `.dowel/build.stamp.tmp`. The rest of `.dowel/` is source of truth and stays trackable: `plugins.json` is the registry `lib/app/_plugins.g.dart` is generated from, `installed/` holds the install records and `mcp.json` is the tool filter. A bare `.dowel/` line, which earlier versions wrote, is replaced by the three entries, because it also ignored `plugins.json`. Idempotent.
 
 ---
 
@@ -87,7 +87,7 @@ The wrapper's `needs_build()` function triggers a rebuild when any of these cond
 
 4. **`pubspec.yaml` modified since last build.** The mtime of `pubspec.yaml` is newer than the stamp file's mtime, detected via the `-nt` (newer than) operator.
 
-5. **`lib/app/_plugins.g.dart` modified since last build.** The mtime of `lib/app/_plugins.g.dart` is newer than the stamp file's mtime. This condition was added in 0.0.5 to invalidate the cache when `plugin:install` or `plugins:refresh` regenerates the file (issue #9 GAP A).
+5. **`lib/app/_plugins.g.dart` modified since last build.** The mtime of `lib/app/_plugins.g.dart` is newer than the stamp file's mtime. It invalidates the cache when `plugin:install` or `plugins:refresh` regenerates the file.
 
 Any match triggers a recompile inside the lock-acquire section. The re-check inside the lock prevents redundant builds when multiple invocations race.
 
@@ -109,7 +109,7 @@ time ./bin/dowel status
 # sys  0m0.015s
 ```
 
-about 100 ms round-trip on a modern machine (no `dart run`, no "Running build hooks..." overhead).
+Tens of milliseconds round-trip on a modern machine (no `dart run`, no "Running build hooks..." overhead).
 
 ### Cache miss (first run or staleness detected)
 
@@ -138,9 +138,7 @@ time ./bin/dowel status
 <a name="caveats"></a>
 ## Caveats
 
-**V1 POSIX-only (macOS + Linux).** Windows users continue to use `dart run dowel <cmd>`. A `.cmd` variant is deferred to V1.x.
-
-**Requires Dart 3.5 or later.** The command uses `dart build cli`, which requires Dart 3.5+ because transitive dependencies may declare `hook/build.dart` via pub-provided build hooks. Earlier SDK versions fail with "dart compile does not support build hooks."
+**POSIX only (macOS and Linux).** Windows users use `dart run dowel <cmd>`; there is no `.cmd` variant.
 
 **No cross-compilation.** The compiled binary targets the local machine architecture and OS. Distributing the binary to a different architecture or OS requires re-running `make:fast-cli` on that target.
 

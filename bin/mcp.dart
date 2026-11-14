@@ -26,10 +26,7 @@ typedef RunDowelFn = Future<int> Function(
 ///
 /// [runDowel] is the injectable seam; production callers omit it and get
 /// the real [runDowel] bootstrap from `package:dowel/dowel.dart`.
-Future<int> mcpMain(
-  List<String> args, {
-  RunDowelFn? runDowel,
-}) async {
+Future<int> mcpMain(List<String> args, {RunDowelFn? runDowel}) async {
   final fn = runDowel ?? _defaultRunDowel;
   return fn(
     ['mcp:serve', ...args],
@@ -43,12 +40,11 @@ Future<int> _defaultRunDowel(
   List<String> args, {
   bool collectMcpTools = false,
   bool delegateToConsumer = true,
-}) =>
-    runDowel(
-      args,
-      collectMcpTools: collectMcpTools,
-      delegateToConsumer: delegateToConsumer,
-    );
+}) => runDowel(
+  args,
+  collectMcpTools: collectMcpTools,
+  delegateToConsumer: delegateToConsumer,
+);
 
 /// `dart run dowel:mcp [args]`: MCP server entry point.
 ///

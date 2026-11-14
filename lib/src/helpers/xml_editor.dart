@@ -227,8 +227,7 @@ class XmlEditor {
     final content = read(manifestPath);
 
     // 1. Parse for detection only; the parsed tree is never written back.
-    final application = XmlDocument.parse(content)
-        .rootElement
+    final application = XmlDocument.parse(content).rootElement
         .findElements('application')
         .firstOrNull;
     if (application == null) {
@@ -362,8 +361,10 @@ class XmlEditor {
   /// Renders `android:[local]="[value]"` with the value escaped for a
   /// double-quoted attribute.
   static String _attribute(String local, String value) {
-    final escaped = const XmlDefaultEntityMapping.xml()
-        .encodeAttributeValue(value, XmlAttributeType.DOUBLE_QUOTE);
+    final escaped = const XmlDefaultEntityMapping.xml().encodeAttributeValue(
+      value,
+      XmlAttributeType.DOUBLE_QUOTE,
+    );
     return 'android:$local="$escaped"';
   }
 
@@ -431,7 +432,7 @@ class XmlEditor {
   static List<String> _names(XmlElement filter, String tag) {
     return <String>[
       for (final element in filter.findElements(tag))
-        if (_androidAttribute(element, 'name') case final name?) name,
+        ?_androidAttribute(element, 'name'),
     ];
   }
 

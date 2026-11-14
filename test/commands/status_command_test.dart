@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/status_command.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -105,17 +106,15 @@ void main() {
       // instead of refusing it. It must not report one as THIS project's:
       // an agent reading `running: true` from a checkout with nothing up
       // would conclude its own app is live.
-      final Directory sibling =
-          Directory.systemTemp.createTempSync('dowel_status_sibling_');
+      final Directory sibling = Directory.systemTemp.createTempSync(
+        'dowel_status_sibling_',
+      );
       addTearDown(() => sibling.deleteSync(recursive: true));
 
       final Directory dir = Directory('${tempHome.path}/.dowel');
       dir.createSync(recursive: true);
       File('${dir.path}/state.json').writeAsStringSync(
-        jsonEncode(<String, dynamic>{
-          'pid': 4242,
-          'projectRoot': sibling.path,
-        }),
+        jsonEncode(<String, dynamic>{'pid': 4242, 'projectRoot': sibling.path}),
       );
 
       final output = BufferedOutput();
@@ -150,8 +149,9 @@ void main() {
       // The reported symptom chain started here: the operator read `status`
       // and it said `running: false` about an app that was serving. It now
       // says running, and says what is missing.
-      final Directory tempHome =
-          Directory.systemTemp.createTempSync('dowel_status_booting_');
+      final Directory tempHome = Directory.systemTemp.createTempSync(
+        'dowel_status_booting_',
+      );
       addTearDown(() {
         StateFile.debugHomeOverride = null;
         StateFile.debugProjectRootOverride = null;

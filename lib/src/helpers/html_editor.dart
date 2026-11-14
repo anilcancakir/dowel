@@ -26,7 +26,7 @@ import 'dart:io';
 ///   'content': 'My Flutter App',
 /// });
 /// ```
-class HtmlEditor {
+final class HtmlEditor {
   HtmlEditor._();
 
   // -------------------------------------------------------------------------
@@ -111,8 +111,9 @@ class HtmlEditor {
   /// @throws [StateError]          if `</head>` is not found in the file.
   static void addMetaTag(String path, Map<String, String> attributes) {
     // 1. Build the <meta> element string.
-    final attribString =
-        attributes.entries.map((e) => '${e.key}="${e.value}"').join(' ');
+    final attribString = attributes.entries
+        .map((e) => '${e.key}="${e.value}"')
+        .join(' ');
     final metaTag = '<meta $attribString>';
 
     final html = read(path);

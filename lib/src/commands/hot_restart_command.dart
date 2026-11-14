@@ -17,7 +17,7 @@ import '../state/state_file.dart';
 /// pick up native plugin changes that hot restart doesn't see).
 ///
 /// Requires `dowel start` first.
-class HotRestartCommand extends DowelCommand {
+final class HotRestartCommand extends DowelCommand {
   @override
   String get name => 'hot-restart';
 

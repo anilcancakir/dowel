@@ -59,7 +59,8 @@ class PluginInstallCommand extends DowelInstallCommand {
   PluginInstallCommand();
 
   @override
-  String get signature => 'plugin:install '
+  String get signature =>
+      'plugin:install '
       '$baseFlags'
       '{name : Plugin pubspec package name (e.g. magic_logger)} '
       '{--bootstrap-command= : Plugin install sub-command to chain after registration (e.g. logger:install)} '
@@ -134,6 +135,20 @@ class PluginInstallCommand extends DowelInstallCommand {
     final root = getProjectRoot();
     final preflight = _preflight(ctx, root: root, name: name);
     if (preflight != 0) return preflight;
+    final orphaned = _orphanedBarrelImports(root);
+    if (orphaned.isNotEmpty) {
+      ctx.output.error(
+        'lib/app/_plugins.g.dart registers providers from '
+        '${orphaned.join(', ')}, but .dowel/plugins.json, the registry it is '
+        'generated from, is missing. Installing now would regenerate the '
+        'barrel without them. Restore .dowel/plugins.json from version '
+        'control (commit it; only .dowel/cli-bundle*, .dowel/build.stamp* and '
+        '.dowel/.dowel.lock/ are cache), then retry. Or delete '
+        'lib/app/_plugins.g.dart, run `dart run dowel install` to write an '
+        'empty one, and run plugin:install again for each plugin.',
+      );
+      return 1;
+    }
 
     // 3. Resolve the plugin's install.yaml. When found, route to the
     //    manifest flow; otherwise honour --use-yaml-only or register the
@@ -237,12 +252,36 @@ class PluginInstallCommand extends DowelInstallCommand {
     return 0;
   }
 
+  /// The provider imports `lib/app/_plugins.g.dart` carries while
+  /// `.dowel/plugins.json` is missing. A missing registry reads as empty, so
+  /// registering into it regenerates the barrel with one plugin and drops
+  /// every provider listed here. Empty when the registry exists, the barrel
+  /// is absent, or it registers nothing.
+  List<String> _orphanedBarrelImports(String root) {
+    final barrel = File(p.join(root, 'lib', 'app', '_plugins.g.dart'));
+    if (File(p.join(root, '.dowel', 'plugins.json')).existsSync() ||
+        !barrel.existsSync()) {
+      return const <String>[];
+    }
+
+    return <String>[
+      for (final match in _providerImport.allMatches(barrel.readAsStringSync()))
+        if (match.group(1) != 'package:dowel/dowel.dart') match.group(1)!,
+    ];
+  }
+
+  /// An import line of the generated barrel, capturing its URI.
+  static final RegExp _providerImport = RegExp(
+    r"^import\s+'([^']+)'",
+    multiLine: true,
+  );
+
   // ---------------------------------------------------------------------------
   // Manifest flow
   // ---------------------------------------------------------------------------
 
   /// Parses the install.yaml at [manifestPath] and commits via
-  /// [ManifestInstaller]. On a non-dry-run [Success], also registers the
+  /// [ManifestInstaller]. On a non-dry-run [InstallSuccess], also registers the
   /// plugin's [DowelServiceProvider] in `.dowel/plugins.json` and
   /// regenerates `lib/app/_plugins.g.dart` so commands appear in
   /// `dart run dowel list` without a separate `plugins:refresh` step.
@@ -270,7 +309,7 @@ class PluginInstallCommand extends DowelInstallCommand {
     );
 
     final exit = _renderResultAndExit(ctx, result);
-    if (result is Success && !isDryRun(ctx)) {
+    if (result is InstallSuccess && !isDryRun(ctx)) {
       await _registerDowelProvider(ctx, name: manifest.pluginName);
       await _runBootstrapCommand(ctx, declared: manifest.bootstrapCommand);
     }
@@ -376,8 +415,8 @@ class PluginInstallCommand extends DowelInstallCommand {
 
     try {
       await PluginsRegistryFile(const RealFs(), root).addPlugin(entry);
-      final refreshed =
-          await PluginsRefreshCommand(projectRoot: root).handle(ctx);
+      final refreshed = await PluginsRefreshCommand(projectRoot: root)
+          .handle(ctx);
       return refreshed == 0;
     } catch (e) {
       ctx.output.warning(
@@ -392,16 +431,16 @@ class PluginInstallCommand extends DowelInstallCommand {
   /// process exit code.
   int _renderResultAndExit(DowelContext ctx, TransactionResult result) {
     switch (result) {
-      case Success():
+      case InstallSuccess():
         ctx.output.success(result.describe());
         return 0;
-      case DryRun():
+      case InstallDryRun():
         ctx.output.info(result.describe());
         return 0;
-      case Conflict():
+      case InstallConflict():
         ctx.output.error(result.describe());
         return 2;
-      case Error():
+      case InstallError():
         ctx.output.error(result.describe());
         return 1;
     }

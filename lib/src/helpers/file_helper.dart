@@ -22,7 +22,7 @@ import 'package:yaml/yaml.dart';
 /// // Read YAML file
 /// final config = FileHelper.readYamlFile('config.yaml');
 /// ```
-class FileHelper {
+final class FileHelper {
   /// Check if a file exists at the given path.
   static bool fileExists(String filePath) {
     return File(filePath).existsSync();

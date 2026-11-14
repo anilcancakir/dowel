@@ -62,8 +62,10 @@ void main() {
   // ---------------------------------------------------------------------------
 
   test('WriteFile.describe outputs [write-file] with target path', () {
-    const op =
-        WriteFile(targetPath: 'lib/generated/foo.dart', content: '// auto');
+    const op = WriteFile(
+      targetPath: 'lib/generated/foo.dart',
+      content: '// auto',
+    );
     expect(op.describe(), '[write-file] lib/generated/foo.dart');
   });
 
@@ -82,7 +84,9 @@ void main() {
 
   test('CopyFile.describe outputs [copy-file] with source and target', () {
     const op = CopyFile(
-        sourcePath: 'assets/template.dart', targetPath: 'lib/out.dart');
+      sourcePath: 'assets/template.dart',
+      targetPath: 'lib/out.dart',
+    );
     expect(op.describe(), '[copy-file] assets/template.dart -> lib/out.dart');
   });
 
@@ -98,9 +102,7 @@ void main() {
     expect(op.describe(), '[merge-json] assets/lang/en.json (additive)');
   });
 
-  test(
-      'MergeJson.describe outputs [merge-json] with override mode when additive=false',
-      () {
+  test('MergeJson.describe outputs [merge-json] with override mode when additive=false', () {
     const op = MergeJson(
       targetPath: 'assets/lang/en.json',
       sourceData: <String, dynamic>{'key': 'val'},
@@ -113,25 +115,25 @@ void main() {
   // InjectImport
   // ---------------------------------------------------------------------------
 
-  test('InjectImport.describe outputs [inject-import] with file and statement',
-      () {
-    const op = InjectImport(
-      targetFile: 'lib/main.dart',
-      importStatement: "import 'package:my_pkg/my_pkg.dart';",
-    );
-    expect(
-      op.describe(),
-      "[inject-import] lib/main.dart: import 'package:my_pkg/my_pkg.dart';",
-    );
-  });
+  test(
+    'InjectImport.describe outputs [inject-import] with file and statement',
+    () {
+      const op = InjectImport(
+        targetFile: 'lib/main.dart',
+        importStatement: "import 'package:my_pkg/my_pkg.dart';",
+      );
+      expect(
+        op.describe(),
+        "[inject-import] lib/main.dart: import 'package:my_pkg/my_pkg.dart';",
+      );
+    },
+  );
 
   // ---------------------------------------------------------------------------
   // InjectBeforePattern
   // ---------------------------------------------------------------------------
 
-  test(
-      'InjectBeforePattern.describe outputs [inject-before] with file and pattern',
-      () {
+  test('InjectBeforePattern.describe outputs [inject-before] with file and pattern', () {
     final op = InjectBeforePattern(
       targetFile: 'lib/main.dart',
       pattern: RegExp(r'Magic\.init'),
@@ -145,23 +147,25 @@ void main() {
   // ---------------------------------------------------------------------------
 
   test(
-      'InjectAfterPattern.describe outputs [inject-after] with file and pattern',
-      () {
-    final op = InjectAfterPattern(
-      targetFile: 'lib/main.dart',
-      pattern: RegExp(r'Magic\.init'),
-      code: '// teardown',
-    );
-    expect(op.describe(), contains('[inject-after] lib/main.dart:'));
-  });
+    'InjectAfterPattern.describe outputs [inject-after] with file and pattern',
+    () {
+      final op = InjectAfterPattern(
+        targetFile: 'lib/main.dart',
+        pattern: RegExp(r'Magic\.init'),
+        code: '// teardown',
+      );
+      expect(op.describe(), contains('[inject-after] lib/main.dart:'));
+    },
+  );
 
   // ---------------------------------------------------------------------------
   // InjectAndroidPermission
   // ---------------------------------------------------------------------------
 
   test('InjectAndroidPermission.describe outputs [inject-android-perm]', () {
-    const op =
-        InjectAndroidPermission(permission: 'android.permission.INTERNET');
+    const op = InjectAndroidPermission(
+      permission: 'android.permission.INTERNET',
+    );
     expect(op.describe(), '[inject-android-perm] android.permission.INTERNET');
   });
 
@@ -171,8 +175,9 @@ void main() {
 
   test('InjectAndroidMetaData.describe outputs [inject-android-meta]', () {
     const op = InjectAndroidMetaData(
-        name: 'com.google.firebase.messaging.default_icon',
-        value: '@mipmap/ic_launcher');
+      name: 'com.google.firebase.messaging.default_icon',
+      value: '@mipmap/ic_launcher',
+    );
     expect(
       op.describe(),
       '[inject-android-meta] com.google.firebase.messaging.default_icon = @mipmap/ic_launcher',
@@ -208,8 +213,10 @@ void main() {
     const op = InjectAndroidActivity(name: '.Foo', exported: false);
     expect(op.taskAffinity, isNull);
     expect(op.intentFilters, isEmpty);
-    expect(op.describe(),
-        '[inject-android-activity] .Foo (exported=false, intent-filters=0)');
+    expect(
+      op.describe(),
+      '[inject-android-activity] .Foo (exported=false, intent-filters=0)',
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -218,21 +225,29 @@ void main() {
 
   test('InjectInfoPlistKey.describe outputs [inject-plist-key:<platform>]', () {
     const op = InjectInfoPlistKey(
-        key: 'NSCameraUsageDescription', value: 'Camera needed');
-    expect(op.describe(),
-        '[inject-plist-key:ios] NSCameraUsageDescription = Camera needed');
-  });
-
-  test('InjectInfoPlistKey.describe carries an explicit macos platform tag',
-      () {
-    const op = InjectInfoPlistKey(
       key: 'NSCameraUsageDescription',
       value: 'Camera needed',
-      platform: 'macos',
     );
-    expect(op.describe(),
-        '[inject-plist-key:macos] NSCameraUsageDescription = Camera needed');
+    expect(
+      op.describe(),
+      '[inject-plist-key:ios] NSCameraUsageDescription = Camera needed',
+    );
   });
+
+  test(
+    'InjectInfoPlistKey.describe carries an explicit macos platform tag',
+    () {
+      const op = InjectInfoPlistKey(
+        key: 'NSCameraUsageDescription',
+        value: 'Camera needed',
+        platform: 'macos',
+      );
+      expect(
+        op.describe(),
+        '[inject-plist-key:macos] NSCameraUsageDescription = Camera needed',
+      );
+    },
+  );
 
   // ---------------------------------------------------------------------------
   // InjectInfoPlistUrlScheme
@@ -256,23 +271,24 @@ void main() {
   // InjectEntitlement
   // ---------------------------------------------------------------------------
 
-  test('InjectEntitlement.describe outputs [inject-entitlement] with platform',
-      () {
-    const op = InjectEntitlement(
-      platform: 'ios',
-      key: 'com.apple.security.network.client',
-      value: true,
-    );
-    expect(
-      op.describe(),
-      '[inject-entitlement] ios: com.apple.security.network.client = true '
-      '(in every file the application target signs with, or '
-      'Runner.entitlements plus CODE_SIGN_ENTITLEMENTS when it names none)',
-    );
-  });
+  test(
+    'InjectEntitlement.describe outputs [inject-entitlement] with platform',
+    () {
+      const op = InjectEntitlement(
+        platform: 'ios',
+        key: 'com.apple.security.network.client',
+        value: true,
+      );
+      expect(
+        op.describe(),
+        '[inject-entitlement] ios: com.apple.security.network.client = true '
+        '(in every file the application target signs with, or '
+        'Runner.entitlements plus CODE_SIGN_ENTITLEMENTS when it names none)',
+      );
+    },
+  );
 
-  test('InjectEntitlement.describe names the Xcode write, not only the plist',
-      () {
+  test('InjectEntitlement.describe names the Xcode write, not only the plist', () {
     // A dry run exists to tell an operator what the real run will do to their
     // project. This op performs TWO writes, and until the second was named the
     // preview under-reported it: nothing in `--dry-run` mentioned that the
@@ -300,8 +316,10 @@ void main() {
   // ---------------------------------------------------------------------------
 
   test('InjectPodfileLine.describe outputs [inject-podfile]', () {
-    const op =
-        InjectPodfileLine(platform: 'ios', line: "pod 'Firebase/Messaging'");
+    const op = InjectPodfileLine(
+      platform: 'ios',
+      line: "pod 'Firebase/Messaging'",
+    );
     expect(op.describe(), "[inject-podfile] ios: pod 'Firebase/Messaging'");
   });
 
@@ -309,19 +327,23 @@ void main() {
   // InjectGradlePlugin
   // ---------------------------------------------------------------------------
 
-  test(
-      'InjectGradlePlugin.describe outputs [inject-gradle-plugin] with version when present',
-      () {
+  test('InjectGradlePlugin.describe outputs [inject-gradle-plugin] with version when present', () {
     const op = InjectGradlePlugin(
-        pluginId: 'com.google.gms.google-services', version: '4.4.2');
-    expect(op.describe(),
-        '[inject-gradle-plugin] com.google.gms.google-services:4.4.2');
+      pluginId: 'com.google.gms.google-services',
+      version: '4.4.2',
+    );
+    expect(
+      op.describe(),
+      '[inject-gradle-plugin] com.google.gms.google-services:4.4.2',
+    );
   });
 
   test('InjectGradlePlugin.describe omits version when null', () {
     const op = InjectGradlePlugin(pluginId: 'com.google.gms.google-services');
     expect(
-        op.describe(), '[inject-gradle-plugin] com.google.gms.google-services');
+      op.describe(),
+      '[inject-gradle-plugin] com.google.gms.google-services',
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -353,21 +375,24 @@ void main() {
   // ---------------------------------------------------------------------------
 
   test(
-      'InjectIntoWebHead.describe outputs [inject-web-head] with content preview',
-      () {
-    const op = InjectIntoWebHead(content: '<script src="app.js"></script>');
-    expect(op.describe(), '[inject-web-head] <script src="app.js"></script>');
-  });
+    'InjectIntoWebHead.describe outputs [inject-web-head] with content preview',
+    () {
+      const op = InjectIntoWebHead(content: '<script src="app.js"></script>');
+      expect(op.describe(), '[inject-web-head] <script src="app.js"></script>');
+    },
+  );
 
   // ---------------------------------------------------------------------------
   // AddWebMetaTag
   // ---------------------------------------------------------------------------
 
   test('AddWebMetaTag.describe outputs [add-web-meta] with attributes', () {
-    const op = AddWebMetaTag(attributes: <String, String>{
-      'name': 'viewport',
-      'content': 'width=device-width'
-    });
+    const op = AddWebMetaTag(
+      attributes: <String, String>{
+        'name': 'viewport',
+        'content': 'width=device-width',
+      },
+    );
     expect(op.describe(), contains('[add-web-meta]'));
   });
 
@@ -377,7 +402,8 @@ void main() {
 
   test('InjectMainDartImport.describe outputs [inject-main-import]', () {
     const op = InjectMainDartImport(
-        importStatement: "import 'package:analytics/analytics.dart';");
+      importStatement: "import 'package:analytics/analytics.dart';",
+    );
     expect(
       op.describe(),
       "[inject-main-import] import 'package:analytics/analytics.dart';",
@@ -388,25 +414,34 @@ void main() {
   // InjectIntoMainDart
   // ---------------------------------------------------------------------------
 
-  test('InjectIntoMainDart.describe outputs [inject-main] with placement label',
-      () {
-    const op = InjectIntoMainDart(
-        placement: MainDartPlacement.beforeInit, code: 'setup();');
-    expect(op.describe(), '[inject-main:before-init] setup();');
-  });
+  test(
+    'InjectIntoMainDart.describe outputs [inject-main] with placement label',
+    () {
+      const op = InjectIntoMainDart(
+        placement: MainDartPlacement.beforeInit,
+        code: 'setup();',
+      );
+      expect(op.describe(), '[inject-main:before-init] setup();');
+    },
+  );
 
   test('InjectIntoMainDart.describe reflects afterInit placement', () {
     const op = InjectIntoMainDart(
-        placement: MainDartPlacement.afterInit, code: 'bootstrap();');
+      placement: MainDartPlacement.afterInit,
+      code: 'bootstrap();',
+    );
     expect(op.describe(), '[inject-main:after-init] bootstrap();');
   });
 
   test('InjectIntoMainDart.describe reflects wrapRunApp placement', () {
     const op = InjectIntoMainDart(
-        placement: MainDartPlacement.wrapRunApp,
-        code: 'ProviderScope(child: #app#)');
-    expect(op.describe(),
-        '[inject-main:wrap-run-app] ProviderScope(child: #app#)');
+      placement: MainDartPlacement.wrapRunApp,
+      code: 'ProviderScope(child: #app#)',
+    );
+    expect(
+      op.describe(),
+      '[inject-main:wrap-run-app] ProviderScope(child: #app#)',
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -429,11 +464,14 @@ void main() {
 
   test('RunShell.describe includes working dir when supplied', () {
     const op = RunShell(
-        command: 'flutter',
-        args: <String>['pub', 'get'],
-        workingDir: 'packages/my_plugin');
+      command: 'flutter',
+      args: <String>['pub', 'get'],
+      workingDir: 'packages/my_plugin',
+    );
     expect(
-        op.describe(), '[run-shell] flutter pub get (in packages/my_plugin)');
+      op.describe(),
+      '[run-shell] flutter pub get (in packages/my_plugin)',
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -451,44 +489,57 @@ void main() {
       const RemoveDependency(name: 'c'),
       const AddPubspecAsset(assetPath: 'assets/x.json'),
       const PublishFile(
-          sourceStubName: 'x.stub',
-          targetPath: 'lib/x.dart',
-          replacements: <String, String>{}),
+        sourceStubName: 'x.stub',
+        targetPath: 'lib/x.dart',
+        replacements: <String, String>{},
+      ),
       const WriteFile(targetPath: 'lib/g.dart', content: ''),
       const DeleteFile(targetPath: 'lib/old.dart'),
       const CopyFile(sourcePath: 'src.dart', targetPath: 'dst.dart'),
       const MergeJson(
-          targetPath: 'assets/en.json', sourceData: <String, dynamic>{}),
+        targetPath: 'assets/en.json',
+        sourceData: <String, dynamic>{},
+      ),
       const InjectImport(
-          targetFile: 'lib/main.dart', importStatement: "import 'x.dart';"),
+        targetFile: 'lib/main.dart',
+        importStatement: "import 'x.dart';",
+      ),
       InjectBeforePattern(
-          targetFile: 'lib/main.dart',
-          pattern: RegExp(r'init'),
-          code: '// before'),
+        targetFile: 'lib/main.dart',
+        pattern: RegExp(r'init'),
+        code: '// before',
+      ),
       InjectAfterPattern(
-          targetFile: 'lib/main.dart',
-          pattern: RegExp(r'init'),
-          code: '// after'),
+        targetFile: 'lib/main.dart',
+        pattern: RegExp(r'init'),
+        code: '// after',
+      ),
       const InjectAndroidPermission(permission: 'android.permission.CAMERA'),
       const InjectAndroidMetaData(name: 'com.example.key', value: 'v'),
       const InjectAndroidActivity(name: '.Foo', exported: true),
       const InjectInfoPlistKey(key: 'NSPhotoUsageDescription', value: 'Photos'),
       const InjectInfoPlistUrlScheme(scheme: 'com.example.app'),
       const InjectEntitlement(
-          platform: 'ios', key: 'com.apple.developer.maps', value: true),
+        platform: 'ios',
+        key: 'com.apple.developer.maps',
+        value: true,
+      ),
       const InjectPodfileLine(platform: 'ios', line: "pod 'Foo'"),
       const InjectGradlePlugin(pluginId: 'com.example'),
       const InjectGradleDependency(
-          scope: 'implementation', notation: 'com.example:lib:1.0'),
+        scope: 'implementation',
+        notation: 'com.example:lib:1.0',
+      ),
       const InjectEnvVar(key: 'FOO', value: 'bar'),
       const InjectIntoWebHead(content: '<link rel="stylesheet" href="x.css">'),
-      const AddWebMetaTag(attributes: <String, String>{
-        'name': 'theme-color',
-        'content': '#fff'
-      }),
+      const AddWebMetaTag(
+        attributes: <String, String>{'name': 'theme-color', 'content': '#fff'},
+      ),
       const InjectMainDartImport(importStatement: "import 'pkg.dart';"),
       const InjectIntoMainDart(
-          placement: MainDartPlacement.afterInit, code: 'init();'),
+        placement: MainDartPlacement.afterInit,
+        code: 'init();',
+      ),
       const InjectRouteRegistration(functionName: 'myRoutes'),
       const RunShell(command: 'dart', args: <String>['analyze']),
     ];

@@ -85,12 +85,14 @@ class GradleEditor {
 
     // 2. Build the new plugin line for the detected syntax.
     final line = switch (syntax) {
-      _BuildGradleSyntax.kts => version != null
-          ? '    id("$pluginId") version "$version"'
-          : '    id("$pluginId")',
-      _BuildGradleSyntax.groovy => version != null
-          ? "    id '$pluginId' version '$version'"
-          : "    id '$pluginId'",
+      _BuildGradleSyntax.kts =>
+        version != null
+            ? '    id("$pluginId") version "$version"'
+            : '    id("$pluginId")',
+      _BuildGradleSyntax.groovy =>
+        version != null
+            ? "    id '$pluginId' version '$version'"
+            : "    id '$pluginId'",
     };
 
     // 3. Insert the line inside the first plugins { ... } block.
@@ -159,15 +161,15 @@ class GradleEditor {
     // 1. Attempt in-place replacement of an existing directive.
     final replaced = switch (syntax) {
       _BuildGradleSyntax.kts => _replaceInLine(
-          content,
-          RegExp(r'(\s*)minSdk\s*=\s*\d+'),
-          (indent) => '${indent}minSdk = $version',
-        ),
+        content,
+        RegExp(r'(\s*)minSdk\s*=\s*\d+'),
+        (indent) => '${indent}minSdk = $version',
+      ),
       _BuildGradleSyntax.groovy => _replaceInLine(
-          content,
-          RegExp(r'(\s*)minSdkVersion\s+\d+'),
-          (indent) => '${indent}minSdkVersion $version',
-        ),
+        content,
+        RegExp(r'(\s*)minSdkVersion\s+\d+'),
+        (indent) => '${indent}minSdkVersion $version',
+      ),
     };
 
     if (replaced != null) {

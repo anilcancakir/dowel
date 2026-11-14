@@ -23,7 +23,7 @@ import 'file_helper.dart';
 ///   importStatement: "import 'package:http/http.dart';",
 /// );
 /// ```
-class ConfigEditor {
+final class ConfigEditor {
   /// Add or update a dependency in pubspec.yaml.
   ///
   /// If the dependency already exists, it will be updated to the new version.
@@ -307,7 +307,8 @@ class ConfigEditor {
 
     if (match == null) return false;
 
-    final updatedContent = content.substring(0, match.start) +
+    final updatedContent =
+        content.substring(0, match.start) +
         code +
         content.substring(match.start);
     FileHelper.writeFile(filePath, updatedContent);
@@ -369,8 +370,9 @@ class ConfigEditor {
   static Match? _firstMatch(Pattern? pattern, String content) {
     if (pattern == null) return null;
 
-    final RegExp regex =
-        pattern is RegExp ? pattern : RegExp(RegExp.escape(pattern.toString()));
+    final RegExp regex = pattern is RegExp
+        ? pattern
+        : RegExp(RegExp.escape(pattern.toString()));
 
     return regex.firstMatch(content);
   }

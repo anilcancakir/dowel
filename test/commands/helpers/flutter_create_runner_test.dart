@@ -143,45 +143,33 @@ void main() {
     // 3. Missing binary: ProcessException is caught and rethrown as
     //    FormatException with an actionable message.
     // ------------------------------------------------------------------
-    test(
-      'create() throws FormatException with actionable message when flutter '
-      'binary is missing',
-      () async {
-        Future<Process> missingBinaryStarter(
-          String exe,
-          List<String> args, {
-          String? workingDirectory,
-          ProcessStartMode? mode,
-        }) async {
-          throw ProcessException(
-            'flutter',
-            args,
-            'No such file or directory',
-            2,
-          );
-        }
+    test('create() throws FormatException with actionable message when flutter '
+        'binary is missing', () async {
+      Future<Process> missingBinaryStarter(
+        String exe,
+        List<String> args, {
+        String? workingDirectory,
+        ProcessStartMode? mode,
+      }) async {
+        throw ProcessException('flutter', args, 'No such file or directory', 2);
+      }
 
-        final runner =
-            FlutterCreateRunner(processStarter: missingBinaryStarter);
+      final runner = FlutterCreateRunner(processStarter: missingBinaryStarter);
 
-        await expectLater(
-          () => runner.create(
-            packageName: 'my_plugin',
-            targetPath: '/tmp/my_plugin',
+      await expectLater(
+        () => runner.create(
+          packageName: 'my_plugin',
+          targetPath: '/tmp/my_plugin',
+        ),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('flutter create failed'), contains('PATH')),
           ),
-          throwsA(
-            isA<FormatException>().having(
-              (e) => e.message,
-              'message',
-              allOf(
-                contains('flutter create failed'),
-                contains('PATH'),
-              ),
-            ),
-          ),
-        );
-      },
-    );
+        ),
+      );
+    });
 
     // ------------------------------------------------------------------
     // 4. Command construction shape: assert exact args list.

@@ -12,10 +12,12 @@
 /// arguments into the wrapper script. Public so tests can exercise the
 /// quoting contract without spawning a real shell.
 String shellQuoteTokens(List<String> tokens) {
-  return tokens.map((t) {
-    if (_bareword.hasMatch(t)) return t;
-    return "'${t.replaceAll("'", r"'\''")}'";
-  }).join(' ');
+  return tokens
+      .map((t) {
+        if (_bareword.hasMatch(t)) return t;
+        return "'${t.replaceAll("'", r"'\''")}'";
+      })
+      .join(' ');
 }
 
 final RegExp _bareword = RegExp(r'^[A-Za-z0-9_./=:-]+$');

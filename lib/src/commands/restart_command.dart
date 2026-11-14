@@ -23,7 +23,7 @@ import 'stop_command.dart';
 /// `Address already in use` while naming a port the caller never typed. A
 /// restart onto the default web-server device is quieter and worse: nothing
 /// renders, and every screenshot after it comes back byte-identical.
-class RestartCommand extends DowelCommand {
+final class RestartCommand extends DowelCommand {
   @override
   String get name => 'restart';
 
@@ -82,7 +82,8 @@ class RestartCommand extends DowelCommand {
     parser.addOption(
       'cdp-port',
       defaultsTo: null,
-      help: 'Chrome DevTools Protocol port. Overrides the CDP port preserved '
+      help:
+          'Chrome DevTools Protocol port. Overrides the CDP port preserved '
           'from the prior session. Omit to keep the previous session\'s port.',
     );
     parser.addOption(
@@ -98,7 +99,8 @@ class RestartCommand extends DowelCommand {
     parser.addOption(
       'device',
       defaultsTo: null,
-      help: 'Flutter device target. Omit to keep the previous session\'s '
+      help:
+          'Flutter device target. Omit to keep the previous session\'s '
           'device; a restart onto the default web-server device renders in no '
           'browser and every later screenshot comes back stale.',
     );
@@ -108,7 +110,8 @@ class RestartCommand extends DowelCommand {
       // to the carried build mode while an explicit --no-profile-static wins.
       defaultsTo: null,
       negatable: true,
-      help: 'Profile build on a device. Omit to keep the previous session\'s '
+      help:
+          'Profile build on a device. Omit to keep the previous session\'s '
           'build mode; a restart between two measurements that came back as a '
           'debug build would measure a different app from the first run.',
     );
@@ -116,7 +119,8 @@ class RestartCommand extends DowelCommand {
       'flutter-arg',
       // See `StartCommand.configure` for why the comma split is off.
       splitCommas: false,
-      help: 'Extra argument forwarded verbatim to flutter run, repeatable. '
+      help:
+          'Extra argument forwarded verbatim to flutter run, repeatable. '
           'Omit to keep the previous session\'s arguments; passing any '
           'replaces the whole carried set, so this is also how to clear one.',
     );

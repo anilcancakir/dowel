@@ -4,7 +4,8 @@
 /// MUST produce actionable error messages because every install.yaml mistake
 /// downstream of validation cascades into hard-to-trace dispatcher failures.
 ///
-/// Validation rules (Step 27):
+/// Validation rules:
+/// - Every top-level key is one the parser reads.
 /// - `plugin_name` is present, non-empty, matches `^[a-z_][a-z0-9_]*$`.
 /// - Every `prompts[*].key` is unique.
 /// - Every `placeholders[*]` value's `{{ prompts.X }}` references resolve.
@@ -20,11 +21,13 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+import '../console/dowel_version.dart';
 import 'install_exception.dart';
 import 'install_manifest.dart';
+import 'install_record.dart';
 
 /// Static parser: reads YAML text, returns a validated [InstallManifest].
-class ManifestParser {
+final class ManifestParser {
   /// Validation regex for `plugin_name`. Matches a Dart/pubspec package name:
   /// starts with lowercase or underscore, followed by lowercase, digits, or
   /// underscores.
@@ -52,17 +55,26 @@ class ManifestParser {
   /// @throws ManifestValidationException  When the schema validation fails.
   static InstallManifest parseFile(String yamlPath) {
     final content = File(yamlPath).readAsStringSync();
-    return parseString(content);
+    return parseString(content, source: yamlPath);
   }
 
   /// Parses [yamlContent], builds the typed model, and runs [validate]
   /// before returning.
   ///
+  /// A top-level key the parser does not read is rejected rather than
+  /// skipped: it belongs to a later schema, and installing the rest would
+  /// report success for a plugin that is only half set up.
+  ///
   /// @param yamlContent  The raw `install.yaml` text.
+  /// @param source  Where the text came from, named in validation errors.
   /// @return The parsed + validated [InstallManifest].
   /// @throws FormatException  When the YAML body is syntactically invalid.
-  /// @throws ManifestValidationException  When the schema validation fails.
-  static InstallManifest parseString(String yamlContent) {
+  /// @throws ManifestValidationException  When the schema validation fails,
+  ///   including an unknown top-level key.
+  static InstallManifest parseString(
+    String yamlContent, {
+    String source = 'install.yaml',
+  }) {
     // 1. Parse the YAML. The yaml package throws YamlException on broken
     //    input; rewrap as FormatException so callers do not need to depend on
     //    the yaml package's exception type.
@@ -83,7 +95,8 @@ class ManifestParser {
 
     // 3. Build the typed model. Each section factory tolerates absence and
     //    returns a sensible empty default so partial manifests parse cleanly.
-    final manifest = _build(raw);
+    //    The build also refuses a key it did not read.
+    final manifest = _build(raw, source);
 
     // 4. Run the schema validations. Any failure throws and the caller never
     //    receives a partially-validated manifest.
@@ -109,8 +122,17 @@ class ManifestParser {
 
   /// Builds the typed [InstallManifest] from a raw [YamlMap]. Each section is
   /// defaulted to an empty payload when absent.
-  static InstallManifest _build(YamlMap root) {
-    final pluginNameRaw = root['plugin_name'];
+  ///
+  /// Every top-level read goes through `section`, so the set of known keys is
+  /// whatever this method reads and cannot drift from a second list.
+  static InstallManifest _build(YamlMap root, String source) {
+    final readKeys = <String>{};
+    Object? section(String key) {
+      readKeys.add(key);
+      return root[key];
+    }
+
+    final pluginNameRaw = section('plugin_name');
     if (pluginNameRaw is! String) {
       // The downstream validator catches the missing case too, but raising
       // here means the typed model never carries an empty plugin_name even
@@ -120,28 +142,58 @@ class ManifestParser {
       );
     }
 
-    return InstallManifest(
+    final dependencies = section('dependencies');
+    final magic = section('magic');
+    final native = section('native');
+    final postInstall = section('post_install');
+    final bootstrapCommand = section('bootstrap_command');
+    final manifest = InstallManifest(
       pluginName: pluginNameRaw,
-      pubspec: root['dependencies'] is YamlMap
-          ? PubspecDeps.fromYaml(root['dependencies'])
+      pubspec: dependencies is YamlMap
+          ? PubspecDeps.fromYaml(dependencies)
           : PubspecDeps.empty(),
-      publish: _publishMap(root['publish']),
-      jsonMerge: _jsonMergeMap(root['json_merge']),
-      magic: root['magic'] is YamlMap
-          ? MagicIntegration.fromYaml(root['magic'])
+      publish: _publishMap(section('publish')),
+      jsonMerge: _jsonMergeMap(section('json_merge')),
+      magic: magic is YamlMap
+          ? MagicIntegration.fromYaml(magic)
           : MagicIntegration.empty(),
-      native: root['native'] is YamlMap
-          ? NativeConfig.fromYaml(root['native'])
+      native: native is YamlMap
+          ? NativeConfig.fromYaml(native)
           : NativeConfig.empty(),
-      env: _envMap(root['env']),
-      prompts: _promptList(root['prompts']),
-      placeholders: _placeholdersMap(root['placeholders']),
-      postInstall: root['post_install'] is YamlMap
-          ? PostInstallSpec.fromYaml(root['post_install'])
+      env: _envMap(section('env')),
+      prompts: _promptList(section('prompts')),
+      placeholders: _placeholdersMap(section('placeholders')),
+      postInstall: postInstall is YamlMap
+          ? PostInstallSpec.fromYaml(postInstall)
           : PostInstallSpec.empty(),
-      bootstrapCommand: root['bootstrap_command'] is String
-          ? root['bootstrap_command'] as String
-          : null,
+      bootstrapCommand: bootstrapCommand is String ? bootstrapCommand : null,
+    );
+
+    _rejectUnknownKeys(root, readKeys, source);
+
+    return manifest;
+  }
+
+  /// Throws when [root] carries a top-level key outside [readKeys].
+  ///
+  /// Such a key comes from a manifest written for a later dowel; skipping it
+  /// would install the sections this version knows and report success.
+  static void _rejectUnknownKeys(
+    YamlMap root,
+    Set<String> readKeys,
+    String source,
+  ) {
+    final unknown = <String>[
+      for (final key in root.keys)
+        if (!readKeys.contains(key)) '"$key"',
+    ];
+    if (unknown.isEmpty) return;
+
+    throw ManifestValidationException(
+      '$source has unknown top-level '
+      '${unknown.length == 1 ? 'key' : 'keys'} ${unknown.join(', ')}. '
+      'The manifest may need a newer dowel than the running $dowelVersion: '
+      'upgrade dowel, or remove the key if it is a typo.',
     );
   }
 
@@ -155,6 +207,12 @@ class ManifestParser {
         throw FormatException(
           'publish entry "$k" must map to a String target path; '
           'got ${v.runtimeType}.',
+        );
+      }
+      if (!isInsideProject(v)) {
+        throw ManifestValidationException(
+          'publish entry "$k" targets "$v", which is outside the project; '
+          'use a path relative to the project root.',
         );
       }
       out[k.toString()] = v;

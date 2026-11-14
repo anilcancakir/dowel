@@ -16,9 +16,9 @@ class _RecordingPromptDriver implements PromptDriver {
     List<String> askAnswers = const <String>[],
     List<bool> confirmAnswers = const <bool>[],
     List<String> choiceAnswers = const <String>[],
-  })  : _ask = List<String>.from(askAnswers),
-        _confirm = List<bool>.from(confirmAnswers),
-        _choice = List<String>.from(choiceAnswers);
+  }) : _ask = List<String>.from(askAnswers),
+       _confirm = List<bool>.from(confirmAnswers),
+       _choice = List<String>.from(choiceAnswers);
 
   final List<String> _ask;
   final List<bool> _confirm;
@@ -113,8 +113,9 @@ void main() {
     });
 
     test('ask fires the prompt synchronously and stores answer in vars', () {
-      final prompt =
-          _RecordingPromptDriver(askAnswers: const <String>['my_log_path']);
+      final prompt = _RecordingPromptDriver(
+        askAnswers: const <String>['my_log_path'],
+      );
       final installer = PluginInstaller(
         _ctxFor(tempDir, prompt: prompt),
         pluginName: 'demo',
@@ -155,21 +156,24 @@ void main() {
 
     test('choice stores the selected option', () {
       final prompt = _RecordingPromptDriver(choiceAnswers: const ['debug']);
-      final installer = PluginInstaller(
-        _ctxFor(tempDir, prompt: prompt),
-        pluginName: 'demo',
-      ).choice(
-        varName: 'level',
-        question: 'Log level?',
-        options: const ['debug', 'info', 'warn'],
-      );
+      final installer =
+          PluginInstaller(
+            _ctxFor(tempDir, prompt: prompt),
+            pluginName: 'demo',
+          ).choice(
+            varName: 'level',
+            question: 'Log level?',
+            options: const ['debug', 'info', 'warn'],
+          );
 
       expect(installer.vars['level'], 'debug');
     });
 
     test('vars returns an unmodifiable view', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .ask(varName: 'k', question: 'q', defaultValue: 'v');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).ask(varName: 'k', question: 'q', defaultValue: 'v');
       expect(installer.vars, {'k': 'v'});
       expect(() => installer.vars['injected'] = 'x', throwsUnsupportedError);
     });
@@ -204,12 +208,12 @@ void main() {
     });
 
     test('runShell enqueues RunShell with args and workingDir', () {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').runShell(
-        command: 'flutter',
-        args: const ['pub', 'get'],
-        workingDir: 'packages/x',
-      );
+      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+          .runShell(
+            command: 'flutter',
+            args: const ['pub', 'get'],
+            workingDir: 'packages/x',
+          );
       final op = installer.pendingOps.single as RunShell;
       expect(op.command, 'flutter');
       expect(op.args, ['pub', 'get']);
@@ -218,14 +222,15 @@ void main() {
 
     test('askToRunShell enqueues RunShell only when confirm=true', () {
       final prompt = _RecordingPromptDriver(confirmAnswers: const [true]);
-      final installer = PluginInstaller(
-        _ctxFor(tempDir, prompt: prompt),
-        pluginName: 'demo',
-      ).askToRunShell(
-        prompt: 'Run pub get?',
-        command: 'flutter',
-        args: const ['pub', 'get'],
-      );
+      final installer =
+          PluginInstaller(
+            _ctxFor(tempDir, prompt: prompt),
+            pluginName: 'demo',
+          ).askToRunShell(
+            prompt: 'Run pub get?',
+            command: 'flutter',
+            args: const ['pub', 'get'],
+          );
 
       expect(installer.pendingCount, 1);
       final op = installer.pendingOps.single as RunShell;
@@ -234,41 +239,50 @@ void main() {
 
     test('askToRunShell does NOT enqueue when confirm=false', () {
       final prompt = _RecordingPromptDriver(confirmAnswers: const [false]);
-      final installer = PluginInstaller(
-        _ctxFor(tempDir, prompt: prompt),
-        pluginName: 'demo',
-      ).askToRunShell(
-        prompt: 'Run pub get?',
-        command: 'flutter',
-        args: const ['pub', 'get'],
-      );
+      final installer =
+          PluginInstaller(
+            _ctxFor(tempDir, prompt: prompt),
+            pluginName: 'demo',
+          ).askToRunShell(
+            prompt: 'Run pub get?',
+            command: 'flutter',
+            args: const ['pub', 'get'],
+          );
 
       expect(installer.pendingCount, 0);
     });
 
     test(
-        'runShell dispatcher invokes the command and lands Success when '
-        'exit code is 0', () async {
-      // Use a deliberately portable echo equivalent. On POSIX `true` exits 0.
-      // Skip on Windows where /bin/true is absent.
-      if (Platform.isWindows) return;
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .runShell(command: 'true');
+      'runShell dispatcher invokes the command and lands InstallSuccess when '
+      'exit code is 0',
+      () async {
+        // Use a deliberately portable echo equivalent. On POSIX `true` exits 0.
+        // Skip on Windows where /bin/true is absent.
+        if (Platform.isWindows) return;
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).runShell(command: 'true');
 
-      final result = await installer.commit();
-      expect(result, isA<Success>());
-    });
+        final result = await installer.commit();
+        expect(result, isA<InstallSuccess>());
+      },
+    );
 
-    test('runShell dispatcher surfaces Error when exit code is non-zero',
-        () async {
-      if (Platform.isWindows) return;
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .runShell(command: 'false');
+    test(
+      'runShell dispatcher surfaces InstallError when exit code is non-zero',
+      () async {
+        if (Platform.isWindows) return;
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).runShell(command: 'false');
 
-      final result = await installer.commit();
-      expect(result, isA<Error>());
-      expect((result as Error).error, contains('RunShell failed'));
-    });
+        final result = await installer.commit();
+        expect(result, isA<InstallError>());
+        expect((result as InstallError).error, contains('RunShell failed'));
+      },
+    );
   });
 
   group('PluginInstaller — env', () {
@@ -283,19 +297,23 @@ void main() {
     });
 
     test('injectEnvVar enqueues InjectEnvVar', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectEnvVar(key: 'API_KEY', value: 'secret');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectEnvVar(key: 'API_KEY', value: 'secret');
       final op = installer.pendingOps.single as InjectEnvVar;
       expect(op.key, 'API_KEY');
       expect(op.value, 'secret');
     });
 
     test('injectEnvVar dispatcher creates .env when missing', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectEnvVar(key: 'API_KEY', value: 'secret');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectEnvVar(key: 'API_KEY', value: 'secret');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final env = File(p.join(tempDir.path, '.env')).readAsStringSync();
       expect(env, contains('API_KEY=secret'));
     });
@@ -304,32 +322,33 @@ void main() {
       // Pre-populate .env.
       File(p.join(tempDir.path, '.env')).writeAsStringSync('API_KEY=old\n');
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectEnvVar(key: 'API_KEY', value: 'new');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectEnvVar(key: 'API_KEY', value: 'new');
 
       final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final env = File(p.join(tempDir.path, '.env')).readAsStringSync();
       expect(env, contains('API_KEY=new'));
       expect(env, isNot(contains('API_KEY=old')));
     });
 
-    test(
-        'injectEnvVar threads comment through to EnvEditor.setKey '
+    test('injectEnvVar threads comment through to EnvEditor.setKey '
         '(Phase 3 Fix 5)', () async {
-      final installer =
-          PluginInstaller(_ctxFor(tempDir), pluginName: 'demo').injectEnvVar(
-        key: 'API_KEY',
-        value: 'secret',
-        comment: 'Generated by demo:install',
-      );
+      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+          .injectEnvVar(
+            key: 'API_KEY',
+            value: 'secret',
+            comment: 'Generated by demo:install',
+          );
 
       // Op carries the comment payload (was discarded before Fix 5).
       final op = installer.pendingOps.single as InjectEnvVar;
       expect(op.comment, 'Generated by demo:install');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       final env = File(p.join(tempDir.path, '.env')).readAsStringSync();
       // EnvEditor.setKey writes the comment line directly above the KEY=VALUE.
       expect(env, contains('# Generated by demo:install'));
@@ -362,45 +381,56 @@ void main() {
       expect(installer.pendingOps[1], isA<AddWebMetaTag>());
     });
 
-    test('injectIntoWebHead dispatcher writes before </head> when web present',
-        () async {
-      _writeWebIndex(tempDir);
+    test(
+      'injectIntoWebHead dispatcher writes before </head> when web present',
+      () async {
+        _writeWebIndex(tempDir);
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectIntoWebHead('<script src="app.js"></script>');
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).injectIntoWebHead('<script src="app.js"></script>');
 
-      final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
-      final html =
-          File(p.join(tempDir.path, 'web', 'index.html')).readAsStringSync();
-      expect(html, contains('<script src="app.js"></script>'));
-      expect(html.indexOf('<script src="app.js"></script>'),
-          lessThan(html.indexOf('</head>')));
-    });
+        final result = await installer.commit(force: true);
+        expect(result, isA<InstallSuccess>());
+        final html = File(p.join(tempDir.path, 'web', 'index.html'))
+            .readAsStringSync();
+        expect(html, contains('<script src="app.js"></script>'));
+        expect(
+          html.indexOf('<script src="app.js"></script>'),
+          lessThan(html.indexOf('</head>')),
+        );
+      },
+    );
 
-    test('addWebMetaTag dispatcher writes <meta> tag when web present',
-        () async {
-      _writeWebIndex(tempDir);
+    test(
+      'addWebMetaTag dispatcher writes <meta> tag when web present',
+      () async {
+        _writeWebIndex(tempDir);
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addWebMetaTag(
-              const {'name': 'description', 'content': 'A test app'});
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).addWebMetaTag(const {'name': 'description', 'content': 'A test app'});
 
-      final result = await installer.commit(force: true);
-      expect(result, isA<Success>());
-      final html =
-          File(p.join(tempDir.path, 'web', 'index.html')).readAsStringSync();
-      expect(html, contains('name="description"'));
-      expect(html, contains('content="A test app"'));
-    });
+        final result = await installer.commit(force: true);
+        expect(result, isA<InstallSuccess>());
+        final html = File(p.join(tempDir.path, 'web', 'index.html'))
+            .readAsStringSync();
+        expect(html, contains('name="description"'));
+        expect(html, contains('content="A test app"'));
+      },
+    );
 
     test('web ops are silent no-ops on non-web projects', () async {
       // No web/ dir.
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectIntoWebHead('<script></script>');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectIntoWebHead('<script></script>');
 
       final result = await installer.commit();
-      expect(result, isA<Success>());
+      expect(result, isA<InstallSuccess>());
       expect(Directory(p.join(tempDir.path, 'web')).existsSync(), isFalse);
     });
   });

@@ -9,6 +9,7 @@ import '../helpers/cli_bundle_cache.dart';
 import '../helpers/file_helper.dart';
 import '../installer/plugins_registry_file.dart';
 import '../installer/virtual_fs.dart';
+import 'helpers/generated_dart_layout.dart';
 
 /// Matches a valid Dart class identifier (PascalCase, ASCII alphanumeric +
 /// underscore, no leading digit). Used to defend the code generator against
@@ -63,9 +64,9 @@ class PluginsRefreshCommand extends DowelCommand {
     VirtualFs? fs,
     String? projectRoot,
     bool Function(String absDir)? directoryExists,
-  })  : _fs = fs ?? const RealFs(),
-        _projectRootOverride = projectRoot,
-        _directoryExists = directoryExists ?? _defaultDirectoryExists;
+  }) : _fs = fs ?? const RealFs(),
+       _projectRootOverride = projectRoot,
+       _directoryExists = directoryExists ?? _defaultDirectoryExists;
 
   final VirtualFs _fs;
   final String? _projectRootOverride;
@@ -177,22 +178,13 @@ class PluginsRefreshCommand extends DowelCommand {
   /// output is fully determined by the inputs (idempotence guarantee).
   String _renderSource(List<PluginEntry> entries) {
     final buf = StringBuffer()
+      ..writeln(formatWidthDirective)
       ..writeln('// GENERATED: do not edit by hand.')
       ..writeln('// Regenerate via: dart run dowel plugins:refresh')
       ..writeln('//')
       ..writeln('// Source: .dowel/plugins.json')
       ..writeln()
       ..writeln("import 'package:dowel/dowel.dart';");
-
-    if (entries.isEmpty) {
-      buf
-        ..writeln()
-        ..writeln('List<DowelServiceProvider> autoDiscoveredProviders() {')
-        ..writeln('  return <DowelServiceProvider>[];')
-        ..writeln('}')
-        ..writeln();
-      return buf.toString();
-    }
 
     // Imports sorted by providerImport for deterministic ordering, then
     // deduplicated so a hypothetical future where two plugins share the same
@@ -204,20 +196,27 @@ class PluginsRefreshCommand extends DowelCommand {
     }
     final sortedImports = imports.keys.toList()..sort();
     for (final importUri in sortedImports) {
-      buf.writeln("import '$importUri' show ${imports[importUri]};");
+      buf.writeln(importShowing(importUri, imports[importUri]!));
     }
 
+    // Laid out the way `dart format` writes it, so a consumer's format check
+    // passes on the generated file.
     buf
       ..writeln()
       ..writeln('List<DowelServiceProvider> autoDiscoveredProviders() {')
-      ..writeln('  return <DowelServiceProvider>[');
-    for (final entry in entries) {
-      buf.writeln('    ${entry.providerClass}(),');
-    }
-    buf
-      ..writeln('  ];')
-      ..writeln('}')
-      ..writeln();
+      ..writeAll(
+        listLiteralLines(
+          head: 'return <DowelServiceProvider>[',
+          elements: <String>[
+            for (final entry in entries) '${entry.providerClass}()',
+          ],
+          tail: '];',
+          indent: '  ',
+        ),
+        '\n',
+      )
+      ..writeln()
+      ..writeln('}');
     return buf.toString();
   }
 

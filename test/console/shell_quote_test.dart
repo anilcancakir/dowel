@@ -1,11 +1,13 @@
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/console/shell_quote.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('shellQuoteTokens', () {
     test('leaves bareword tokens unquoted', () {
       expect(
-          shellQuoteTokens(['nohup', 'flutter', 'run']), 'nohup flutter run');
+        shellQuoteTokens(['nohup', 'flutter', 'run']),
+        'nohup flutter run',
+      );
     });
 
     test('quotes tokens containing spaces', () {

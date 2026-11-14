@@ -48,11 +48,11 @@ final class McpFilterConfig {
   /// All allow lists are null (allow all) and all deny lists are empty (deny
   /// none). Useful as the empty identity element in [merge].
   static McpFilterConfig empty() => const McpFilterConfig(
-        packagesAllow: null,
-        packagesDeny: {},
-        toolsAllow: null,
-        toolsDeny: {},
-      );
+    packagesAllow: null,
+    packagesDeny: {},
+    toolsAllow: null,
+    toolsDeny: {},
+  );
 
   // ---------------------------------------------------------------------------
   // Fields
@@ -155,11 +155,11 @@ final class McpFilterConfig {
   /// An absent or blank variable is treated as "no opinion" (null for allow
   /// lists, empty set for deny lists).
   static McpFilterConfig fromEnv(Map<String, String> env) => McpFilterConfig(
-        packagesAllow: _parseCsvAllow(env['DOWEL_MCP_PACKAGES_ALLOW']),
-        packagesDeny: _parseCsvDeny(env['DOWEL_MCP_PACKAGES_DENY']),
-        toolsAllow: _parseCsvAllow(env['DOWEL_MCP_TOOLS_ALLOW']),
-        toolsDeny: _parseCsvDeny(env['DOWEL_MCP_TOOLS_DENY']),
-      );
+    packagesAllow: _parseCsvAllow(env['DOWEL_MCP_PACKAGES_ALLOW']),
+    packagesDeny: _parseCsvDeny(env['DOWEL_MCP_PACKAGES_DENY']),
+    toolsAllow: _parseCsvAllow(env['DOWEL_MCP_TOOLS_ALLOW']),
+    toolsDeny: _parseCsvDeny(env['DOWEL_MCP_TOOLS_DENY']),
+  );
 
   // ---------------------------------------------------------------------------
   // Factory: fromCli
@@ -183,13 +183,12 @@ final class McpFilterConfig {
     List<String>? excludePackage,
     List<String>? includeTool,
     List<String>? excludeTool,
-  }) =>
-      McpFilterConfig(
-        packagesAllow: _listToAllow(includePackage),
-        packagesDeny: _listToDeny(excludePackage),
-        toolsAllow: _listToAllow(includeTool),
-        toolsDeny: _listToDeny(excludeTool),
-      );
+  }) => McpFilterConfig(
+    packagesAllow: _listToAllow(includePackage),
+    packagesDeny: _listToDeny(excludePackage),
+    toolsAllow: _listToAllow(includeTool),
+    toolsDeny: _listToDeny(excludeTool),
+  );
 
   // ---------------------------------------------------------------------------
   // Merge
@@ -215,21 +214,19 @@ final class McpFilterConfig {
     McpFilterConfig file,
     McpFilterConfig env,
     McpFilterConfig cli,
-  ) =>
-      McpFilterConfig(
-        // 1. Allow lists: CLI replaces env replaces file (first non-null wins).
-        packagesAllow:
-            cli.packagesAllow ?? env.packagesAllow ?? file.packagesAllow,
-        toolsAllow: cli.toolsAllow ?? env.toolsAllow ?? file.toolsAllow,
+  ) => McpFilterConfig(
+    // 1. Allow lists: CLI replaces env replaces file (first non-null wins).
+    packagesAllow: cli.packagesAllow ?? env.packagesAllow ?? file.packagesAllow,
+    toolsAllow: cli.toolsAllow ?? env.toolsAllow ?? file.toolsAllow,
 
-        // 2. Deny lists: UNION of all three layers (deny wins everywhere).
-        packagesDeny: {
-          ...file.packagesDeny,
-          ...env.packagesDeny,
-          ...cli.packagesDeny,
-        },
-        toolsDeny: {...file.toolsDeny, ...env.toolsDeny, ...cli.toolsDeny},
-      );
+    // 2. Deny lists: UNION of all three layers (deny wins everywhere).
+    packagesDeny: {
+      ...file.packagesDeny,
+      ...env.packagesDeny,
+      ...cli.packagesDeny,
+    },
+    toolsDeny: {...file.toolsDeny, ...env.toolsDeny, ...cli.toolsDeny},
+  );
 
   // ---------------------------------------------------------------------------
   // Apply
@@ -252,26 +249,25 @@ final class McpFilterConfig {
   List<McpToolDescriptor> apply(
     List<McpToolDescriptor> tools,
     String Function(McpToolDescriptor) providerNameLookup,
-  ) =>
-      tools.where((tool) {
-        final provider = providerNameLookup(tool);
+  ) => tools.where((tool) {
+    final provider = providerNameLookup(tool);
 
-        // 1. Package deny wins unconditionally.
-        if (packagesDeny.contains(provider)) return false;
+    // 1. Package deny wins unconditionally.
+    if (packagesDeny.contains(provider)) return false;
 
-        // 2. Package allow-list gating (null = allow all).
-        final allow = packagesAllow;
-        if (allow != null && !allow.contains(provider)) return false;
+    // 2. Package allow-list gating (null = allow all).
+    final allow = packagesAllow;
+    if (allow != null && !allow.contains(provider)) return false;
 
-        // 3. Tool name deny wins unconditionally.
-        if (toolsDeny.contains(tool.name)) return false;
+    // 3. Tool name deny wins unconditionally.
+    if (toolsDeny.contains(tool.name)) return false;
 
-        // 4. Tool name allow-list gating (null = allow all).
-        final toolAllow = toolsAllow;
-        if (toolAllow != null && !toolAllow.contains(tool.name)) return false;
+    // 4. Tool name allow-list gating (null = allow all).
+    final toolAllow = toolsAllow;
+    if (toolAllow != null && !toolAllow.contains(tool.name)) return false;
 
-        return true;
-      }).toList();
+    return true;
+  }).toList();
 
   // ---------------------------------------------------------------------------
   // Private helpers
@@ -321,8 +317,11 @@ final class McpFilterConfig {
   /// around each entry and drops empty entries.
   static Set<String>? _parseCsvAllow(String? raw) {
     if (raw == null || raw.trim().isEmpty) return null;
-    final entries =
-        raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toSet();
+    final entries = raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet();
     return entries.isEmpty ? null : entries;
   }
 

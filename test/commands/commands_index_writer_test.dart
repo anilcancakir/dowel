@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/commands_index_writer.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -54,12 +54,10 @@ class BarCommand extends DowelCommand {}
     });
 
     test('detects across multiple files, sorted by file path', () {
-      File(p.join(tempDir.path, 'zebra.dart')).writeAsStringSync(
-        'class ZebraCommand extends DowelCommand {}',
-      );
-      File(p.join(tempDir.path, 'alpha.dart')).writeAsStringSync(
-        'class AlphaCommand extends DowelCommand {}',
-      );
+      File(p.join(tempDir.path, 'zebra.dart'))
+          .writeAsStringSync('class ZebraCommand extends DowelCommand {}');
+      File(p.join(tempDir.path, 'alpha.dart'))
+          .writeAsStringSync('class AlphaCommand extends DowelCommand {}');
 
       final got = discoverCommandsInDir(tempDir);
 
@@ -67,12 +65,10 @@ class BarCommand extends DowelCommand {}
     });
 
     test('skips _index.g.dart', () {
-      File(p.join(tempDir.path, '_index.g.dart')).writeAsStringSync(
-        'class IndexCommand extends DowelCommand {}',
-      );
-      File(p.join(tempDir.path, 'real.dart')).writeAsStringSync(
-        'class RealCommand extends DowelCommand {}',
-      );
+      File(p.join(tempDir.path, '_index.g.dart'))
+          .writeAsStringSync('class IndexCommand extends DowelCommand {}');
+      File(p.join(tempDir.path, 'real.dart'))
+          .writeAsStringSync('class RealCommand extends DowelCommand {}');
 
       final got = discoverCommandsInDir(tempDir);
 
@@ -80,12 +76,10 @@ class BarCommand extends DowelCommand {}
     });
 
     test('skips any file whose name starts with underscore', () {
-      File(p.join(tempDir.path, '_helper.dart')).writeAsStringSync(
-        'class HiddenCommand extends DowelCommand {}',
-      );
-      File(p.join(tempDir.path, 'visible.dart')).writeAsStringSync(
-        'class VisibleCommand extends DowelCommand {}',
-      );
+      File(p.join(tempDir.path, '_helper.dart'))
+          .writeAsStringSync('class HiddenCommand extends DowelCommand {}');
+      File(p.join(tempDir.path, 'visible.dart'))
+          .writeAsStringSync('class VisibleCommand extends DowelCommand {}');
 
       final got = discoverCommandsInDir(tempDir);
 
@@ -93,17 +87,16 @@ class BarCommand extends DowelCommand {}
     });
 
     test('skips non-dart files', () {
-      File(p.join(tempDir.path, 'README.md')).writeAsStringSync(
-        'class GhostCommand extends DowelCommand {}',
-      );
+      File(p.join(tempDir.path, 'README.md'))
+          .writeAsStringSync('class GhostCommand extends DowelCommand {}');
 
       expect(discoverCommandsInDir(tempDir), isEmpty);
     });
 
     test(
-        'requires BOTH class name ending in Command AND base ending in Command',
-        () {
-      File(p.join(tempDir.path, 'mixed.dart')).writeAsStringSync('''
+      'requires BOTH class name ending in Command AND base ending in Command',
+      () {
+        File(p.join(tempDir.path, 'mixed.dart')).writeAsStringSync('''
 class GoodCommand extends DowelCommand {}
 class NotACommand extends StatelessWidget {}
 class AlsoMatchCommand extends MyCustomCommand {}
@@ -111,13 +104,14 @@ class NoSuffix extends DowelCommand {}
 class AlsoNot extends SomeBase {}
 ''');
 
-      final got = discoverCommandsInDir(tempDir);
+        final got = discoverCommandsInDir(tempDir);
 
-      expect(
-        got.map((c) => c.className),
-        ['GoodCommand', 'AlsoMatchCommand'],
-      );
-    });
+        expect(got.map((c) => c.className), [
+          'GoodCommand',
+          'AlsoMatchCommand',
+        ]);
+      },
+    );
 
     test('matches both DowelCommand and DowelGeneratorCommand bases', () {
       File(p.join(tempDir.path, 'make.dart')).writeAsStringSync('''
@@ -135,21 +129,21 @@ class MakeFooCommand extends DowelGeneratorCommand {}
       expect(out, contains("import 'package:dowel/dowel.dart'"));
       expect(
         out,
-        contains(
-          'List<DowelCommand> get commands => const <DowelCommand>[];',
-        ),
+        contains('List<DowelCommand> get commands => const <DowelCommand>[];'),
       );
     });
 
     test('renders one import + one instantiation per file', () {
       final out = renderCommandsIndex(const [
-        DiscoveredCommand(
-          className: 'FooCommand',
-          fileName: 'foo.dart',
-        ),
+        DiscoveredCommand(className: 'FooCommand', fileName: 'foo.dart'),
       ]);
       expect(out, contains("import 'foo.dart';"));
-      expect(out, contains('  FooCommand(),'));
+      expect(
+        out,
+        contains(
+          'List<DowelCommand> get commands => <DowelCommand>[FooCommand()];',
+        ),
+      );
     });
 
     test('deduplicates imports when a file has multiple commands', () {
@@ -158,8 +152,41 @@ class MakeFooCommand extends DowelGeneratorCommand {}
         DiscoveredCommand(className: 'BarCommand', fileName: 'multi.dart'),
       ]);
       expect("'multi.dart'".allMatches(out).length, 1);
-      expect(out, contains('  FooCommand(),'));
-      expect(out, contains('  BarCommand(),'));
+      expect(out, contains('[FooCommand(), BarCommand()]'));
+    });
+
+    test('ends on the closing line, with no trailing blank line', () {
+      // dart format drops the blank line, so a consumer running
+      // `dart format --set-exit-if-changed .` failed on the generated file.
+      expect(
+        renderCommandsIndex(const []),
+        endsWith(
+          '\nList<DowelCommand> get commands => const <DowelCommand>[];\n',
+        ),
+      );
+    });
+
+    test('a list longer than 80 columns splits one entry per line', () {
+      final out = renderCommandsIndex(const [
+        DiscoveredCommand(
+          className: 'GreetEveryoneCommand',
+          fileName: 'g.dart',
+        ),
+        DiscoveredCommand(
+          className: 'CleanTheCacheCommand',
+          fileName: 'c.dart',
+        ),
+      ]);
+
+      expect(
+        out,
+        endsWith(
+          '\nList<DowelCommand> get commands => <DowelCommand>[\n'
+          '  GreetEveryoneCommand(),\n'
+          '  CleanTheCacheCommand(),\n'
+          '];\n',
+        ),
+      );
     });
 
     test('sorts imports alphabetically', () {
@@ -172,9 +199,18 @@ class MakeFooCommand extends DowelGeneratorCommand {}
       expect(alphaIdx, lessThan(zebraIdx));
     });
 
+    test('pins the formatter page width on the first line', () {
+      // A project with `formatter: page_width: 50` re-split the lines laid
+      // out for 80 columns, so its format check failed after every refresh.
+      expect(
+        renderCommandsIndex(const []),
+        startsWith('// dart format width=80\n'),
+      );
+    });
+
     test('emits the AUTO-GENERATED header', () {
       final out = renderCommandsIndex(const []);
-      expect(out, contains('AUTO-GENERATED'));
+      expect(out, contains('// AUTO-GENERATED: DO NOT EDIT.'));
       expect(out, contains('commands:refresh'));
       expect(out, contains('make:command'));
     });
@@ -193,8 +229,8 @@ class MakeFooCommand extends DowelGeneratorCommand {}
 
     test('writes a valid empty-index file when no commands discovered', () {
       writeCommandsIndex(tempDir);
-      final content =
-          File(p.join(tempDir.path, '_index.g.dart')).readAsStringSync();
+      final content = File(p.join(tempDir.path, '_index.g.dart'))
+          .readAsStringSync();
       expect(content, contains('const <DowelCommand>[]'));
     });
 
@@ -203,8 +239,8 @@ class MakeFooCommand extends DowelGeneratorCommand {}
       File(p.join(tempDir.path, 'one.dart'))
           .writeAsStringSync('class OneCommand extends DowelCommand {}');
       writeCommandsIndex(tempDir);
-      var content =
-          File(p.join(tempDir.path, '_index.g.dart')).readAsStringSync();
+      var content = File(p.join(tempDir.path, '_index.g.dart'))
+          .readAsStringSync();
       expect(content, contains('OneCommand()'));
 
       // Second pass: command file deleted; index should reflect.

@@ -68,12 +68,12 @@ import 'helpers/workspace_enroller.dart';
 ///
 /// Three seams support deterministic tests:
 ///
-/// - [resolveDowelRoot] / [resolveMagicRoot] / [resolveStubDir] —
+/// - [resolveDowelRoot] / [resolveMagicRoot] / [resolveStubDir]:
 ///   override in test subclasses to pin the package roots without touching
 ///   `Isolate.resolvePackageUri`.
-/// - [FlutterCreateRunner] — pass a stub via the constructor to skip the
+/// - [FlutterCreateRunner]: pass a stub via the constructor to skip the
 ///   real subprocess spawn.
-/// - [WorkspaceEnroller] — pass an in-memory variant via the constructor
+/// - [WorkspaceEnroller]: pass an in-memory variant via the constructor
 ///   to assert workspace enrollment without touching real pubspec files.
 class MakePluginCommand extends DowelCommand {
   /// Public default constructor. Optional injection seams default to real
@@ -87,9 +87,9 @@ class MakePluginCommand extends DowelCommand {
   MakePluginCommand({
     FlutterCreateRunner? flutterCreateRunner,
     WorkspaceEnroller? workspaceEnroller,
-  })  : _flutterCreateRunner = flutterCreateRunner ?? FlutterCreateRunner(),
-        _workspaceEnroller =
-            workspaceEnroller ?? WorkspaceEnroller(const RealFs());
+  }) : _flutterCreateRunner = flutterCreateRunner ?? FlutterCreateRunner(),
+       _workspaceEnroller =
+           workspaceEnroller ?? WorkspaceEnroller(const RealFs());
 
   final FlutterCreateRunner _flutterCreateRunner;
   final WorkspaceEnroller _workspaceEnroller;
@@ -148,7 +148,8 @@ class MakePluginCommand extends DowelCommand {
   ];
 
   @override
-  String get signature => 'make:plugin '
+  String get signature =>
+      'make:plugin '
       '{name : Plugin package name in snake_case} '
       '{--target= : Target directory (default: packages/<name>)} '
       '{--path= : Target directory (alias for --target, takes precedence when both set)} '
@@ -453,8 +454,8 @@ class MakePluginCommand extends DowelCommand {
     final bootstrapOverride = ctx.input.option('bootstrap-command') as String?;
     final bootstrapCommand =
         (bootstrapOverride != null && bootstrapOverride.isNotEmpty)
-            ? bootstrapOverride
-            : '$commandPrefix:install';
+        ? bootstrapOverride
+        : '$commandPrefix:install';
 
     return <String, String>{
       'name': name,
@@ -462,7 +463,7 @@ class MakePluginCommand extends DowelCommand {
       'commandPrefix': commandPrefix,
       'bootstrapCommand': bootstrapCommand,
       'dowelPath': dowelPath,
-      if (magicPath != null) 'magicPath': magicPath,
+      'magicPath': ?magicPath,
     };
   }
 

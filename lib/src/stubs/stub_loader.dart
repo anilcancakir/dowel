@@ -17,7 +17,7 @@ const String _pkgName = 'dowel';
 ///   'tableName': 'monitors',
 /// });
 /// ```
-class StubLoader {
+final class StubLoader {
   /// Prevent instantiation — this is a pure static utility class.
   const StubLoader._();
 
@@ -108,8 +108,10 @@ class StubLoader {
       final pubspec = File(path.join(current.path, 'pubspec.yaml'));
       if (pubspec.existsSync()) {
         final content = pubspec.readAsStringSync();
-        if (RegExp('^name:\\s*$_pkgName\\s*\$', multiLine: true)
-            .hasMatch(content)) {
+        if (RegExp(
+          '^name:\\s*$_pkgName\\s*\$',
+          multiLine: true,
+        ).hasMatch(content)) {
           return [path.join(current.path, 'assets', 'stubs')];
         }
       }
@@ -162,14 +164,11 @@ class StubLoader {
             if (entry['name'] == _pkgName) {
               final rootUri = entry['rootUri'] as String;
 
-              // rootUri can be absolute (file:///) or relative (../)
-              if (rootUri.startsWith('file://')) {
-                return Uri.parse(rootUri).toFilePath();
-              }
-
-              // Relative paths are resolved from .dart_tool/ parent
+              // rootUri is an absolute `file:` URI or a reference relative to
+              // `.dart_tool/`, percent-encoded either way. Resolving it as a
+              // URI decodes it; a path join kept `%20` literally.
               return path.normalize(
-                path.join(current.path, '.dart_tool', rootUri),
+                configFile.parent.absolute.uri.resolve(rootUri).toFilePath(),
               );
             }
           }

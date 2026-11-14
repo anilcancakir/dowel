@@ -9,8 +9,10 @@ import 'package:test/test.dart';
 void main() {
   group('dowelVersion', () {
     test('matches the version declared in pubspec.yaml', () {
-      final Match? declared = RegExp(r'^version:\s*(\S+)', multiLine: true)
-          .firstMatch(File('pubspec.yaml').readAsStringSync());
+      final Match? declared = RegExp(
+        r'^version:\s*(\S+)',
+        multiLine: true,
+      ).firstMatch(File('pubspec.yaml').readAsStringSync());
       expect(declared, isNotNull, reason: 'pubspec.yaml has no version: line');
 
       expect(

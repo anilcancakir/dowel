@@ -1,4 +1,4 @@
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/console/dowel_output.dart';
 import 'package:test/test.dart';
 
 void main() {

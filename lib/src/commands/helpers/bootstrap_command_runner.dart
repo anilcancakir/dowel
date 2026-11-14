@@ -43,10 +43,10 @@ final class BootstrapRunResult {
   /// always has one, and the invariant stops an incomplete result from
   /// producing operator messages like "exited with code null".
   const BootstrapRunResult({required this.outcome, this.exitCode, this.stderr})
-      : assert(
-          outcome != BootstrapRunOutcome.invoked || exitCode != null,
-          'an invoked BootstrapRunResult must carry a subprocess exit code',
-        );
+    : assert(
+        outcome != BootstrapRunOutcome.invoked || exitCode != null,
+        'an invoked BootstrapRunResult must carry a subprocess exit code',
+      );
 
   final BootstrapRunOutcome outcome;
 
@@ -97,7 +97,7 @@ class BootstrapCommandRunner {
   /// [processRunner] defaults to [Process.run] from `dart:io`. Inject a fake
   /// in tests to assert the resolved command without spawning a process.
   BootstrapCommandRunner({ProcessRunner? processRunner})
-      : _runner = processRunner ?? _defaultRunner;
+    : _runner = processRunner ?? _defaultRunner;
 
   final ProcessRunner _runner;
 

@@ -20,7 +20,7 @@ import 'start_command.dart';
 /// that outlives SIGKILL keeps its session and fails the command, so
 /// `restart` never starts on top of it. Idempotent (silent if state.json
 /// absent).
-class StopCommand extends DowelCommand {
+final class StopCommand extends DowelCommand {
   // ---------------------------------------------------------------------------
   // Test seams for Chrome cleanup. Replaced in tests to avoid spawning real
   // processes or waiting two seconds during unit runs.
@@ -46,7 +46,7 @@ class StopCommand extends DowelCommand {
   /// application id read from disk is never interpreted.
   @visibleForTesting
   static Future<ProcessResult> Function(String, List<String>)
-      stopProcessRunner = Process.run;
+  stopProcessRunner = Process.run;
 
   /// Answers whether a port is free to bind; `stop` waits on the web port of
   /// a browser session and on the CDP port. Defaults to
@@ -102,8 +102,9 @@ class StopCommand extends DowelCommand {
     //    server, device helpers), waited on so a `start` straight after this
     //    one does not race a port the old tool still holds.
     final pid = state['pid'] as int?;
-    final ReapResult? app =
-        pid == null ? null : await _reapApp(ctx, pid, state);
+    final ReapResult? app = pid == null
+        ? null
+        : await _reapApp(ctx, pid, state);
 
     // 2. FIFO stdin holder (the `tail -f /dev/null > fifo` background process
     //    that keeps the pipe's write end open across reload/hot-restart calls).
@@ -197,13 +198,11 @@ class StopCommand extends DowelCommand {
     final bool browser = StartCommand.browserDevices.contains(state['device']);
     final int anchor =
         holderPid != null && !stopIsAlive(pid) && stopIsAlive(holderPid)
-            ? holderPid
-            : pid;
+        ? holderPid
+        : pid;
     final ReapResult result = await _reaper().reap(
       anchor,
-      ports: <int>[
-        if (browser && webPort != null) webPort,
-      ],
+      ports: <int>[if (browser && webPort != null) webPort],
       startedBy: _startedAt(state),
     );
 
@@ -314,8 +313,9 @@ class StopCommand extends DowelCommand {
     String serial,
     String? projectRoot,
   ) async {
-    final applicationId =
-        androidApplicationId(projectRoot ?? Directory.current.path);
+    final applicationId = androidApplicationId(
+      projectRoot ?? Directory.current.path,
+    );
     if (applicationId == null) {
       ctx.output.warning(
         'No applicationId in android/app/build.gradle*; the app on $serial '
@@ -366,9 +366,7 @@ class StopCommand extends DowelCommand {
     //    --cdp-port probes before it launches a new Chrome.
     final ReapResult result = await _reaper().reap(
       chromePid,
-      ports: <int>[
-        if (cdpPort != null) cdpPort,
-      ],
+      ports: <int>[?cdpPort],
       startedBy: startedBy,
     );
     if (result.pidReused) {

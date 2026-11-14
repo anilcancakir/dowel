@@ -27,8 +27,10 @@ void main() {
     });
 
     test('toString includes offendingOp when set', () {
-      const exception =
-          InstallException('Bad op.', offendingOp: 'publish_file');
+      const exception = InstallException(
+        'Bad op.',
+        offendingOp: 'publish_file',
+      );
 
       expect(exception.toString(), contains('Bad op.'));
       expect(exception.toString(), contains('publish_file'));
@@ -59,8 +61,9 @@ void main() {
     });
 
     test('stores message from InstallException', () {
-      const exception =
-          ManifestValidationException('Missing required key: name.');
+      const exception = ManifestValidationException(
+        'Missing required key: name.',
+      );
 
       expect(exception.message, 'Missing required key: name.');
     });

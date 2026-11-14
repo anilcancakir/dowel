@@ -1,4 +1,5 @@
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/help_command.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -43,22 +44,24 @@ void main() {
       expect(output.content, contains('Unknown command: nope'));
     });
 
-    test('prints description, usage, boot mode for a registered command',
-        () async {
-      final command = HelpCommand(registry);
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(const {}, positional: <String>['greet']),
-        output,
-      );
+    test(
+      'prints description, usage, boot mode for a registered command',
+      () async {
+        final command = HelpCommand(registry);
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(const {}, positional: <String>['greet']),
+          output,
+        );
 
-      final code = await command.handle(ctx);
+        final code = await command.handle(ctx);
 
-      expect(code, 0);
-      expect(output.content, contains('Say hello'));
-      expect(output.content, contains('dowel greet'));
-      expect(output.content, contains('none'));
-    });
+        expect(code, 0);
+        expect(output.content, contains('Say hello'));
+        expect(output.content, contains('dowel greet'));
+        expect(output.content, contains('none'));
+      },
+    );
   });
 }
 

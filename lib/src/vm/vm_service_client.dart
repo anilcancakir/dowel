@@ -18,6 +18,10 @@ import 'extension_not_registered_exception.dart';
 /// DDS namespace mapping is handled transparently by `package:vm_service`
 /// when the WebSocket URI points at a DDS endpoint (which `flutter run`
 /// does by default).
+///
+/// [evaluate] and [reloadSources] return `package:vm_service` types
+/// (`Response`, `ReloadReport`), so a caller that reads them depends on
+/// `vm_service` too.
 class VmServiceClient {
   VmServiceClient(this.wsUri);
 
@@ -26,9 +30,25 @@ class VmServiceClient {
 
   bool get isConnected => _service != null;
 
+  /// Completes when the first connection this client opened closes, through
+  /// [disconnect] or because the app went away.
+  ///
+  /// vm_service disposes itself when the socket closes and answers every
+  /// later call with an RPC error, so a long-lived holder (the MCP server)
+  /// listens here to drop the client and dial the app's next socket.
+  Future<void> get onDone => _done.future;
+  final Completer<void> _done = Completer<void>();
+
   Future<void> connect() async {
     if (_service != null) return;
-    _service = await vmServiceConnectUri(wsUri);
+    final service = await vmServiceConnectUri(wsUri);
+    _service = service;
+    unawaited(
+      service.onDone.then((_) {
+        if (identical(_service, service)) _service = null;
+        if (!_done.isCompleted) _done.complete();
+      }),
+    );
   }
 
   Future<void> disconnect() async {

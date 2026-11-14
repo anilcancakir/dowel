@@ -41,7 +41,7 @@ tinker {--eval=expr}
 
 | Option | Description |
 |:---|:---|
-| `--eval=<expr>` | Evaluate a single Dart expression and exit. REPL is skipped. |
+| `--eval=<expr>` | Evaluate a single Dart expression and exit. REPL is skipped. A blank value is a usage error (exit `1`). |
 
 ---
 
@@ -81,6 +81,10 @@ the formatted result to stdout, and exits immediately. No prompt or session mess
 are printed. Exit code is `0` on success, `1` on evaluation error. This mode is
 pipe-friendly: scripts and pipelines can capture the output without filtering out
 interactive chatter.
+
+An explicit but blank `--eval` (`--eval ""`) is a usage error, not a request for the REPL: the
+command prints `--eval needs a Dart expression, e.g. --eval "1 + 1". Omit it to start the REPL.`
+and exits `1`. Leave `--eval` out to start the REPL.
 
 ```bash
 dart run dowel tinker --eval "1+1"   # prints: 2
@@ -130,7 +134,8 @@ client (Claude Code, Cursor, Windsurf, etc.) can call `dowel_tinker` with an `ev
 argument to evaluate Dart in the running app. This is the same evaluation path as
 `dart run dowel tinker --eval "..."` but accessible to AI agents over
 stdio JSON-RPC; the dispatcher uses the same lazy-reconnect to the VM Service that
-the CLI form uses, and the result returns as MCP text content.
+the CLI form uses, and the result returns as MCP text content. A blank `eval` is the same
+usage error as on the CLI, never the REPL, which would read the JSON-RPC channel on stdin.
 
 See [mcp:serve](mcp-serve.md) and the [MCP tool reference](../mcp/tool-reference.md) for
 the full input schema, filter precedence, and the substrate vs plugin separation.

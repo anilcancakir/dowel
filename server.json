@@ -3,7 +3,7 @@
     "name": "io.github.anilcancakir/dowel",
     "title": "Dowel",
     "description": "CLI framework and stdio MCP server for Flutter: scaffolding, hot reload, REPL, codegen.",
-    "version": "0.0.21",
+    "version": "1.0.0",
     "repository": {
         "url": "https://github.com/anilcancakir/dowel",
         "source": "github"
