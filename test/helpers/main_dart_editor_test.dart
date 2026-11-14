@@ -61,19 +61,21 @@ void main() {
     });
 
     // 2. injectBeforeMagicInit single-line.
-    test('injectBeforeMagicInit inserts code before single-line Magic.init',
-        () {
-      MainDartEditor.injectBeforeMagicInit(
-        singleLinePath,
-        '  WidgetsFlutterBinding.ensureInitialized();\n',
-      );
+    test(
+      'injectBeforeMagicInit inserts code before single-line Magic.init',
+      () {
+        MainDartEditor.injectBeforeMagicInit(
+          singleLinePath,
+          '  WidgetsFlutterBinding.ensureInitialized();\n',
+        );
 
-      final content = File(singleLinePath).readAsStringSync();
-      final initIndex = content.indexOf('await Magic.init()');
-      final insertedIndex = content.indexOf('WidgetsFlutterBinding');
-      expect(insertedIndex, isNonNegative);
-      expect(insertedIndex, lessThan(initIndex));
-    });
+        final content = File(singleLinePath).readAsStringSync();
+        final initIndex = content.indexOf('await Magic.init()');
+        final insertedIndex = content.indexOf('WidgetsFlutterBinding');
+        expect(insertedIndex, isNonNegative);
+        expect(insertedIndex, lessThan(initIndex));
+      },
+    );
 
     // 3. injectBeforeMagicInit multi-line.
     test('injectBeforeMagicInit inserts code before multi-line Magic.init', () {
@@ -125,10 +127,7 @@ void main() {
       // then scanning forward for the matching closing paren line.
       final initIndex = content.indexOf('await Magic.init(');
       // The string '  );' appears on the line that closes Magic.init's arg list.
-      final magicInitClosingIndex = content.indexOf(
-        '\n  );\n',
-        initIndex,
-      );
+      final magicInitClosingIndex = content.indexOf('\n  );\n', initIndex);
       final insertedIndex = content.indexOf('MagicTapirIntegration.install()');
       final runAppIndex = content.indexOf('runApp(');
       expect(insertedIndex, isNonNegative);
@@ -165,7 +164,8 @@ void main() {
 
     // 10. injectBeforeAnchor happy path: snippet appears before the anchor line.
     test('injectBeforeAnchor inserts snippet before the anchor line', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init();\n'
           '  runApp(MyApp());\n'
           '}\n';
@@ -183,43 +183,50 @@ void main() {
     });
 
     // 11. injectBeforeAnchor idempotence: second call returns source unchanged.
-    test('injectBeforeAnchor does not re-insert when snippet already present',
-        () {
-      const source = 'void main() async {\n'
-          '  SomeSetup.call();\n'
-          '  await Magic.init();\n'
-          '  runApp(MyApp());\n'
-          '}\n';
+    test(
+      'injectBeforeAnchor does not re-insert when snippet already present',
+      () {
+        const source =
+            'void main() async {\n'
+            '  SomeSetup.call();\n'
+            '  await Magic.init();\n'
+            '  runApp(MyApp());\n'
+            '}\n';
 
-      final result = MainDartEditor.injectBeforeAnchor(
-        source: source,
-        anchor: 'await Magic.init()',
-        snippet: '  SomeSetup.call();\n',
-      );
+        final result = MainDartEditor.injectBeforeAnchor(
+          source: source,
+          anchor: 'await Magic.init()',
+          snippet: '  SomeSetup.call();\n',
+        );
 
-      expect(result, equals(source));
-      expect('SomeSetup.call()'.allMatches(result).length, 1);
-    });
+        expect(result, equals(source));
+        expect('SomeSetup.call()'.allMatches(result).length, 1);
+      },
+    );
 
     // 12. injectBeforeAnchor anchor-not-found: returns source unchanged.
-    test('injectBeforeAnchor returns source unchanged when anchor is not found',
-        () {
-      const source = 'void main() async {\n'
-          '  runApp(MyApp());\n'
-          '}\n';
+    test(
+      'injectBeforeAnchor returns source unchanged when anchor is not found',
+      () {
+        const source =
+            'void main() async {\n'
+            '  runApp(MyApp());\n'
+            '}\n';
 
-      final result = MainDartEditor.injectBeforeAnchor(
-        source: source,
-        anchor: 'await Magic.init()',
-        snippet: '  SomeSetup.call();\n',
-      );
+        final result = MainDartEditor.injectBeforeAnchor(
+          source: source,
+          anchor: 'await Magic.init()',
+          snippet: '  SomeSetup.call();\n',
+        );
 
-      expect(result, equals(source));
-    });
+        expect(result, equals(source));
+      },
+    );
 
     // 13. injectBeforeAnchor multi-line snippet: all lines appear before anchor.
     test('injectBeforeAnchor inserts a multi-line snippet before anchor', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init();\n'
           '  runApp(MyApp());\n'
           '}\n';
@@ -239,7 +246,8 @@ void main() {
 
     // 14. injectBeforeAnchor with indent parameter: snippet is indented.
     test('injectBeforeAnchor applies indent prefix to every snippet line', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init();\n'
           '  runApp(MyApp());\n'
           '}\n';
@@ -269,8 +277,11 @@ void main() {
       final customPath = p.join(tempDir.path, 'main_custom_entry.dart');
       File(customPath).writeAsStringSync(fixture);
 
-      MainDartEditor.wrapRunApp(customPath, 'SentryWidget',
-          appCall: 'runWidget');
+      MainDartEditor.wrapRunApp(
+        customPath,
+        'SentryWidget',
+        appCall: 'runWidget',
+      );
 
       final content = File(customPath).readAsStringSync();
       expect(content, contains('runWidget(SentryWidget(MyApp()))'));
@@ -279,47 +290,61 @@ void main() {
     });
 
     // 16. wrapRunApp with custom appCall is idempotent.
-    test('wrapRunApp with custom appCall is idempotent when already wrapped',
-        () {
-      const fixture = '''
+    test(
+      'wrapRunApp with custom appCall is idempotent when already wrapped',
+      () {
+        const fixture = '''
 import 'package:flutter/material.dart';
 
 void main() {
   runWidget(MyApp());
 }
 ''';
-      final customPath = p.join(tempDir.path, 'main_custom_entry_idem.dart');
-      File(customPath).writeAsStringSync(fixture);
+        final customPath = p.join(tempDir.path, 'main_custom_entry_idem.dart');
+        File(customPath).writeAsStringSync(fixture);
 
-      MainDartEditor.wrapRunApp(customPath, 'SentryWidget',
-          appCall: 'runWidget');
-      MainDartEditor.wrapRunApp(customPath, 'SentryWidget',
-          appCall: 'runWidget');
+        MainDartEditor.wrapRunApp(
+          customPath,
+          'SentryWidget',
+          appCall: 'runWidget',
+        );
+        MainDartEditor.wrapRunApp(
+          customPath,
+          'SentryWidget',
+          appCall: 'runWidget',
+        );
 
-      final content = File(customPath).readAsStringSync();
-      expect('SentryWidget('.allMatches(content).length, 1);
-    });
+        final content = File(customPath).readAsStringSync();
+        expect('SentryWidget('.allMatches(content).length, 1);
+      },
+    );
 
     // 17. wrapRunApp with custom appCall throws StateError when entry not found.
-    test('wrapRunApp with custom appCall throws when entry point is absent',
-        () {
-      expect(
-        () => MainDartEditor.wrapRunApp(singleLinePath, 'SentryWidget',
-            appCall: 'runWidget'),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('runWidget('),
+    test(
+      'wrapRunApp with custom appCall throws when entry point is absent',
+      () {
+        expect(
+          () => MainDartEditor.wrapRunApp(
+            singleLinePath,
+            'SentryWidget',
+            appCall: 'runWidget',
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('runWidget('),
+            ),
+          ),
+        );
+      },
+    );
 
     // 18. injectAfterAnchor happy path: snippet appears after the closing `)`
     //     of the anchored call.
     test('injectAfterAnchor inserts snippet after the anchored call', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init();\n'
           '  runApp(MyApp());\n'
           '}\n';
@@ -340,7 +365,8 @@ void main() {
 
     // 19. injectAfterAnchor idempotence: re-inserting the same snippet is a no-op.
     test('injectAfterAnchor is idempotent when snippet is already present', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init();\n'
           '  MagicTapirIntegration.install();\n'
           '  runApp(MyApp());\n'
@@ -356,25 +382,29 @@ void main() {
     });
 
     // 20. injectAfterAnchor returns source unchanged when the anchor is absent.
-    test('injectAfterAnchor returns source unchanged when anchor not found',
-        () {
-      const source = 'void main() {\n'
-          '  runApp(MyApp());\n'
-          '}\n';
+    test(
+      'injectAfterAnchor returns source unchanged when anchor not found',
+      () {
+        const source =
+            'void main() {\n'
+            '  runApp(MyApp());\n'
+            '}\n';
 
-      final result = MainDartEditor.injectAfterAnchor(
-        source: source,
-        anchor: 'Magic.init',
-        snippet: '  Something.call();\n',
-      );
+        final result = MainDartEditor.injectAfterAnchor(
+          source: source,
+          anchor: 'Magic.init',
+          snippet: '  Something.call();\n',
+        );
 
-      expect(result, equals(source));
-    });
+        expect(result, equals(source));
+      },
+    );
 
     // 21. injectAfterAnchor handles multi-line calls with nested parens via
     //     the depth counter (configFactories list spans multiple lines).
     test('injectAfterAnchor handles multi-line anchored calls', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init(\n'
           '    configFactories: [\n'
           '      () => appConfig,\n'
@@ -400,44 +430,52 @@ void main() {
 
     // 22. wrapRunAppInSource happy path: wraps runApp with the given wrapper name.
     test('wrapRunAppInSource wraps runApp with the given wrapper name', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init();\n'
           '  runApp(MyApp());\n'
           '}\n';
 
-      final result =
-          MainDartEditor.wrapRunAppInSource(source, 'MagicApplication');
+      final result = MainDartEditor.wrapRunAppInSource(
+        source,
+        'MagicApplication',
+      );
 
       expect(result, contains('runApp(MagicApplication(MyApp()))'));
     });
 
     // 23. wrapRunAppInSource with custom appCall wraps the named entry point.
     test(
-        'wrapRunAppInSource wraps a custom entry point when appCall is specified',
-        () {
-      const source = 'void main() {\n'
-          '  runWidget(MyApp());\n'
-          '}\n';
+      'wrapRunAppInSource wraps a custom entry point when appCall is specified',
+      () {
+        const source =
+            'void main() {\n'
+            '  runWidget(MyApp());\n'
+            '}\n';
 
-      final result = MainDartEditor.wrapRunAppInSource(
-        source,
-        'SentryWidget',
-        appCall: 'runWidget',
-      );
+        final result = MainDartEditor.wrapRunAppInSource(
+          source,
+          'SentryWidget',
+          appCall: 'runWidget',
+        );
 
-      expect(result, contains('runWidget(SentryWidget(MyApp()))'));
-      expect(result, isNot(contains('runApp(')));
-    });
+        expect(result, contains('runWidget(SentryWidget(MyApp()))'));
+        expect(result, isNot(contains('runApp(')));
+      },
+    );
 
     // 24. wrapRunAppInSource idempotent: re-wrapping the same source is a no-op.
     test('wrapRunAppInSource is idempotent when runApp is already wrapped', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init();\n'
           '  runApp(MyApp());\n'
           '}\n';
 
-      final once =
-          MainDartEditor.wrapRunAppInSource(source, 'MagicApplication');
+      final once = MainDartEditor.wrapRunAppInSource(
+        source,
+        'MagicApplication',
+      );
       final twice = MainDartEditor.wrapRunAppInSource(once, 'MagicApplication');
 
       expect(twice, equals(once));
@@ -446,7 +484,8 @@ void main() {
 
     // 25. wrapRunAppInSource throws StateError when the entry point is absent.
     test('wrapRunAppInSource throws StateError when no runApp is found', () {
-      const source = 'void main() async {\n'
+      const source =
+          'void main() async {\n'
           '  await Magic.init();\n'
           '}\n';
 

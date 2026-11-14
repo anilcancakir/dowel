@@ -14,12 +14,13 @@ import '../tinker/tinker_formatter.dart';
 ///
 /// V1: basic prompt + evaluate loop. cli_repl integration + IsolateReload
 /// autocomplete cache + history persistence deferred V1.x.
-class TinkerCommand extends DowelCommand {
+final class TinkerCommand extends DowelCommand {
   @override
   String get name => 'tinker';
 
   @override
-  String get signature => 'tinker '
+  String get signature =>
+      'tinker '
       '{--eval= : Evaluate a single Dart expression in the running app, '
       'print the formatted result on stdout, and exit. When set, REPL is '
       'skipped. Pipe-friendly: `dart run dowel tinker --eval "1+1"`.}';

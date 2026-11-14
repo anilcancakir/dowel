@@ -71,10 +71,10 @@ final class McpToolDescriptor {
   /// [extensionMethod] because that field is an internal routing key and has
   /// no place in the MCP wire shape.
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'inputSchema': inputSchema,
-      };
+    'name': name,
+    'description': description,
+    'inputSchema': inputSchema,
+  };
 
   @override
   String toString() =>

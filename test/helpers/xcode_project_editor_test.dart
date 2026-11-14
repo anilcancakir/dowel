@@ -55,8 +55,12 @@ void main() {
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('dowel_xcodeproj_');
-    pbxprojPath =
-        p.join(tempDir.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj');
+    pbxprojPath = p.join(
+      tempDir.path,
+      'ios',
+      'Runner.xcodeproj',
+      'project.pbxproj',
+    );
     File(pbxprojPath)
       ..createSync(recursive: true)
       ..writeAsStringSync(_realProjectPbxproj);
@@ -91,7 +95,9 @@ void main() {
           contains('CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;'),
         );
         expect(
-            body, contains('PRODUCT_BUNDLE_IDENTIFIER = com.uptizm.uptizm;'));
+          body,
+          contains('PRODUCT_BUNDLE_IDENTIFIER = com.uptizm.uptizm;'),
+        );
       }
     });
 
@@ -108,7 +114,8 @@ void main() {
         expect(
           body,
           contains(
-              'PRODUCT_BUNDLE_IDENTIFIER = com.uptizm.uptizm.RunnerTests;'),
+            'PRODUCT_BUNDLE_IDENTIFIER = com.uptizm.uptizm.RunnerTests;',
+          ),
           reason: 'sanity: $id is a test-bundle configuration',
         );
         expect(
@@ -213,10 +220,7 @@ void main() {
 
       expect(blocked, isEmpty);
       expect(_md5(pbxprojPath), firstHash);
-      expect(
-        _entitlementsKeyCount(File(pbxprojPath).readAsStringSync()),
-        3,
-      );
+      expect(_entitlementsKeyCount(File(pbxprojPath).readAsStringSync()), 3);
     });
 
     test('leaves a project already signing with another file alone', () {
@@ -345,10 +349,9 @@ void main() {
         'Runner/Runner.entitlements',
       );
 
-      expect(
-        XcodeProjectEditor.entitlementsPaths(pbxprojPath),
-        {'Runner/Runner.entitlements'},
-      );
+      expect(XcodeProjectEditor.entitlementsPaths(pbxprojPath), {
+        'Runner/Runner.entitlements',
+      });
     });
 
     test('reads both files of a split Debug and Release project', () {
@@ -358,20 +361,23 @@ void main() {
         'Release': 'Runner/RunnerRelease.entitlements',
       });
 
-      expect(
-        XcodeProjectEditor.entitlementsPaths(pbxprojPath),
-        {'Runner/Runner.entitlements', 'Runner/RunnerRelease.entitlements'},
-      );
+      expect(XcodeProjectEditor.entitlementsPaths(pbxprojPath), {
+        'Runner/Runner.entitlements',
+        'Runner/RunnerRelease.entitlements',
+      });
     });
 
     test('ignores the test bundle and project-level configurations', () {
       final content = File(pbxprojPath).readAsStringSync();
-      final bundleStart =
-          content.indexOf('331C8088294A63A400263BE5 /* Debug */ = {');
+      final bundleStart = content.indexOf(
+        '331C8088294A63A400263BE5 /* Debug */ = {',
+      );
       expect(bundleStart, isNot(-1));
       File(pbxprojPath).writeAsStringSync(
         content.substring(0, bundleStart) +
-            content.substring(bundleStart).replaceFirst(
+            content
+                .substring(bundleStart)
+                .replaceFirst(
                   'buildSettings = {\n',
                   'buildSettings = {\n\t\t\t\tCODE_SIGN_ENTITLEMENTS = Tests/Tests.entitlements;\n',
                 ),
@@ -406,10 +412,9 @@ void main() {
 
   group('XcodeProjectEditor.setEntitlementsPaths', () {
     test('writes only the configurations it names', () {
-      final blocked = XcodeProjectEditor.setEntitlementsPaths(
-        pbxprojPath,
-        {'Release': 'Runner/RunnerRelease.entitlements'},
-      );
+      final blocked = XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+        'Release': 'Runner/RunnerRelease.entitlements',
+      });
 
       expect(blocked, isEmpty);
 
@@ -428,17 +433,21 @@ void main() {
         '97C147061CF9000F007C117D',
         '249021D4217E4FDB00AE95B9',
       ]) {
-        expect(_objectBody(content, id),
-            isNot(contains('CODE_SIGN_ENTITLEMENTS')));
+        expect(
+          _objectBody(content, id),
+          isNot(contains('CODE_SIGN_ENTITLEMENTS')),
+        );
       }
 
       // And nothing reached the test bundle or the project defaults.
       for (final id in [
         ..._runnerTestsConfigurationIds,
-        ..._projectConfigurationIds
+        ..._projectConfigurationIds,
       ]) {
-        expect(_objectBody(content, id),
-            isNot(contains('CODE_SIGN_ENTITLEMENTS')));
+        expect(
+          _objectBody(content, id),
+          isNot(contains('CODE_SIGN_ENTITLEMENTS')),
+        );
       }
       expect(_entitlementsKeyCount(content), 1);
     });
@@ -469,31 +478,27 @@ void main() {
     });
 
     test('is idempotent and writes nothing on a second run', () {
-      XcodeProjectEditor.setEntitlementsPaths(
-        pbxprojPath,
-        {'Release': 'Runner/RunnerRelease.entitlements'},
-      );
+      XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+        'Release': 'Runner/RunnerRelease.entitlements',
+      });
       final first = _md5(pbxprojPath);
 
-      XcodeProjectEditor.setEntitlementsPaths(
-        pbxprojPath,
-        {'Release': 'Runner/RunnerRelease.entitlements'},
-      );
+      XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+        'Release': 'Runner/RunnerRelease.entitlements',
+      });
 
       expect(_md5(pbxprojPath), first);
     });
 
     test('refuses when a named configuration already signs elsewhere', () {
-      XcodeProjectEditor.setEntitlementsPaths(
-        pbxprojPath,
-        {'Release': 'Runner/Existing.entitlements'},
-      );
+      XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+        'Release': 'Runner/Existing.entitlements',
+      });
       final before = _md5(pbxprojPath);
 
-      final blocked = XcodeProjectEditor.setEntitlementsPaths(
-        pbxprojPath,
-        {'Release': 'Runner/RunnerRelease.entitlements'},
-      );
+      final blocked = XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+        'Release': 'Runner/RunnerRelease.entitlements',
+      });
 
       // Repointing would unsign whatever that file grants, so it comes back
       // to the caller instead and the project is left byte-identical.
@@ -502,15 +507,13 @@ void main() {
     });
 
     test('ignores a configuration that already signs but is not named', () {
-      XcodeProjectEditor.setEntitlementsPaths(
-        pbxprojPath,
-        {'Debug': 'Runner/Existing.entitlements'},
-      );
+      XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+        'Debug': 'Runner/Existing.entitlements',
+      });
 
-      final blocked = XcodeProjectEditor.setEntitlementsPaths(
-        pbxprojPath,
-        {'Release': 'Runner/RunnerRelease.entitlements'},
-      );
+      final blocked = XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+        'Release': 'Runner/RunnerRelease.entitlements',
+      });
 
       expect(blocked, isEmpty);
       final content = File(pbxprojPath).readAsStringSync();
@@ -534,10 +537,9 @@ void main() {
       // still cannot archive, which is the failure this API exists to
       // prevent.
       expect(
-        () => XcodeProjectEditor.setEntitlementsPaths(
-          pbxprojPath,
-          {'Staging': 'Runner/Staging.entitlements'},
-        ),
+        () => XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+          'Staging': 'Runner/Staging.entitlements',
+        }),
         // Pinned to the message, not just the type: this call path raises
         // StateError from eight places, so `isA<StateError>()` alone passes
         // against mutations of any of the other seven.
@@ -591,10 +593,9 @@ void main() {
       );
 
       expect(
-        () => XcodeProjectEditor.setEntitlementsPaths(
-          pbxprojPath,
-          {'Release': 'Runner/RunnerRelease.entitlements'},
-        ),
+        () => XcodeProjectEditor.setEntitlementsPaths(pbxprojPath, {
+          'Release': 'Runner/RunnerRelease.entitlements',
+        }),
         // The type alone is not enough. Make `_buildSettingsOf` fall back to
         // an empty name instead of throwing and every configuration resolves
         // to null, so the all-miss guard added in the same commit throws and

@@ -20,18 +20,16 @@ void main() {
     });
 
     test('substitutes the same placeholder appearing multiple times', () {
-      final out = StubLoader.replace(
-        '{{ x }} and {{ x }} and {{ x }}',
-        {'x': 'value'},
-      );
+      final out = StubLoader.replace('{{ x }} and {{ x }} and {{ x }}', {
+        'x': 'value',
+      });
       expect(out, 'value and value and value');
     });
 
     test('leaves unknown placeholders untouched', () {
-      final out = StubLoader.replace(
-        '{{ known }} {{ unknown }}',
-        {'known': 'X'},
-      );
+      final out = StubLoader.replace('{{ known }} {{ unknown }}', {
+        'known': 'X',
+      });
       expect(out, 'X {{ unknown }}');
     });
 
@@ -72,8 +70,10 @@ void main() {
           .writeAsStringSync('SECOND wins (should not be returned)');
 
       // tempDir listed FIRST → its stub wins.
-      final content = StubLoader.load('widget',
-          searchPaths: [tempDir.path, secondDir.path]);
+      final content = StubLoader.load(
+        'widget',
+        searchPaths: [tempDir.path, secondDir.path],
+      );
 
       expect(content, contains('Widget body for'));
       expect(content, isNot(contains('SECOND wins')));
@@ -116,8 +116,9 @@ void main() {
     test('make composes load + replace via default search paths', () {
       // The loader treats the replacement map as literal substitution; this
       // mirrors how `install` renders the bin/dispatcher.dart wrapper.
-      final content = StubLoader.make(
-          'dispatcher.dart', <String, String>{'name': 'my_app'});
+      final content = StubLoader.make('dispatcher.dart', <String, String>{
+        'name': 'my_app',
+      });
 
       expect(content, contains('my_app'));
     });
@@ -163,17 +164,14 @@ void main() {
       expect(StubLoader.load('probe'), 'from the encoded root');
     });
 
-    test(
-      'dispatcher stub forwards collectMcpTools to runDowel',
-      () {
-        // The stub must pass collectMcpTools so plugin providers collect their
-        // MCP tool descriptors when the consumer invokes mcp:serve. Without
-        // this arg, runDowel's split-API never calls registerMcpToolsFor and
-        // tools/list returns an empty array (GitHub issue #7, Bug A).
-        final content = StubLoader.load('dispatcher.dart');
+    test('dispatcher stub forwards collectMcpTools to runDowel', () {
+      // The stub must pass collectMcpTools so plugin providers collect their
+      // MCP tool descriptors when the consumer invokes mcp:serve. Without
+      // this arg, runDowel's split-API never calls registerMcpToolsFor and
+      // tools/list returns an empty array (GitHub issue #7, Bug A).
+      final content = StubLoader.load('dispatcher.dart');
 
-        expect(content, contains('collectMcpTools'));
-      },
-    );
+      expect(content, contains('collectMcpTools'));
+    });
   });
 }

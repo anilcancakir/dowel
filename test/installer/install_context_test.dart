@@ -1,4 +1,5 @@
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/installer/prompt_driver.dart';
 import 'package:test/test.dart';
 
 /// Fake [PromptDriver] that records every method invocation but returns
@@ -131,15 +132,10 @@ void main() {
         sampled.isAfter(before.subtract(const Duration(seconds: 1))),
         isTrue,
       );
-      expect(
-        sampled.isBefore(after.add(const Duration(seconds: 1))),
-        isTrue,
-      );
+      expect(sampled.isBefore(after.add(const Duration(seconds: 1))), isTrue);
     });
 
-    test(
-        'constructs a bare DowelContext with MapInput + BufferedOutput when input/output not supplied',
-        () {
+    test('constructs a bare DowelContext with MapInput + BufferedOutput when input/output not supplied', () {
       final ctx = InstallContext.test(
         fs: InMemoryFs(),
         prompt: _RecordingPromptDriver(),
@@ -188,24 +184,25 @@ void main() {
 
   group('InstallContext.real()', () {
     test(
-        'wires production drivers (RealFs / RealPromptDriver / RealStubDriver)',
-        () {
-      final dowelCtx = DowelContext.bare(
-        MapInput(const <String, dynamic>{}),
-        BufferedOutput(),
-      );
+      'wires production drivers (RealFs / RealPromptDriver / RealStubDriver)',
+      () {
+        final dowelCtx = DowelContext.bare(
+          MapInput(const <String, dynamic>{}),
+          BufferedOutput(),
+        );
 
-      final ctx = InstallContext.real(
-        dowelCtx,
-        projectRoot: '/explicit/root',
-      );
+        final ctx = InstallContext.real(
+          dowelCtx,
+          projectRoot: '/explicit/root',
+        );
 
-      expect(ctx.fs, isA<RealFs>());
-      expect(ctx.prompt, isA<RealPromptDriver>());
-      expect(ctx.stubs, isA<RealStubDriver>());
-      expect(ctx.projectRoot, '/explicit/root');
-      expect(identical(ctx.dowelContext, dowelCtx), isTrue);
-    });
+        expect(ctx.fs, isA<RealFs>());
+        expect(ctx.prompt, isA<RealPromptDriver>());
+        expect(ctx.stubs, isA<RealStubDriver>());
+        expect(ctx.projectRoot, '/explicit/root');
+        expect(identical(ctx.dowelContext, dowelCtx), isTrue);
+      },
+    );
 
     test('uses DateTime.now as the default clock', () {
       final dowelCtx = DowelContext.bare(
@@ -213,10 +210,7 @@ void main() {
         BufferedOutput(),
       );
 
-      final ctx = InstallContext.real(
-        dowelCtx,
-        projectRoot: '/explicit/root',
-      );
+      final ctx = InstallContext.real(dowelCtx, projectRoot: '/explicit/root');
 
       final before = DateTime.now();
       final sampled = ctx.clock();
@@ -226,26 +220,24 @@ void main() {
         sampled.isAfter(before.subtract(const Duration(seconds: 1))),
         isTrue,
       );
-      expect(
-        sampled.isBefore(after.add(const Duration(seconds: 1))),
-        isTrue,
-      );
+      expect(sampled.isBefore(after.add(const Duration(seconds: 1))), isTrue);
     });
 
     test(
-        'resolves projectRoot via FileHelper.findProjectRoot when not supplied',
-        () {
-      // The dart test runner cwd is the package root which DOES contain a
-      // pubspec.yaml, so FileHelper.findProjectRoot() returns a valid path.
-      final dowelCtx = DowelContext.bare(
-        MapInput(const <String, dynamic>{}),
-        BufferedOutput(),
-      );
+      'resolves projectRoot via FileHelper.findProjectRoot when not supplied',
+      () {
+        // The dart test runner cwd is the package root which DOES contain a
+        // pubspec.yaml, so FileHelper.findProjectRoot() returns a valid path.
+        final dowelCtx = DowelContext.bare(
+          MapInput(const <String, dynamic>{}),
+          BufferedOutput(),
+        );
 
-      final ctx = InstallContext.real(dowelCtx);
+        final ctx = InstallContext.real(dowelCtx);
 
-      expect(ctx.projectRoot, FileHelper.findProjectRoot());
-    });
+        expect(ctx.projectRoot, FileHelper.findProjectRoot());
+      },
+    );
   });
 
   group('field contract parity', () {

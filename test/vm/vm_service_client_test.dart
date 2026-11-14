@@ -193,19 +193,16 @@ void main() {
       // A hot restart minted isolates/2 before its plugins registered their
       // extensions: the stale id answers with a sentinel, the fresh one with
       // method not found.
-      await serve(
-        <Map<String, dynamic>>[
-          <String, dynamic>{
-            'result': <String, dynamic>{
-              'type': 'Sentinel',
-              'kind': 'Collected',
-              'valueAsString': '<collected>',
-            },
+      await serve(<Map<String, dynamic>>[
+        <String, dynamic>{
+          'result': <String, dynamic>{
+            'type': 'Sentinel',
+            'kind': 'Collected',
+            'valueAsString': '<collected>',
           },
-          methodNotFound,
-        ],
-        isolateId: 'isolates/2',
-      );
+        },
+        methodNotFound,
+      ], isolateId: 'isolates/2');
 
       await expectLater(
         client.callServiceExtension<Object?>(
@@ -218,24 +215,26 @@ void main() {
   });
 
   group('VmServiceClient.onDone', () {
-    test('completes and drops the connection when the app closes the socket',
-        () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      addTearDown(() => server.close(force: true));
-      final sockets = <WebSocket>[];
-      server.transform(WebSocketTransformer()).listen(sockets.add);
-      final client = VmServiceClient('ws://127.0.0.1:${server.port}/ws');
-      await client.connect();
-      var done = false;
-      unawaited(client.onDone.then((_) => done = true));
+    test(
+      'completes and drops the connection when the app closes the socket',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        final sockets = <WebSocket>[];
+        server.transform(WebSocketTransformer()).listen(sockets.add);
+        final client = VmServiceClient('ws://127.0.0.1:${server.port}/ws');
+        await client.connect();
+        var done = false;
+        unawaited(client.onDone.then((_) => done = true));
 
-      // The app went away: its side of the VM Service socket closes.
-      await sockets.single.close();
-      await client.onDone.timeout(const Duration(seconds: 5));
+        // The app went away: its side of the VM Service socket closes.
+        await sockets.single.close();
+        await client.onDone.timeout(const Duration(seconds: 5));
 
-      expect(done, isTrue);
-      expect(client.isConnected, isFalse);
-    });
+        expect(done, isTrue);
+        expect(client.isConnected, isFalse);
+      },
+    );
 
     test('stays pending while the connection is live', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

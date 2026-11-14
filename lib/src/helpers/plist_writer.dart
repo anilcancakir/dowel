@@ -32,7 +32,7 @@ import 'package:xml/xml.dart';
 ///   'applinks:example.com',
 /// );
 /// ```
-class PlistWriter {
+final class PlistWriter {
   PlistWriter._();
 
   /// Info.plist key holding the list of registered URL types.
@@ -180,8 +180,10 @@ class PlistWriter {
     }
 
     // 2. Idempotency: skip if value already present.
-    final currentStrings =
-        existing.findElements('string').map((e) => e.innerText).toList();
+    final currentStrings = existing
+        .findElements('string')
+        .map((e) => e.innerText)
+        .toList();
     if (currentStrings.contains(value)) {
       return;
     }
@@ -380,9 +382,7 @@ class PlistWriter {
   static XmlElement _buildArray(List<String> values) {
     final array = XmlElement.tag('array');
     for (final v in values) {
-      array.children.add(
-        XmlElement.tag('string')..children.add(XmlText(v)),
-      );
+      array.children.add(XmlElement.tag('string')..children.add(XmlText(v)));
     }
     return array;
   }

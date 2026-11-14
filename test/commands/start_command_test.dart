@@ -15,19 +15,21 @@ void main() {
       expect(command.description, isNotEmpty);
     });
 
-    test('configure declares device / port / vm-service-port / dds / static',
-        () {
-      final command = StartCommand();
-      final parser = ArgParser();
+    test(
+      'configure declares device / port / vm-service-port / dds / static',
+      () {
+        final command = StartCommand();
+        final parser = ArgParser();
 
-      command.configure(parser);
+        command.configure(parser);
 
-      expect(parser.options.containsKey('device'), isTrue);
-      expect(parser.options.containsKey('port'), isTrue);
-      expect(parser.options.containsKey('vm-service-port'), isTrue);
-      expect(parser.options.containsKey('dds'), isTrue);
-      expect(parser.options.containsKey('profile-static'), isTrue);
-    });
+        expect(parser.options.containsKey('device'), isTrue);
+        expect(parser.options.containsKey('port'), isTrue);
+        expect(parser.options.containsKey('vm-service-port'), isTrue);
+        expect(parser.options.containsKey('dds'), isTrue);
+        expect(parser.options.containsKey('profile-static'), isTrue);
+      },
+    );
 
     test('--device defaults to chrome', () {
       final command = StartCommand();
@@ -79,13 +81,15 @@ void main() {
       );
     });
 
-    test('normalizeVmServiceUri leaves unrecognised schemes alone (only /ws)',
-        () {
-      expect(
-        StartCommand.normalizeVmServiceUri('foo://bar/baz'),
-        'foo://bar/baz/ws',
-      );
-    });
+    test(
+      'normalizeVmServiceUri leaves unrecognised schemes alone (only /ws)',
+      () {
+        expect(
+          StartCommand.normalizeVmServiceUri('foo://bar/baz'),
+          'foo://bar/baz/ws',
+        );
+      },
+    );
   });
 
   group('StartCommand --cdp-port flag', () {
@@ -195,22 +199,21 @@ void main() {
     setUp(() async {
       tempHome = await Directory.systemTemp.createTemp('dowel_start_cdp_');
       StateFile.debugHomeOverride = tempHome.path;
-      tempProfileRoot =
-          await Directory.systemTemp.createTemp('dowel_start_cdp_profile_');
+      tempProfileRoot = await Directory.systemTemp.createTemp(
+        'dowel_start_cdp_profile_',
+      );
     });
 
     tearDown(() async {
       StateFile.debugHomeOverride = null;
       StartCommand.cdpProcessRunner = Process.run;
-      StartCommand.cdpProcessStarter = (
-        exec,
-        args, {
-        workingDirectory,
-        mode,
-      }) =>
-          Process.start(exec, args,
-              workingDirectory: workingDirectory,
-              mode: mode ?? ProcessStartMode.normal);
+      StartCommand.cdpProcessStarter = (exec, args, {workingDirectory, mode}) =>
+          Process.start(
+            exec,
+            args,
+            workingDirectory: workingDirectory,
+            mode: mode ?? ProcessStartMode.normal,
+          );
       StartCommand.cdpChromeBinaryResolver = StartCommand.defaultChromeBinary;
       StartCommand.cdpChromeProber = StartCommand.defaultChromeProbe;
       StartCommand.cdpChromeNavigator = StartCommand.defaultChromeNavigate;
@@ -230,8 +233,7 @@ void main() {
       }
     });
 
-    test(
-        'rejects non-integer --cdp-port value: exit 1 + actionable error '
+    test('rejects non-integer --cdp-port value: exit 1 + actionable error '
         '(no silent fallback to the default flow)', () async {
       final command = StartCommand();
       final output = BufferedOutput();
@@ -249,84 +251,94 @@ void main() {
       final code = await command.handle(ctx);
 
       expect(code, 1);
-      expect(output.content,
-          contains('--cdp-port expects an integer port number, got "abc"'));
+      expect(
+        output.content,
+        contains('--cdp-port expects an integer port number, got "abc"'),
+      );
       expect(output.content, contains('--cdp-port=9223'));
     });
 
-    test('rejects --device=macos with --cdp-port: exit 1 + reject-device error',
-        () async {
-      final command = StartCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'macos',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          'cdp-port': '9223',
-        }),
-        output,
-      );
+    test(
+      'rejects --device=macos with --cdp-port: exit 1 + reject-device error',
+      () async {
+        final command = StartCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'macos',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '9223',
+          }),
+          output,
+        );
 
-      final code = await command.handle(ctx);
+        final code = await command.handle(ctx);
 
-      expect(code, 1);
-      expect(
+        expect(code, 1);
+        expect(
           output.content,
           contains(
-              '--cdp-port requires --device=chrome or --device=web-server'));
-      expect(output.content, contains('macos'));
-    });
-
-    test('rejects Flutter SDK < 3.30.0 with upgrade hint before Chrome launch',
-        () async {
-      // Stub flutter --version --machine returning older SDK.
-      StartCommand.cdpProcessRunner = _fakeProcessRunner(
-        flutterVersionStdout: '{"frameworkVersion":"3.29.0"}',
-      );
-      // Chrome binary "found" so we know we exited because of SDK gate,
-      // not Chrome resolution.
-      StartCommand.cdpChromeBinaryResolver =
-          (_) => '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-
-      var chromeLaunched = false;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        chromeLaunched = true;
-        return _NoopProcess();
-      };
-
-      final command = StartCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'chrome',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          'cdp-port': '9223',
-        }),
-        output,
-      );
-
-      final code = await command.handle(ctx);
-
-      expect(code, 1);
-      expect(output.content, contains('3.29.0'));
-      expect(output.content, contains('3.30.0'));
-      expect(output.content, contains('flutter upgrade'));
-      expect(chromeLaunched, isFalse,
-          reason: 'Chrome must not be launched when SDK gate fails');
-    });
+            '--cdp-port requires --device=chrome or --device=web-server',
+          ),
+        );
+        expect(output.content, contains('macos'));
+      },
+    );
 
     test(
-        'rejects when Chrome binary cannot be resolved (Windows / missing install)',
-        () async {
+      'rejects Flutter SDK < 3.30.0 with upgrade hint before Chrome launch',
+      () async {
+        // Stub flutter --version --machine returning older SDK.
+        StartCommand.cdpProcessRunner = _fakeProcessRunner(
+          flutterVersionStdout: '{"frameworkVersion":"3.29.0"}',
+        );
+        // Chrome binary "found" so we know we exited because of SDK gate,
+        // not Chrome resolution.
+        StartCommand.cdpChromeBinaryResolver = (_) =>
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+
+        var chromeLaunched = false;
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              chromeLaunched = true;
+              return _NoopProcess();
+            };
+
+        final command = StartCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '9223',
+          }),
+          output,
+        );
+
+        final code = await command.handle(ctx);
+
+        expect(code, 1);
+        expect(output.content, contains('3.29.0'));
+        expect(output.content, contains('3.30.0'));
+        expect(output.content, contains('flutter upgrade'));
+        expect(
+          chromeLaunched,
+          isFalse,
+          reason: 'Chrome must not be launched when SDK gate fails',
+        );
+      },
+    );
+
+    test('rejects when Chrome binary cannot be resolved (Windows / missing install)', () async {
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
         flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
       );
@@ -351,47 +363,56 @@ void main() {
       expect(output.content, contains('Chrome binary not found'));
     });
 
-    test('busy webPort: returns 1, names port in error, Chrome never spawned',
-        () async {
-      StartCommand.cdpProcessRunner = _fakeProcessRunner(
-        flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
-      );
-      StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
-      // Inject a probe that reports the web port as busy.
-      StartCommand.cdpPortProbe = (port) async => false;
+    test(
+      'busy webPort: returns 1, names port in error, Chrome never spawned',
+      () async {
+        StartCommand.cdpProcessRunner = _fakeProcessRunner(
+          flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
+        );
+        StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
+        // Inject a probe that reports the web port as busy.
+        StartCommand.cdpPortProbe = (port) async => false;
 
-      var chromeLaunched = false;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        chromeLaunched = true;
-        return _NoopProcess();
-      };
+        var chromeLaunched = false;
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              chromeLaunched = true;
+              return _NoopProcess();
+            };
 
-      final command = StartCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'chrome',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          'cdp-port': '9223',
-        }),
-        output,
-      );
+        final command = StartCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '9223',
+          }),
+          output,
+        );
 
-      final code = await command.handle(ctx);
+        final code = await command.handle(ctx);
 
-      expect(code, 1, reason: 'busy port must exit 1');
-      expect(output.content, contains('3100'),
-          reason: 'error message must name the busy port');
-      expect(chromeLaunched, isFalse,
-          reason: 'Chrome must not be launched when the web port is busy');
-    });
+        expect(code, 1, reason: 'busy port must exit 1');
+        expect(
+          output.content,
+          contains('3100'),
+          reason: 'error message must name the busy port',
+        );
+        expect(
+          chromeLaunched,
+          isFalse,
+          reason: 'Chrome must not be launched when the web port is busy',
+        );
+      },
+    );
 
     test('returns 1 + kills Chrome when CDP debug port probe fails', () async {
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
@@ -403,14 +424,15 @@ void main() {
       StartCommand.cdpPortProbe = (_) async => true;
       var killedPid = 0;
       final chrome = _SpyProcess(pid: 4242, onKill: (sig) => killedPid = 4242);
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        return chrome;
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            return chrome;
+          };
       StartCommand.cdpChromeProber = (port, timeout) async {
         throw StateError('debug port unreachable');
       };
@@ -432,14 +454,15 @@ void main() {
 
       expect(code, 1);
       expect(output.content, contains('Chrome failed to open debug port 9223'));
-      expect(killedPid, 4242,
-          reason: 'Chrome process must be killed when probe fails');
+      expect(
+        killedPid,
+        4242,
+        reason: 'Chrome process must be killed when probe fails',
+      );
     });
 
-    test(
-        'happy path: spawns Chrome with correct args + flutter web-server '
-        '+ writes state.json with chromePid + cdpPort + tmpProfileDir',
-        () async {
+    test('happy path: spawns Chrome with correct args + flutter web-server '
+        '+ writes state.json with chromePid + cdpPort + tmpProfileDir', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
         flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
@@ -451,21 +474,22 @@ void main() {
       _SpyProcess? chromeProc;
       _FakeFlutterProcess? flutterProc;
 
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        spawned.add(<String>[exec, ...args]);
-        if (exec == '/fake/chrome') {
-          chromeProc = _SpyProcess(pid: 7777);
-          return chromeProc!;
-        }
-        // Flutter wrapper sh -c launch: emit HOLDER + FLUTTER pids on stdout.
-        flutterProc = _FakeFlutterProcess(holderPid: 100, flutterPid: 200);
-        return flutterProc!;
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            spawned.add(<String>[exec, ...args]);
+            if (exec == '/fake/chrome') {
+              chromeProc = _SpyProcess(pid: 7777);
+              return chromeProc!;
+            }
+            // Flutter wrapper sh -c launch: emit HOLDER + FLUTTER pids on stdout.
+            flutterProc = _FakeFlutterProcess(holderPid: 100, flutterPid: 200);
+            return flutterProc!;
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {
         // Probe succeeds (void return).
@@ -477,9 +501,9 @@ void main() {
       };
 
       // Skip the real VM Service URI scrape (would require log file flow).
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpVmServiceScraper = (_) async =>
+          'ws://127.0.0.1:8181/abc/ws';
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpFifoMaker = (path) async {
         // Pretend we created the FIFO.
         File(path).writeAsStringSync('');
@@ -523,7 +547,9 @@ void main() {
       expect(state!['chromePid'], 7777);
       expect(state['cdpPort'], 9223);
       expect(
-          state['tmpProfileDir'], '${tempProfileRoot.path}/tapir-chrome-9223');
+        state['tmpProfileDir'],
+        '${tempProfileRoot.path}/tapir-chrome-9223',
+      );
       expect(state['vmServiceUri'], 'ws://127.0.0.1:8181/abc/ws');
       expect(state['vmServicePort'], 8181);
 
@@ -534,8 +560,64 @@ void main() {
     });
 
     test(
-        '--vm-service-port=8282 plumbs through to flutter --host-vmservice-port '
-        '+ records the same value in state.json', () async {
+      '--vm-service-port=8282 plumbs through to flutter --host-vmservice-port '
+      '+ records the same value in state.json',
+      () async {
+        StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
+        StartCommand.cdpProcessRunner = _fakeProcessRunner(
+          flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
+        );
+        StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
+        StartCommand.cdpPortProbe = (_) async => true;
+
+        final spawned = <List<String>>[];
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              spawned.add(<String>[exec, ...args]);
+              if (exec == '/fake/chrome') return _SpyProcess(pid: 1111);
+              return _FakeFlutterProcess(holderPid: 200, flutterPid: 300);
+            };
+
+        StartCommand.cdpChromeProber = (port, timeout) async {};
+        StartCommand.cdpChromeNavigator = (port, url) async {};
+        StartCommand.cdpVmServiceScraper = (_) async =>
+            'ws://127.0.0.1:8282/abc/ws';
+        StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
+        StartCommand.cdpFifoMaker = (path) async {
+          File(path).writeAsStringSync('');
+        };
+
+        final command = StartCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'vm-service-port': '8282',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '9223',
+          }),
+          output,
+        );
+
+        final code = await command.handle(ctx);
+
+        expect(code, 0, reason: output.content);
+        final shPayload = spawned.firstWhere((a) => a.first == 'sh')[2];
+        expect(shPayload, contains('--host-vmservice-port=8282'));
+        final state = await StateFile.read();
+        expect(state, isNotNull);
+        expect(state!['vmServicePort'], 8282);
+      },
+    );
+
+    test('--device=web-server with --cdp-port is accepted (no silent remap needed)', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
         flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
@@ -543,78 +625,24 @@ void main() {
       StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
       StartCommand.cdpPortProbe = (_) async => true;
 
-      final spawned = <List<String>>[];
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        spawned.add(<String>[exec, ...args]);
-        if (exec == '/fake/chrome') return _SpyProcess(pid: 1111);
-        return _FakeFlutterProcess(holderPid: 200, flutterPid: 300);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') {
+              return _SpyProcess(pid: 8888);
+            }
+            return _FakeFlutterProcess(holderPid: 101, flutterPid: 202);
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
       StartCommand.cdpChromeNavigator = (port, url) async {};
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8282/abc/ws';
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
-      StartCommand.cdpFifoMaker = (path) async {
-        File(path).writeAsStringSync('');
-      };
-
-      final command = StartCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'chrome',
-          'port': '3100',
-          'vm-service-port': '8282',
-          'dds': false,
-          'profile-static': false,
-          'cdp-port': '9223',
-        }),
-        output,
-      );
-
-      final code = await command.handle(ctx);
-
-      expect(code, 0, reason: output.content);
-      final shPayload = spawned.firstWhere((a) => a.first == 'sh')[2];
-      expect(shPayload, contains('--host-vmservice-port=8282'));
-      final state = await StateFile.read();
-      expect(state, isNotNull);
-      expect(state!['vmServicePort'], 8282);
-    });
-
-    test(
-        '--device=web-server with --cdp-port is accepted (no silent remap needed)',
-        () async {
-      StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
-      StartCommand.cdpProcessRunner = _fakeProcessRunner(
-        flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
-      );
-      StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
-      StartCommand.cdpPortProbe = (_) async => true;
-
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') {
-          return _SpyProcess(pid: 8888);
-        }
-        return _FakeFlutterProcess(holderPid: 101, flutterPid: 202);
-      };
-
-      StartCommand.cdpChromeProber = (port, timeout) async {};
-      StartCommand.cdpChromeNavigator = (port, url) async {};
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpVmServiceScraper = (_) async =>
+          'ws://127.0.0.1:8181/abc/ws';
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
       };
@@ -637,8 +665,7 @@ void main() {
       expect(code, 0, reason: output.content);
     });
 
-    test(
-        'Page.navigate fires AFTER web-server ready + BEFORE vmServiceUri scrape '
+    test('Page.navigate fires AFTER web-server ready + BEFORE vmServiceUri scrape '
         '(ordering invariant)', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
@@ -647,17 +674,18 @@ void main() {
       StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
       StartCommand.cdpPortProbe = (_) async => true;
 
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') {
-          return _SpyProcess(pid: 9000);
-        }
-        return _FakeFlutterProcess(holderPid: 102, flutterPid: 203);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') {
+              return _SpyProcess(pid: 9000);
+            }
+            return _FakeFlutterProcess(holderPid: 102, flutterPid: 203);
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
 
@@ -667,7 +695,7 @@ void main() {
       // deadlock under DWDS because the URI emits only after Chrome connects).
       final timeline = <String>[];
       final readyCompleter = Completer<void>();
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {
         timeline.add('ready:start');
         await readyCompleter.future;
         timeline.add('ready:done');
@@ -705,12 +733,15 @@ void main() {
       final code = await handleFuture;
 
       expect(code, 0, reason: output.content);
-      expect(
-          timeline, ['ready:start', 'ready:done', 'navigate', 'scrape:start']);
+      expect(timeline, [
+        'ready:start',
+        'ready:done',
+        'navigate',
+        'scrape:start',
+      ]);
     });
 
-    test(
-        'navigate throws after launch: returns 1, reaps Chrome + flutter pids '
+    test('navigate throws after launch: returns 1, reaps Chrome + flutter pids '
         '+ deletes FIFO + tmp profile dir', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
@@ -720,21 +751,25 @@ void main() {
       StartCommand.cdpPortProbe = (_) async => true;
 
       Process? flutterHandle;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') {
-          return _SpyProcess(pid: 7777);
-        }
-        flutterHandle = _FakeFlutterProcess(holderPid: 100, flutterPid: 200);
-        return flutterHandle!;
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') {
+              return _SpyProcess(pid: 7777);
+            }
+            flutterHandle = _FakeFlutterProcess(
+              holderPid: 100,
+              flutterPid: 200,
+            );
+            return flutterHandle!;
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
       };
@@ -766,53 +801,67 @@ void main() {
       final code = await command.handle(ctx);
 
       expect(code, 1, reason: 'navigate failure must exit 1');
-      expect(output.content, contains('Page.navigate failed'),
-          reason: 'surfaced error must be the original throw, not a cleanup '
-              'error');
-      expect(killedPids, containsAll(<int>[100, 200, 7777]),
-          reason: 'flutter holder + child and Chrome pids must be SIGTERMed');
-      final fifoPath = '${tempHome.path}/.dowel/flutter-dev.fifo';
-      expect(File(fifoPath).existsSync(), isFalse,
-          reason: 'FIFO must be deleted on failure');
       expect(
-          Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
-          isFalse,
-          reason: 'tmp profile dir must be removed on failure');
+        output.content,
+        contains('Page.navigate failed'),
+        reason:
+            'surfaced error must be the original throw, not a cleanup '
+            'error',
+      );
+      expect(
+        killedPids,
+        containsAll(<int>[100, 200, 7777]),
+        reason: 'flutter holder + child and Chrome pids must be SIGTERMed',
+      );
+      final fifoPath = '${tempHome.path}/.dowel/flutter-dev.fifo';
+      expect(
+        File(fifoPath).existsSync(),
+        isFalse,
+        reason: 'FIFO must be deleted on failure',
+      );
+      expect(
+        Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
+        isFalse,
+        reason: 'tmp profile dir must be removed on failure',
+      );
     });
 
-    test(
-        'a failure after launch on a host without ps still surfaces the '
+    test('a failure after launch on a host without ps still surfaces the '
         'original error and cleans up the FIFO and the profile dir', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       final versionRunner = _fakeProcessRunner(
         flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
       );
-      StartCommand.cdpProcessRunner = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        Map<String, String>? environment,
-        bool includeParentEnvironment = true,
-        bool runInShell = false,
-        Encoding? stdoutEncoding,
-        Encoding? stderrEncoding,
-      }) {
-        if (exec == 'ps') throw ProcessException(exec, args, 'not found', 2);
-        return versionRunner(exec, args);
-      };
+      StartCommand.cdpProcessRunner =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            Map<String, String>? environment,
+            bool includeParentEnvironment = true,
+            bool runInShell = false,
+            Encoding? stdoutEncoding,
+            Encoding? stderrEncoding,
+          }) {
+            if (exec == 'ps') {
+              throw ProcessException(exec, args, 'not found', 2);
+            }
+            return versionRunner(exec, args);
+          };
       StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
       StartCommand.cdpPortProbe = (_) async => true;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') return _SpyProcess(pid: 7777);
-        return _FakeFlutterProcess(holderPid: 100, flutterPid: 200);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') return _SpyProcess(pid: 7777);
+            return _FakeFlutterProcess(holderPid: 100, flutterPid: 200);
+          };
       StartCommand.cdpChromeProber = (port, timeout) async {};
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
       };
@@ -826,16 +875,18 @@ void main() {
       };
       final output = BufferedOutput();
 
-      final code = await StartCommand().handle(DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'chrome',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          'cdp-port': '9223',
-        }),
-        output,
-      ));
+      final code = await StartCommand().handle(
+        DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '9223',
+          }),
+          output,
+        ),
+      );
 
       expect(code, 1);
       expect(output.content, contains('Page.navigate failed'));
@@ -845,12 +896,12 @@ void main() {
         isFalse,
       );
       expect(
-          Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
-          isFalse);
+        Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
+        isFalse,
+      );
     });
 
-    test(
-        'vmServiceUri scrape throws after launch: returns 1, reaps Chrome + '
+    test('vmServiceUri scrape throws after launch: returns 1, reaps Chrome + '
         'flutter pids + deletes FIFO + tmp profile dir', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
@@ -859,18 +910,19 @@ void main() {
       StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
       StartCommand.cdpPortProbe = (_) async => true;
 
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') return _SpyProcess(pid: 4242);
-        return _FakeFlutterProcess(holderPid: 300, flutterPid: 400);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') return _SpyProcess(pid: 4242);
+            return _FakeFlutterProcess(holderPid: 300, flutterPid: 400);
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpChromeNavigator = (port, url) async {};
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
@@ -903,21 +955,30 @@ void main() {
       final code = await command.handle(ctx);
 
       expect(code, 1, reason: 'scrape failure must exit 1');
-      expect(output.content, contains('VM Service scrape timed out'),
-          reason: 'surfaced error must be the original throw');
-      expect(killedPids, containsAll(<int>[300, 400, 4242]),
-          reason: 'flutter holder + child and Chrome pids must be SIGTERMed');
-      final fifoPath = '${tempHome.path}/.dowel/flutter-dev.fifo';
-      expect(File(fifoPath).existsSync(), isFalse,
-          reason: 'FIFO must be deleted on failure');
       expect(
-          Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
-          isFalse,
-          reason: 'tmp profile dir must be removed on failure');
+        output.content,
+        contains('VM Service scrape timed out'),
+        reason: 'surfaced error must be the original throw',
+      );
+      expect(
+        killedPids,
+        containsAll(<int>[300, 400, 4242]),
+        reason: 'flutter holder + child and Chrome pids must be SIGTERMed',
+      );
+      final fifoPath = '${tempHome.path}/.dowel/flutter-dev.fifo';
+      expect(
+        File(fifoPath).existsSync(),
+        isFalse,
+        reason: 'FIFO must be deleted on failure',
+      );
+      expect(
+        Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
+        isFalse,
+        reason: 'tmp profile dir must be removed on failure',
+      );
     });
 
-    test(
-        'FIFO setup throws after Chrome launch: returns 1, reaps Chrome + '
+    test('FIFO setup throws after Chrome launch: returns 1, reaps Chrome + '
         'tmp profile dir', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
@@ -932,18 +993,19 @@ void main() {
         killedPids.add(pid);
         return true;
       };
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') {
-          return _SpyProcess(pid: 5151);
-        }
-        flutterSpawned = true;
-        return _FakeFlutterProcess(holderPid: 500, flutterPid: 600);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') {
+              return _SpyProcess(pid: 5151);
+            }
+            flutterSpawned = true;
+            return _FakeFlutterProcess(holderPid: 500, flutterPid: 600);
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
       // FIFO creation throws AFTER Chrome launched but BEFORE flutter spawn.
@@ -967,18 +1029,28 @@ void main() {
       final code = await command.handle(ctx);
 
       expect(code, 1, reason: 'FIFO setup failure must exit 1');
-      expect(output.content, contains('mkfifo failed'),
-          reason: 'surfaced error must be the original throw');
-      expect(killedPids, contains(5151),
-          reason: 'Chrome must be reaped even when the failure precedes the '
-              'flutter spawn');
-      expect(flutterSpawned, isFalse,
-          reason:
-              'flutter must not have been spawned (FIFO setup threw first)');
       expect(
-          Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
-          isFalse,
-          reason: 'tmp profile dir must be removed on failure');
+        output.content,
+        contains('mkfifo failed'),
+        reason: 'surfaced error must be the original throw',
+      );
+      expect(
+        killedPids,
+        contains(5151),
+        reason:
+            'Chrome must be reaped even when the failure precedes the '
+            'flutter spawn',
+      );
+      expect(
+        flutterSpawned,
+        isFalse,
+        reason: 'flutter must not have been spawned (FIFO setup threw first)',
+      );
+      expect(
+        Directory('${tempProfileRoot.path}/tapir-chrome-9223').existsSync(),
+        isFalse,
+        reason: 'tmp profile dir must be removed on failure',
+      );
     });
 
     test('--timeout configure declares option with default 90', () {
@@ -987,34 +1059,41 @@ void main() {
 
       command.configure(parser);
 
-      expect(parser.options.containsKey('timeout'), isTrue,
-          reason: '--timeout option must be declared in configure()');
+      expect(
+        parser.options.containsKey('timeout'),
+        isTrue,
+        reason: '--timeout option must be declared in configure()',
+      );
       final result = parser.parse(<String>[]);
       expect(result['timeout'], '90', reason: '--timeout must default to 90');
     });
 
-    test('--timeout rejects non-integer value: exit 1 + actionable error',
-        () async {
-      final command = StartCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'chrome',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          'cdp-port': '9223',
-          'timeout': 'abc',
-        }),
-        output,
-      );
+    test(
+      '--timeout rejects non-integer value: exit 1 + actionable error',
+      () async {
+        final command = StartCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '9223',
+            'timeout': 'abc',
+          }),
+          output,
+        );
 
-      final code = await command.handle(ctx);
+        final code = await command.handle(ctx);
 
-      expect(code, 1);
-      expect(output.content,
-          contains('--timeout expects an integer number of seconds'));
-    });
+        expect(code, 1);
+        expect(
+          output.content,
+          contains('--timeout expects an integer number of seconds'),
+        );
+      },
+    );
 
     test('--timeout rejects zero: exit 1 + actionable error', () async {
       final command = StartCommand();
@@ -1034,39 +1113,37 @@ void main() {
       final code = await command.handle(ctx);
 
       expect(code, 1);
-      expect(
-        output.content,
-        contains('--timeout must be a positive integer'),
-      );
-    });
-
-    test('--timeout rejects negative value: exit 1 + actionable error',
-        () async {
-      final command = StartCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'chrome',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          'cdp-port': '9223',
-          'timeout': '-5',
-        }),
-        output,
-      );
-
-      final code = await command.handle(ctx);
-
-      expect(code, 1);
-      expect(
-        output.content,
-        contains('--timeout must be a positive integer'),
-      );
+      expect(output.content, contains('--timeout must be a positive integer'));
     });
 
     test(
-        '--timeout value drives the VM Service scrape seam (configured value '
+      '--timeout rejects negative value: exit 1 + actionable error',
+      () async {
+        final command = StartCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '9223',
+            'timeout': '-5',
+          }),
+          output,
+        );
+
+        final code = await command.handle(ctx);
+
+        expect(code, 1);
+        expect(
+          output.content,
+          contains('--timeout must be a positive integer'),
+        );
+      },
+    );
+
+    test('--timeout value drives the VM Service scrape seam (configured value '
         'reported in error, not literal 90)', () async {
       // Arrange: inject a scraper that throws. The seam only receives a File,
       // so the test asserts the error surfaced by handle() contains the
@@ -1078,18 +1155,19 @@ void main() {
       // All ports free so the pre-launch probes do not block the test.
       StartCommand.cdpPortProbe = (_) async => true;
 
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') return _SpyProcess(pid: 111);
-        return _FakeFlutterProcess(holderPid: 10, flutterPid: 20);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') return _SpyProcess(pid: 111);
+            return _FakeFlutterProcess(holderPid: 10, flutterPid: 20);
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpChromeNavigator = (port, url) async {};
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
@@ -1130,8 +1208,11 @@ void main() {
 
       expect(code, 1);
       // The scraper seam surfaces the message that uses the configured value.
-      expect(output.content, contains('120s'),
-          reason: 'error must report configured timeout value, not a literal');
+      expect(
+        output.content,
+        contains('120s'),
+        reason: 'error must report configured timeout value, not a literal',
+      );
       expect(
         output.content,
         isNot(contains('TimeoutException after')),
@@ -1139,22 +1220,23 @@ void main() {
       );
     });
 
-    test('live scrape loop returns the normalized URI when the log yields one',
-        () async {
-      final dir = Directory.systemTemp.createTempSync('dowel_scrape_');
-      addTearDown(() => dir.deleteSync(recursive: true));
-      final log = File('${dir.path}/run.log')
-        ..writeAsStringSync(
-          'Debug service listening on http://127.0.0.1:1234/abc=/\n',
-        );
-
-      final uri = await StartCommand().scrapeVmServiceUriForTest(log, 5);
-
-      expect(uri, 'ws://127.0.0.1:1234/abc=/ws');
-    });
-
     test(
-        'live scrape loop throws after the configured timeout when no URI '
+      'live scrape loop returns the normalized URI when the log yields one',
+      () async {
+        final dir = Directory.systemTemp.createTempSync('dowel_scrape_');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final log = File('${dir.path}/run.log')
+          ..writeAsStringSync(
+            'Debug service listening on http://127.0.0.1:1234/abc=/\n',
+          );
+
+        final uri = await StartCommand().scrapeVmServiceUriForTest(log, 5);
+
+        expect(uri, 'ws://127.0.0.1:1234/abc=/ws');
+      },
+    );
+
+    test('live scrape loop throws after the configured timeout when no URI '
         'appears (deadline honors the configured value)', () async {
       final dir = Directory.systemTemp.createTempSync('dowel_scrape_');
       addTearDown(() => dir.deleteSync(recursive: true));
@@ -1175,55 +1257,58 @@ void main() {
       );
     });
 
-    test('--timeout reaches the web-server readiness wait, not a literal 60s',
-        () async {
-      // Under load the web compile took longer than 60s and the start failed
-      // although --timeout allowed 90.
-      StartCommand.cdpProcessRunner = _fakeProcessRunner(
-        flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
-      );
-      StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
-      StartCommand.cdpPortProbe = (_) async => true;
-      StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') return _SpyProcess(pid: 111);
-        return _FakeFlutterProcess(holderPid: 10, flutterPid: 20);
-      };
-      StartCommand.cdpChromeProber = (port, timeout) async {};
-      StartCommand.cdpChromeNavigator = (port, url) async {};
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpFifoMaker = (path) async {
-        File(path).writeAsStringSync('');
-      };
-      int? waitedSeconds;
-      StartCommand.cdpWebServerReadyWaiter = (_, int timeoutSeconds) async {
-        waitedSeconds = timeoutSeconds;
-      };
+    test(
+      '--timeout reaches the web-server readiness wait, not a literal 60s',
+      () async {
+        // Under load the web compile took longer than 60s and the start failed
+        // although --timeout allowed 90.
+        StartCommand.cdpProcessRunner = _fakeProcessRunner(
+          flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
+        );
+        StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
+        StartCommand.cdpPortProbe = (_) async => true;
+        StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              if (exec == '/fake/chrome') return _SpyProcess(pid: 111);
+              return _FakeFlutterProcess(holderPid: 10, flutterPid: 20);
+            };
+        StartCommand.cdpChromeProber = (port, timeout) async {};
+        StartCommand.cdpChromeNavigator = (port, url) async {};
+        StartCommand.cdpVmServiceScraper = (_) async =>
+            'ws://127.0.0.1:8181/abc/ws';
+        StartCommand.cdpFifoMaker = (path) async {
+          File(path).writeAsStringSync('');
+        };
+        int? waitedSeconds;
+        StartCommand.cdpWebServerReadyWaiter = (_, int timeoutSeconds) async {
+          waitedSeconds = timeoutSeconds;
+        };
 
-      final output = BufferedOutput();
-      final code = await StartCommand().handle(
-        DowelContext.bare(
-          MapInput(<String, dynamic>{
-            'device': 'chrome',
-            'port': '3100',
-            'dds': false,
-            'profile-static': false,
-            'cdp-port': '9223',
-            'timeout': '150',
-          }),
-          output,
-        ),
-      );
+        final output = BufferedOutput();
+        final code = await StartCommand().handle(
+          DowelContext.bare(
+            MapInput(<String, dynamic>{
+              'device': 'chrome',
+              'port': '3100',
+              'dds': false,
+              'profile-static': false,
+              'cdp-port': '9223',
+              'timeout': '150',
+            }),
+            output,
+          ),
+        );
 
-      expect(code, 0, reason: output.content);
-      expect(waitedSeconds, 150);
-    });
+        expect(code, 0, reason: output.content);
+        expect(waitedSeconds, 150);
+      },
+    );
 
     test('live web-server wait throws at the configured deadline', () async {
       final dir = Directory.systemTemp.createTempSync('dowel_ready_');
@@ -1243,8 +1328,7 @@ void main() {
       );
     }, timeout: const Timeout(Duration(seconds: 10)));
 
-    test(
-        'a failed CDP start reaps the flutter and Chrome process groups and '
+    test('a failed CDP start reaps the flutter and Chrome process groups and '
         'waits for them', () async {
       // A timed-out start SIGTERMed the tool pid and returned: its
       // frontend_server was orphaned to pid 1 and kept compiling, and the
@@ -1264,66 +1348,69 @@ void main() {
       final List<(int, ProcessSignal)> signals = <(int, ProcessSignal)>[];
       StartCommand.cdpKillPid =
           (int target, [ProcessSignal signal = ProcessSignal.sigterm]) {
-        signals.add((target, signal));
-        for (final int pid in groupOf.keys) {
-          if (pid == target || groupOf[pid] == -target) {
-            exitingIn.putIfAbsent(pid, () => 2);
-          }
-        }
-        return true;
-      };
+            signals.add((target, signal));
+            for (final int pid in groupOf.keys) {
+              if (pid == target || groupOf[pid] == -target) {
+                exitingIn.putIfAbsent(pid, () => 2);
+              }
+            }
+            return true;
+          };
       final CdpProcessRunner versionRunner = _fakeProcessRunner(
         flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
       );
-      StartCommand.cdpProcessRunner = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        Map<String, String>? environment,
-        bool includeParentEnvironment = true,
-        bool runInShell = false,
-        Encoding? stdoutEncoding,
-        Encoding? stderrEncoding,
-      }) async {
-        if (exec != 'ps') return versionRunner(exec, args);
-        for (final int pid in exitingIn.keys.toList()) {
-          exitingIn[pid] = exitingIn[pid]! - 1;
-          if (exitingIn[pid]! <= 0) {
-            exitingIn.remove(pid);
-            groupOf.remove(pid);
-          }
-        }
-        final String argv = args.join(' ');
-        if (argv == '-A -o pgid=,stat=') {
-          return ProcessResult(
-            0,
-            0,
-            groupOf.values.map((int g) => '$g S').join('\n'),
-            '',
-          );
-        }
-        if (argv.startsWith('-o pgid= -p ')) {
-          final int? pgid = groupOf[int.parse(args.last)];
-          return pgid == null
-              ? ProcessResult(0, 1, '', '')
-              : ProcessResult(0, 0, '$pgid', '');
-        }
-        return ProcessResult(0, 1, '', '');
-      };
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') return _SpyProcess(pid: 7777);
-        return _FakeFlutterProcess(holderPid: 100, flutterPid: 200);
-      };
+      StartCommand.cdpProcessRunner =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            Map<String, String>? environment,
+            bool includeParentEnvironment = true,
+            bool runInShell = false,
+            Encoding? stdoutEncoding,
+            Encoding? stderrEncoding,
+          }) async {
+            if (exec != 'ps') return versionRunner(exec, args);
+            for (final int pid in exitingIn.keys.toList()) {
+              exitingIn[pid] = exitingIn[pid]! - 1;
+              if (exitingIn[pid]! <= 0) {
+                exitingIn.remove(pid);
+                groupOf.remove(pid);
+              }
+            }
+            final String argv = args.join(' ');
+            if (argv == '-A -o pgid=,stat=') {
+              return ProcessResult(
+                0,
+                0,
+                groupOf.values.map((int g) => '$g S').join('\n'),
+                '',
+              );
+            }
+            if (argv.startsWith('-o pgid= -p ')) {
+              final int? pgid = groupOf[int.parse(args.last)];
+              return pgid == null
+                  ? ProcessResult(0, 1, '', '')
+                  : ProcessResult(0, 0, '$pgid', '');
+            }
+            return ProcessResult(0, 1, '', '');
+          };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') return _SpyProcess(pid: 7777);
+            return _FakeFlutterProcess(holderPid: 100, flutterPid: 200);
+          };
       StartCommand.cdpChromeProber = (port, timeout) async {};
       StartCommand.cdpChromeNavigator = (port, url) async {};
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {
         throw StateError(
-            'Timed out after 90s waiting for "is being served at"');
+          'Timed out after 90s waiting for "is being served at"',
+        );
       };
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
@@ -1356,44 +1443,44 @@ void main() {
     });
 
     test(
-        '--timeout drives the scrape on the non-CDP path too, not a literal 90s',
-        () async {
-      // No scraper seam: the live loop runs against a log nothing writes to,
-      // so it can only end at the deadline the caller asked for.
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async =>
-          _FakeFlutterProcess(holderPid: 50, flutterPid: 51);
-      StartCommand.cdpFifoMaker = (path) async {
-        File(path).writeAsStringSync('');
-      };
+      '--timeout drives the scrape on the non-CDP path too, not a literal 90s',
+      () async {
+        // No scraper seam: the live loop runs against a log nothing writes to,
+        // so it can only end at the deadline the caller asked for.
+        StartCommand.cdpProcessStarter = (
+          String exec,
+          List<String> args, {
+          String? workingDirectory,
+          ProcessStartMode? mode,
+        }) async => _FakeFlutterProcess(holderPid: 50, flutterPid: 51);
+        StartCommand.cdpFifoMaker = (path) async {
+          File(path).writeAsStringSync('');
+        };
 
-      StartCommand.startIsAlive = (int _) => true;
+        StartCommand.startIsAlive = (int _) => true;
 
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'emulator-5554',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          'timeout': '1',
-        }),
-        output,
-      );
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'emulator-5554',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'timeout': '1',
+          }),
+          output,
+        );
 
-      final code =
-          await StartCommand().handle(ctx).timeout(const Duration(seconds: 10));
+        final code = await StartCommand()
+            .handle(ctx)
+            .timeout(const Duration(seconds: 10));
 
-      expect(code, DowelCommand.exitTryAgain);
-      expect(output.content, contains('still building after 1s'));
-    });
+        expect(code, DowelCommand.exitTryAgain);
+        expect(output.content, contains('still building after 1s'));
+      },
+    );
 
-    test(
-        'busy cdpPort before Chrome launch: exit 1 + distinct error, '
+    test('busy cdpPort before Chrome launch: exit 1 + distinct error, '
         'Chrome never spawned', () async {
       StartCommand.cdpProcessRunner = _fakeProcessRunner(
         flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
@@ -1403,15 +1490,16 @@ void main() {
       StartCommand.cdpPortProbe = (port) async => port != 9223;
 
       var chromeLaunched = false;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        chromeLaunched = true;
-        return _NoopProcess();
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            chromeLaunched = true;
+            return _NoopProcess();
+          };
 
       final command = StartCommand();
       final output = BufferedOutput();
@@ -1429,72 +1517,84 @@ void main() {
       final code = await command.handle(ctx);
 
       expect(code, 1, reason: 'busy CDP port must exit 1');
-      expect(output.content, contains('9223'),
-          reason: 'error must name the busy CDP port');
-      expect(output.content, contains('--cdp-port'),
-          reason: 'error must suggest --cdp-port flag');
-      expect(chromeLaunched, isFalse,
-          reason: 'Chrome must not be launched when CDP port is busy');
-    });
-
-    test('without --cdp-port: existing flow unchanged (no Chrome pre-launch)',
-        () async {
-      // Existing flow runs Process.start sh -c ... directly. We stub the
-      // wrapper Process.start by overriding cdpProcessStarter for the
-      // flutter side; Chrome must NOT be invoked because --cdp-port is null.
-      var chromeInvocations = 0;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') chromeInvocations++;
-        return _FakeFlutterProcess(holderPid: 50, flutterPid: 51);
-      };
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpFifoMaker = (path) async {
-        File(path).writeAsStringSync('');
-      };
-
-      final command = StartCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'chrome',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          // 'cdp-port' absent.
-        }),
-        output,
+      expect(
+        output.content,
+        contains('9223'),
+        reason: 'error must name the busy CDP port',
       );
-
-      final code = await command.handle(ctx);
-
-      expect(code, 0, reason: output.content);
-      expect(chromeInvocations, 0,
-          reason: 'Chrome must not be pre-launched when --cdp-port is absent');
-
-      final state = await StateFile.read();
-      expect(state, isNotNull);
-      expect(state!['chromePid'], isNull);
-      expect(state['cdpPort'], isNull);
-      expect(state['tmpProfileDir'], isNull);
+      expect(
+        output.content,
+        contains('--cdp-port'),
+        reason: 'error must suggest --cdp-port flag',
+      );
+      expect(
+        chromeLaunched,
+        isFalse,
+        reason: 'Chrome must not be launched when CDP port is busy',
+      );
     });
+
+    test(
+      'without --cdp-port: existing flow unchanged (no Chrome pre-launch)',
+      () async {
+        // Existing flow runs Process.start sh -c ... directly. We stub the
+        // wrapper Process.start by overriding cdpProcessStarter for the
+        // flutter side; Chrome must NOT be invoked because --cdp-port is null.
+        var chromeInvocations = 0;
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              if (exec == '/fake/chrome') chromeInvocations++;
+              return _FakeFlutterProcess(holderPid: 50, flutterPid: 51);
+            };
+        StartCommand.cdpVmServiceScraper = (_) async =>
+            'ws://127.0.0.1:8181/abc/ws';
+        StartCommand.cdpFifoMaker = (path) async {
+          File(path).writeAsStringSync('');
+        };
+
+        final command = StartCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            // 'cdp-port' absent.
+          }),
+          output,
+        );
+
+        final code = await command.handle(ctx);
+
+        expect(code, 0, reason: output.content);
+        expect(
+          chromeInvocations,
+          0,
+          reason: 'Chrome must not be pre-launched when --cdp-port is absent',
+        );
+
+        final state = await StateFile.read();
+        expect(state, isNotNull);
+        expect(state!['chromePid'], isNull);
+        expect(state['cdpPort'], isNull);
+        expect(state['tmpProfileDir'], isNull);
+      },
+    );
   });
 
-  group(
-      'StartCommand.defaultChromeNavigate (regression: page-target selection)',
-      () {
+  group('StartCommand.defaultChromeNavigate (regression: page-target selection)', () {
     // Regression guard for commit 871d0a7: defaultChromeNavigate must select
     // the first page-type target from /json, NOT the browser-level endpoint
     // that appears earlier in the list. If it regresses to selecting the
     // browser entry, the recorded url assertion fails because the browser ws
     // path never receives a Page.navigate frame.
-    test(
-        'selects page-type target from /json even when browser entry is first, '
+    test('selects page-type target from /json even when browser entry is first, '
         'and delivers Page.navigate with the correct url', () async {
       // 1. Stand up the fake CDP HTTP + WebSocket server on an ephemeral port.
       //    Bind to the 'localhost' hostname (not a fixed IPv4 literal) so the
@@ -1578,7 +1678,8 @@ void main() {
         expect(
           recordedNavigateUrl,
           equals(targetUrl),
-          reason: 'page-type WebSocket must receive the Page.navigate url; '
+          reason:
+              'page-type WebSocket must receive the Page.navigate url; '
               'if the browser entry was selected instead, this assertion fails',
         );
       } finally {
@@ -1599,7 +1700,8 @@ Future<ProcessResult> Function(
   bool runInShell,
   Encoding? stdoutEncoding,
   Encoding? stderrEncoding,
-}) _fakeProcessRunner({required String flutterVersionStdout}) {
+})
+_fakeProcessRunner({required String flutterVersionStdout}) {
   return (
     String exec,
     List<String> args, {

@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/make_plugin_command.dart';
 import 'package:dowel/src/commands/helpers/flutter_create_runner.dart';
+import 'package:dowel/src/commands/helpers/workspace_enroller.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -81,10 +83,7 @@ String _resolveCheckedInDowelRoot() {
 /// subprocess. Optionally writes a sentinel file under the target path so
 /// tests can prove our stub revisions overwrite `flutter create` defaults.
 class _FakeFlutterCreateRunner implements FlutterCreateRunner {
-  _FakeFlutterCreateRunner({
-    this.exitCode = 0,
-    this.writeDefaultFiles = true,
-  });
+  _FakeFlutterCreateRunner({this.exitCode = 0, this.writeDefaultFiles = true});
 
   final int exitCode;
   final bool writeDefaultFiles;
@@ -105,8 +104,9 @@ class _FakeFlutterCreateRunner implements FlutterCreateRunner {
       // by our revisions so we leave only a minimal subset here.
       final pubspec = File(p.join(targetPath, 'pubspec.yaml'));
       pubspec.parent.createSync(recursive: true);
-      pubspec
-          .writeAsStringSync('name: $packageName\n# flutter-create-default\n');
+      pubspec.writeAsStringSync(
+        'name: $packageName\n# flutter-create-default\n',
+      );
       final lib = File(p.join(targetPath, 'lib', '$packageName.dart'));
       lib.parent.createSync(recursive: true);
       lib.writeAsStringSync('// flutter-create-default lib\n');
@@ -134,11 +134,13 @@ class _FakeWorkspaceEnroller implements WorkspaceEnroller {
 
   final List<String> detectCalls = [];
   final List<
-      ({
-        String parentPubspecPath,
-        String pluginRelativePath,
-        String pluginPubspecPath,
-      })> enrollCalls = [];
+    ({
+      String parentPubspecPath,
+      String pluginRelativePath,
+      String pluginPubspecPath,
+    })
+  >
+  enrollCalls = [];
 
   @override
   String? detectParentFlutterApp(String targetDir) {
@@ -152,24 +154,18 @@ class _FakeWorkspaceEnroller implements WorkspaceEnroller {
     required String pluginRelativePath,
     required String pluginPubspecPath,
   }) async {
-    enrollCalls.add(
-      (
-        parentPubspecPath: parentPubspecPath,
-        pluginRelativePath: pluginRelativePath,
-        pluginPubspecPath: pluginPubspecPath,
-      ),
-    );
+    enrollCalls.add((
+      parentPubspecPath: parentPubspecPath,
+      pluginRelativePath: pluginRelativePath,
+      pluginPubspecPath: pluginPubspecPath,
+    ));
   }
 }
 
-/// A minimal [DowelRegistry] stub that registers a single no-op command by
-/// name, used to simulate a magic:install registration without wiring the full
-/// provider stack.
-class _FakeRegistry extends DowelRegistry {
-  _FakeRegistry(String commandName) {
-    register(_NoOpCommand(commandName));
-  }
-}
+/// A [DowelRegistry] holding a single no-op command by name, used to simulate
+/// a magic:install registration without wiring the full provider stack.
+DowelRegistry _registryWith(String commandName) =>
+    DowelRegistry()..register(_NoOpCommand(commandName));
 
 /// A no-op [DowelCommand] that satisfies the registry contract without doing
 /// anything at runtime. Used exclusively as a registry slot placeholder in tests.
@@ -363,75 +359,83 @@ void main() {
       }
     });
 
-    test('overwrites flutter create defaults with our pubspec + lib + test',
-        () async {
-      final target = Directory.systemTemp.createTempSync('mkplugin_overwrite_');
-      addTearDown(() => target.deleteSync(recursive: true));
+    test(
+      'overwrites flutter create defaults with our pubspec + lib + test',
+      () async {
+        final target = Directory.systemTemp.createTempSync(
+          'mkplugin_overwrite_',
+        );
+        addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(dowelRoot: dowelRoot);
-      final ctx = _ctxWith(
-        _defaultOptions(target: target.path),
-        positional: const ['my_plugin'],
-        signature: cmd.parsedSignature,
-      );
+        final cmd = _buildCommand(dowelRoot: dowelRoot);
+        final ctx = _ctxWith(
+          _defaultOptions(target: target.path),
+          positional: const ['my_plugin'],
+          signature: cmd.parsedSignature,
+        );
 
-      final exit = await cmd.handle(ctx);
-      expect(exit, 0);
+        final exit = await cmd.handle(ctx);
+        expect(exit, 0);
 
-      // pubspec must be our generic version (has executables: <name>:), NOT
-      // the flutter-create-default sentinel.
-      final pubspec =
-          File(p.join(target.path, 'pubspec.yaml')).readAsStringSync();
-      expect(pubspec, isNot(contains('flutter-create-default')));
-      expect(pubspec, contains('dowel'));
-      expect(pubspec, contains('executables'));
-      expect(pubspec, contains('my_plugin:'));
+        // pubspec must be our generic version (has executables: <name>:), NOT
+        // the flutter-create-default sentinel.
+        final pubspec = File(p.join(target.path, 'pubspec.yaml'))
+            .readAsStringSync();
+        expect(pubspec, isNot(contains('flutter-create-default')));
+        expect(pubspec, contains('dowel'));
+        expect(pubspec, contains('executables'));
+        expect(pubspec, contains('my_plugin:'));
 
-      // lib/<name>.dart must be our runtime barrel, NOT the sentinel.
-      final lib =
-          File(p.join(target.path, 'lib', 'my_plugin.dart')).readAsStringSync();
-      expect(lib, isNot(contains('flutter-create-default')));
-      expect(lib, contains('Runtime API'));
+        // lib/<name>.dart must be our runtime barrel, NOT the sentinel.
+        final lib = File(p.join(target.path, 'lib', 'my_plugin.dart'))
+            .readAsStringSync();
+        expect(lib, isNot(contains('flutter-create-default')));
+        expect(lib, contains('Runtime API'));
 
-      // README must be ours.
-      final readme = File(p.join(target.path, 'README.md')).readAsStringSync();
-      expect(readme, isNot(contains('flutter-create-default')));
+        // README must be ours.
+        final readme = File(p.join(target.path, 'README.md'))
+            .readAsStringSync();
+        expect(readme, isNot(contains('flutter-create-default')));
 
-      // LICENSE (untouched by scaffold) survives untouched.
-      expect(File(p.join(target.path, 'LICENSE')).existsSync(), isTrue);
-    });
+        // LICENSE (untouched by scaffold) survives untouched.
+        expect(File(p.join(target.path, 'LICENSE')).existsSync(), isTrue);
+      },
+    );
 
-    test('renders dowelPath as a relative path in the generic pubspec',
-        () async {
-      final target = Directory.systemTemp.createTempSync('mkplugin_path_');
-      addTearDown(() => target.deleteSync(recursive: true));
+    test(
+      'renders dowelPath as a relative path in the generic pubspec',
+      () async {
+        final target = Directory.systemTemp.createTempSync('mkplugin_path_');
+        addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(dowelRoot: dowelRoot);
-      final ctx = _ctxWith(
-        _defaultOptions(target: target.path),
-        positional: const ['my_plugin'],
-        signature: cmd.parsedSignature,
-      );
+        final cmd = _buildCommand(dowelRoot: dowelRoot);
+        final ctx = _ctxWith(
+          _defaultOptions(target: target.path),
+          positional: const ['my_plugin'],
+          signature: cmd.parsedSignature,
+        );
 
-      final exit = await cmd.handle(ctx);
-      expect(exit, 0);
+        final exit = await cmd.handle(ctx);
+        expect(exit, 0);
 
-      final pubspec =
-          File(p.join(target.path, 'pubspec.yaml')).readAsStringSync();
-      // No unresolved placeholder remains.
-      expect(pubspec, isNot(contains('{{ dowelPath }}')));
-      // The placeholder collapsed to a real relative path (starts with `.`
-      // because the target is outside the dowel root in tmp).
-      expect(
-        RegExp(r'path:\s+\S*\.\.?').hasMatch(pubspec),
-        isTrue,
-        reason: 'expected a relative `path:` entry, got:\n$pubspec',
-      );
-    });
+        final pubspec = File(p.join(target.path, 'pubspec.yaml'))
+            .readAsStringSync();
+        // No unresolved placeholder remains.
+        expect(pubspec, isNot(contains('{{ dowelPath }}')));
+        // The placeholder collapsed to a real relative path (starts with `.`
+        // because the target is outside the dowel root in tmp).
+        expect(
+          RegExp(r'path:\s+\S*\.\.?').hasMatch(pubspec),
+          isTrue,
+          reason: 'expected a relative `path:` entry, got:\n$pubspec',
+        );
+      },
+    );
 
     test('applies the pascalName + commandPrefix replacements', () async {
-      final target =
-          Directory.systemTemp.createTempSync('mkplugin_replacements_');
+      final target = Directory.systemTemp.createTempSync(
+        'mkplugin_replacements_',
+      );
       addTearDown(() => target.deleteSync(recursive: true));
 
       final cmd = _buildCommand(dowelRoot: dowelRoot);
@@ -466,18 +470,17 @@ void main() {
       expect(exit, 0);
 
       // pubspec landed under the explicit target, NOT under packages/my_plugin.
-      expect(
-        File(p.join(target.path, 'pubspec.yaml')).existsSync(),
-        isTrue,
-      );
+      expect(File(p.join(target.path, 'pubspec.yaml')).existsSync(), isTrue);
     });
 
     test('--path takes precedence over --target', () async {
-      final pathTarget =
-          Directory.systemTemp.createTempSync('mkplugin_path_wins_');
+      final pathTarget = Directory.systemTemp.createTempSync(
+        'mkplugin_path_wins_',
+      );
       addTearDown(() => pathTarget.deleteSync(recursive: true));
-      final targetIgnored =
-          Directory.systemTemp.createTempSync('mkplugin_target_loses_');
+      final targetIgnored = Directory.systemTemp.createTempSync(
+        'mkplugin_target_loses_',
+      );
       addTearDown(() => targetIgnored.deleteSync(recursive: true));
 
       final cmd = _buildCommand(dowelRoot: dowelRoot);
@@ -501,31 +504,30 @@ void main() {
       );
     });
 
-    test('names the provider after the package when there is no prefix',
-        () async {
-      final target = Directory.systemTemp.createTempSync('mkplugin_noprefix_');
-      addTearDown(() => target.deleteSync(recursive: true));
+    test(
+      'names the provider after the package when there is no prefix',
+      () async {
+        final target = Directory.systemTemp.createTempSync(
+          'mkplugin_noprefix_',
+        );
+        addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(dowelRoot: dowelRoot);
-      final ctx = _ctxWith(
-        _defaultOptions(target: target.path),
-        positional: const ['tapir'],
-        signature: cmd.parsedSignature,
-      );
+        final cmd = _buildCommand(dowelRoot: dowelRoot);
+        final ctx = _ctxWith(
+          _defaultOptions(target: target.path),
+          positional: const ['tapir'],
+          signature: cmd.parsedSignature,
+        );
 
-      final exit = await cmd.handle(ctx);
-      expect(exit, 0);
+        final exit = await cmd.handle(ctx);
+        expect(exit, 0);
 
-      final provider = File(
-        p.join(
-          target.path,
-          'lib',
-          'src',
-          'tapir_dowel_provider.dart',
-        ),
-      ).readAsStringSync();
-      expect(provider, contains('TapirDowelProvider'));
-    });
+        final provider = File(
+          p.join(target.path, 'lib', 'src', 'tapir_dowel_provider.dart'),
+        ).readAsStringSync();
+        expect(provider, contains('TapirDowelProvider'));
+      },
+    );
 
     test('prints the next-steps hint on success', () async {
       final target = Directory.systemTemp.createTempSync('mkplugin_hint_');
@@ -552,8 +554,7 @@ void main() {
   });
 
   group('MakePluginCommand — magic-mode scaffolding', () {
-    test(
-        'magic mode renders the eleven-file scaffold including magic add-ons '
+    test('magic mode renders the eleven-file scaffold including magic add-ons '
         'and bootstrap_command default', () async {
       final target = Directory.systemTemp.createTempSync('mkplugin_magic_');
       addTearDown(() => target.deleteSync(recursive: true));
@@ -595,8 +596,8 @@ void main() {
       }
 
       // pubspec is the magic-flavored variant: contains magic dep.
-      final pubspec =
-          File(p.join(target.path, 'pubspec.yaml')).readAsStringSync();
+      final pubspec = File(p.join(target.path, 'pubspec.yaml'))
+          .readAsStringSync();
       expect(pubspec, contains('magic:'));
       expect(pubspec, contains('dowel:'));
       // Both path placeholders resolved.
@@ -605,8 +606,8 @@ void main() {
 
       // install.yaml carries the bootstrap_command default
       // (commandPrefix=logger after stripping magic_).
-      final manifest =
-          File(p.join(target.path, 'install.yaml')).readAsStringSync();
+      final manifest = File(p.join(target.path, 'install.yaml'))
+          .readAsStringSync();
       expect(manifest, contains('bootstrap_command: logger:install'));
 
       // install_command uses commandPrefix.
@@ -620,10 +621,7 @@ void main() {
       final target = Directory.systemTemp.createTempSync('mkplugin_bootstrap_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(
-        dowelRoot: dowelRoot,
-        magicRoot: dowelRoot,
-      );
+      final cmd = _buildCommand(dowelRoot: dowelRoot, magicRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(
           target: target.path,
@@ -637,32 +635,35 @@ void main() {
       final exit = await cmd.handle(ctx);
       expect(exit, 0);
 
-      final manifest =
-          File(p.join(target.path, 'install.yaml')).readAsStringSync();
+      final manifest = File(p.join(target.path, 'install.yaml'))
+          .readAsStringSync();
       expect(manifest, contains('bootstrap_command: custom:bootstrap'));
     });
 
-    test('magic mode without resolvable magic package returns 1 + error',
-        () async {
-      final target =
-          Directory.systemTemp.createTempSync('mkplugin_magic_missing_');
-      addTearDown(() => target.deleteSync(recursive: true));
+    test(
+      'magic mode without resolvable magic package returns 1 + error',
+      () async {
+        final target = Directory.systemTemp.createTempSync(
+          'mkplugin_magic_missing_',
+        );
+        addTearDown(() => target.deleteSync(recursive: true));
 
-      // No magicRoot supplied → resolveMagicRoot throws StateError.
-      final cmd = _buildCommand(dowelRoot: dowelRoot);
-      final ctx = _ctxWith(
-        _defaultOptions(target: target.path, magic: true),
-        positional: const ['my_plugin'],
-        signature: cmd.parsedSignature,
-      );
+        // No magicRoot supplied → resolveMagicRoot throws StateError.
+        final cmd = _buildCommand(dowelRoot: dowelRoot);
+        final ctx = _ctxWith(
+          _defaultOptions(target: target.path, magic: true),
+          positional: const ['my_plugin'],
+          signature: cmd.parsedSignature,
+        );
 
-      final exit = await cmd.handle(ctx);
+        final exit = await cmd.handle(ctx);
 
-      expect(exit, 1);
-      final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('magic package'));
-      expect(out, contains('flutter pub add magic'));
-    });
+        expect(exit, 1);
+        final out = (ctx.output as BufferedOutput).content;
+        expect(out, contains('magic package'));
+        expect(out, contains('flutter pub add magic'));
+      },
+    );
   });
 
   group('MakePluginCommand — flutter create integration', () {
@@ -687,50 +688,56 @@ void main() {
       expect(runner.calls.single.org, 'com.example');
     });
 
-    test('non-zero flutter create exit aborts with exit code 1 + error',
-        () async {
-      final target = Directory.systemTemp.createTempSync('mkplugin_fail_');
-      addTearDown(() => target.deleteSync(recursive: true));
+    test(
+      'non-zero flutter create exit aborts with exit code 1 + error',
+      () async {
+        final target = Directory.systemTemp.createTempSync('mkplugin_fail_');
+        addTearDown(() => target.deleteSync(recursive: true));
 
-      final runner = _FakeFlutterCreateRunner(
-        exitCode: 66,
-        writeDefaultFiles: false,
-      );
-      final cmd = _buildCommand(dowelRoot: dowelRoot, runner: runner);
-      final ctx = _ctxWith(
-        _defaultOptions(target: target.path),
-        positional: const ['my_plugin'],
-        signature: cmd.parsedSignature,
-      );
+        final runner = _FakeFlutterCreateRunner(
+          exitCode: 66,
+          writeDefaultFiles: false,
+        );
+        final cmd = _buildCommand(dowelRoot: dowelRoot, runner: runner);
+        final ctx = _ctxWith(
+          _defaultOptions(target: target.path),
+          positional: const ['my_plugin'],
+          signature: cmd.parsedSignature,
+        );
 
-      final exit = await cmd.handle(ctx);
+        final exit = await cmd.handle(ctx);
 
-      expect(exit, 1);
-      final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('flutter create exited with code 66'));
-      // Confirm we never tried to render our stubs over the failed scaffold.
-      expect(File(p.join(target.path, 'pubspec.yaml')).existsSync(), isFalse);
-    });
+        expect(exit, 1);
+        final out = (ctx.output as BufferedOutput).content;
+        expect(out, contains('flutter create exited with code 66'));
+        // Confirm we never tried to render our stubs over the failed scaffold.
+        expect(File(p.join(target.path, 'pubspec.yaml')).existsSync(), isFalse);
+      },
+    );
 
-    test('missing flutter binary (FormatException) returns 1 + error',
-        () async {
-      final target = Directory.systemTemp.createTempSync('mkplugin_nobinary_');
-      addTearDown(() => target.deleteSync(recursive: true));
+    test(
+      'missing flutter binary (FormatException) returns 1 + error',
+      () async {
+        final target = Directory.systemTemp.createTempSync(
+          'mkplugin_nobinary_',
+        );
+        addTearDown(() => target.deleteSync(recursive: true));
 
-      final runner = _ThrowingRunner();
-      final cmd = _buildCommand(dowelRoot: dowelRoot, runner: runner);
-      final ctx = _ctxWith(
-        _defaultOptions(target: target.path),
-        positional: const ['my_plugin'],
-        signature: cmd.parsedSignature,
-      );
+        final runner = _ThrowingRunner();
+        final cmd = _buildCommand(dowelRoot: dowelRoot, runner: runner);
+        final ctx = _ctxWith(
+          _defaultOptions(target: target.path),
+          positional: const ['my_plugin'],
+          signature: cmd.parsedSignature,
+        );
 
-      final exit = await cmd.handle(ctx);
+        final exit = await cmd.handle(ctx);
 
-      expect(exit, 1);
-      final out = (ctx.output as BufferedOutput).content;
-      expect(out, contains('flutter create failed'));
-    });
+        expect(exit, 1);
+        final out = (ctx.output as BufferedOutput).content;
+        expect(out, contains('flutter create failed'));
+      },
+    );
   });
 
   group('MakePluginCommand — workspace enrollment', () {
@@ -801,45 +808,45 @@ void main() {
     });
 
     test(
-        'returns false when --magic is absent and registry has no magic:install',
-        () {
-      final cmd = MakePluginCommand();
-      final ctx = DowelContext.bare(
-        MapInput(_defaultOptions(), signature: cmd.parsedSignature),
-        BufferedOutput(),
+      'returns false when --magic is absent and registry has no magic:install',
+      () {
+        final cmd = MakePluginCommand();
+        final ctx = DowelContext.bare(
+          MapInput(_defaultOptions(), signature: cmd.parsedSignature),
+          BufferedOutput(),
+        );
+
+        expect(cmd.isMagic(ctx), isFalse);
+      },
+    );
+
+    test(
+      'returns true when --magic is absent but registry has magic:install',
+      () {
+        final cmd = MakePluginCommand();
+        final registry = _registryWith('magic:install');
+        final ctx = DowelContext.bare(
+          MapInput(_defaultOptions(), signature: cmd.parsedSignature),
+          BufferedOutput(),
+          registry: registry,
+        );
+
+        expect(cmd.isMagic(ctx), isTrue);
+      },
+    );
+
+    test('handle() auto-enables magic when registry has magic:install', () async {
+      final target = Directory.systemTemp.createTempSync(
+        'mkplugin_magic_auto_',
       );
-
-      expect(cmd.isMagic(ctx), isFalse);
-    });
-
-    test('returns true when --magic is absent but registry has magic:install',
-        () {
-      final cmd = MakePluginCommand();
-      final registry = _FakeRegistry('magic:install');
-      final ctx = DowelContext.bare(
-        MapInput(_defaultOptions(), signature: cmd.parsedSignature),
-        BufferedOutput(),
-        registry: registry,
-      );
-
-      expect(cmd.isMagic(ctx), isTrue);
-    });
-
-    test('handle() auto-enables magic when registry has magic:install',
-        () async {
-      final target =
-          Directory.systemTemp.createTempSync('mkplugin_magic_auto_');
       addTearDown(() => target.deleteSync(recursive: true));
 
-      final cmd = _buildCommand(
-        dowelRoot: dowelRoot,
-        magicRoot: dowelRoot,
-      );
+      final cmd = _buildCommand(dowelRoot: dowelRoot, magicRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path),
         positional: const ['my_plugin'],
         signature: cmd.parsedSignature,
-        registry: _FakeRegistry('magic:install'),
+        registry: _registryWith('magic:install'),
       );
 
       final exit = await cmd.handle(ctx);
@@ -872,8 +879,7 @@ void main() {
     });
   });
 
-  group('MakePluginCommand, magic mode shape matches magic_logger reference',
-      () {
+  group('MakePluginCommand, magic mode shape matches magic_logger reference', () {
     // These tests use the fake FlutterCreateRunner (fast, mock-based) and assert
     // structural patterns against the generated scaffold. magic_logger is the
     // canonical reference shape but comparisons are NOT byte-by-byte — the
@@ -892,10 +898,7 @@ void main() {
 
     /// Runs the magic scaffold with a fake runner and returns the exit code.
     Future<int> runMagicScaffold(String name) async {
-      final cmd = _buildCommand(
-        dowelRoot: dowelRoot,
-        magicRoot: dowelRoot,
-      );
+      final cmd = _buildCommand(dowelRoot: dowelRoot, magicRoot: dowelRoot);
       final ctx = _ctxWith(
         _defaultOptions(target: target.path, magic: true),
         positional: [name],
@@ -904,8 +907,7 @@ void main() {
       return cmd.handle(ctx);
     }
 
-    test(
-        'generated install_command.dart extends DowelInstallCommand '
+    test('generated install_command.dart extends DowelInstallCommand '
         '(mirrors magic_logger reference class hierarchy)', () async {
       final exit = await runMagicScaffold('magic_logger');
       expect(exit, 0);
@@ -919,80 +921,87 @@ void main() {
       expect(
         installCmd,
         contains('extends DowelInstallCommand'),
-        reason: 'install_command must extend DowelInstallCommand '
+        reason:
+            'install_command must extend DowelInstallCommand '
             '(matches magic_logger reference)',
       );
     });
 
     test(
-        'generated install_command.dart delegates install work to a '
-        'PluginInstaller / ManifestInstaller (plugins.json registration path)',
-        () async {
-      final exit = await runMagicScaffold('magic_logger');
-      expect(exit, 0);
+      'generated install_command.dart delegates install work to a '
+      'PluginInstaller / ManifestInstaller (plugins.json registration path)',
+      () async {
+        final exit = await runMagicScaffold('magic_logger');
+        expect(exit, 0);
 
-      final installCmd = File(
-        p.join(target.path, 'lib', 'src', 'commands', 'install_command.dart'),
-      ).readAsStringSync();
+        final installCmd = File(
+          p.join(target.path, 'lib', 'src', 'commands', 'install_command.dart'),
+        ).readAsStringSync();
 
-      // The stub wires install work through PluginInstaller (the high-level
-      // fluent DSL), which bundles plugins.json registration internally.
-      // The magic_logger reference uses ManifestInstaller + explicit
-      // _writePluginsJsonEntry; both patterns satisfy this structural check.
-      final usesInstaller = installCmd.contains('PluginInstaller') ||
-          installCmd.contains('ManifestInstaller') ||
-          installCmd.contains('PluginsRegistryFile');
-      expect(
-        usesInstaller,
-        isTrue,
-        reason: 'install_command must delegate to PluginInstaller, '
-            'ManifestInstaller, or PluginsRegistryFile for plugins.json '
-            'registration (matches magic_logger pattern)',
-      );
-    });
+        // The stub wires install work through PluginInstaller (the high-level
+        // fluent DSL), which bundles plugins.json registration internally.
+        // The magic_logger reference uses ManifestInstaller + explicit
+        // _writePluginsJsonEntry; both patterns satisfy this structural check.
+        final usesInstaller =
+            installCmd.contains('PluginInstaller') ||
+            installCmd.contains('ManifestInstaller') ||
+            installCmd.contains('PluginsRegistryFile');
+        expect(
+          usesInstaller,
+          isTrue,
+          reason:
+              'install_command must delegate to PluginInstaller, '
+              'ManifestInstaller, or PluginsRegistryFile for plugins.json '
+              'registration (matches magic_logger pattern)',
+        );
+      },
+    );
 
     test(
-        'generated install_command.dart uses PluginInstaller which bundles '
-        'plugins.json registration + auto-refresh (structural auto-refresh test)',
-        () async {
-      final exit = await runMagicScaffold('magic_logger');
-      expect(exit, 0);
+      'generated install_command.dart uses PluginInstaller which bundles '
+      'plugins.json registration + auto-refresh (structural auto-refresh test)',
+      () async {
+        final exit = await runMagicScaffold('magic_logger');
+        expect(exit, 0);
 
-      final installCmd = File(
-        p.join(target.path, 'lib', 'src', 'commands', 'install_command.dart'),
-      ).readAsStringSync();
+        final installCmd = File(
+          p.join(target.path, 'lib', 'src', 'commands', 'install_command.dart'),
+        ).readAsStringSync();
 
-      // The scaffold stub routes install work through PluginInstaller (the
-      // high-level fluent DSL). PluginInstaller.commit() bundles both the
-      // plugins.json write and the in-process plugins:refresh trigger
-      // internally — which is the auto-refresh contract described in the
-      // magic_logger reference (where it is spelled out explicitly via
-      // _writePluginsJsonEntry + _autoRefresh). Both paths satisfy the same
-      // structural requirement; we assert the scaffold wires PluginInstaller
-      // as its install delegator.
-      expect(
-        installCmd,
-        contains('PluginInstaller'),
-        reason: 'install_command must delegate to PluginInstaller '
-            '(which bundles plugins.json write + auto-refresh, '
-            'matching the magic_logger structural contract)',
-      );
-      // The commit call is the activation point that triggers registration +
-      // refresh — ensure it is present alongside the constructor.
-      expect(
-        installCmd,
-        contains('.commit('),
-        reason: 'PluginInstaller.commit() must be called to trigger '
-            'the registration + auto-refresh cycle',
-      );
-    });
+        // The scaffold stub routes install work through PluginInstaller (the
+        // high-level fluent DSL). PluginInstaller.commit() bundles both the
+        // plugins.json write and the in-process plugins:refresh trigger
+        // internally — which is the auto-refresh contract described in the
+        // magic_logger reference (where it is spelled out explicitly via
+        // _writePluginsJsonEntry + _autoRefresh). Both paths satisfy the same
+        // structural requirement; we assert the scaffold wires PluginInstaller
+        // as its install delegator.
+        expect(
+          installCmd,
+          contains('PluginInstaller'),
+          reason:
+              'install_command must delegate to PluginInstaller '
+              '(which bundles plugins.json write + auto-refresh, '
+              'matching the magic_logger structural contract)',
+        );
+        // The commit call is the activation point that triggers registration +
+        // refresh — ensure it is present alongside the constructor.
+        expect(
+          installCmd,
+          contains('.commit('),
+          reason:
+              'PluginInstaller.commit() must be called to trigger '
+              'the registration + auto-refresh cycle',
+        );
+      },
+    );
 
     test('install.yaml has magic.provider section', () async {
       final exit = await runMagicScaffold('magic_logger');
       expect(exit, 0);
 
-      final manifest =
-          File(p.join(target.path, 'install.yaml')).readAsStringSync();
+      final manifest = File(p.join(target.path, 'install.yaml'))
+          .readAsStringSync();
 
       // The magic/ stub template writes a `magic:` section with a `provider:`
       // key — this is what distinguishes a magic plugin from a generic one.
@@ -1008,14 +1017,13 @@ void main() {
       );
     });
 
-    test(
-        'pubspec.yaml has both dowel + magic deps with rendered '
+    test('pubspec.yaml has both dowel + magic deps with rendered '
         'paths (no unresolved placeholders remain)', () async {
       final exit = await runMagicScaffold('magic_logger');
       expect(exit, 0);
 
-      final pubspec =
-          File(p.join(target.path, 'pubspec.yaml')).readAsStringSync();
+      final pubspec = File(p.join(target.path, 'pubspec.yaml'))
+          .readAsStringSync();
 
       // Both deps are declared.
       expect(
@@ -1051,8 +1059,7 @@ void main() {
       );
     });
 
-    test(
-        'bin/<name>.dart IS generated by make:plugin '
+    test('bin/<name>.dart IS generated by make:plugin '
         '(plugin self-bootstrap entry: `dart run <plugin> <cmd>`)', () async {
       final exit = await runMagicScaffold('magic_logger');
       expect(exit, 0);
@@ -1070,8 +1077,7 @@ void main() {
       expect(content, contains('delegateToConsumer: false'));
     });
 
-    test(
-        'post-flutter-create cleanup deletes default test/<name>_test.dart '
+    test('post-flutter-create cleanup deletes default test/<name>_test.dart '
         'leftover from flutter create', () async {
       final exit = await runMagicScaffold('my_test_plugin');
       expect(exit, 0);
@@ -1084,26 +1090,29 @@ void main() {
         File(p.join(target.path, 'test', 'my_test_plugin_test.dart'))
             .existsSync(),
         isFalse,
-        reason: 'step 5b must delete flutter create\'s default '
+        reason:
+            'step 5b must delete flutter create\'s default '
             'test/my_test_plugin_test.dart to prevent a compile error',
       );
 
       // Our stub-rendered provider test lives at a different path and must NOT
       // be deleted — confirms the cleanup is targeted, not blanket.
       expect(
-        File(p.join(
-          target.path,
-          'test',
-          'my_test_plugin_dowel_provider_test.dart',
-        )).existsSync(),
+        File(
+          p.join(
+            target.path,
+            'test',
+            'my_test_plugin_dowel_provider_test.dart',
+          ),
+        ).existsSync(),
         isTrue,
-        reason: 'the scaffold-rendered dowel_provider_test.dart must survive '
+        reason:
+            'the scaffold-rendered dowel_provider_test.dart must survive '
             'cleanup (only the flutter create default is removed)',
       );
     });
 
-    test(
-        'magic scaffold generates lib/src/<name>_service_provider.dart with '
+    test('magic scaffold generates lib/src/<name>_service_provider.dart with '
         'extends ServiceProvider + register() + Future<void> boot()', () async {
       // 1. Run the magic scaffold and confirm it exits cleanly.
       final exit = await runMagicScaffold('my_test_plugin');
@@ -1114,12 +1123,17 @@ void main() {
       //    _magicScaffoldPlan would cause existsSync to return false).
       final providerFile = File(
         p.join(
-            target.path, 'lib', 'src', 'my_test_plugin_service_provider.dart'),
+          target.path,
+          'lib',
+          'src',
+          'my_test_plugin_service_provider.dart',
+        ),
       );
       expect(
         providerFile.existsSync(),
         isTrue,
-        reason: 'magic scaffold must generate '
+        reason:
+            'magic scaffold must generate '
             'lib/src/my_test_plugin_service_provider.dart '
             '(driven by the service_provider.dart entry in _magicScaffoldPlan)',
       );
@@ -1150,8 +1164,7 @@ void main() {
     });
   });
 
-  group('MakePluginCommand, generated plugin passes dart pub get',
-      tags: 'integration', () {
+  group('MakePluginCommand, generated plugin passes dart pub get', tags: 'integration', () {
     // Integration tests: REAL flutter create (not mocked) and REAL dart pub get.
     // Catches the original pubspec path-resolution bug (hardcoded `../../` vs
     // computed relative path) because `dart pub get` would have failed with
@@ -1183,14 +1196,13 @@ void main() {
       if (tmpRoot.existsSync()) tmpRoot.deleteSync(recursive: true);
     });
 
-    test('scaffold succeeds with real flutter create into a nested target path',
-        () async {
+    test('scaffold succeeds with real flutter create into a nested target path', () async {
       // 1. The plugin lands at <tmpRoot>/consumer_app/packages/foo/ — a typical
       //    nested layout that requires the path resolver to climb multiple
       //    directory levels back to the dowel root.
-      final pluginTarget =
-          Directory(p.join(tmpRoot.path, 'consumer_app', 'packages', 'foo'))
-            ..createSync(recursive: true);
+      final pluginTarget = Directory(
+        p.join(tmpRoot.path, 'consumer_app', 'packages', 'foo'),
+      )..createSync(recursive: true);
 
       // 2. Run scaffold with the REAL FlutterCreateRunner (no mock). Generic
       //    mode is used so the only path dep is dowel: this is
@@ -1211,7 +1223,8 @@ void main() {
       expect(
         exit,
         0,
-        reason: 'make:plugin with real flutter create must exit 0; '
+        reason:
+            'make:plugin with real flutter create must exit 0; '
             'check that flutter is in PATH and the target is writable',
       );
 
@@ -1223,8 +1236,7 @@ void main() {
       );
     }, timeout: const Timeout(Duration(minutes: 3)));
 
-    test(
-        'dart pub get inside the scaffolded plugin exits with code 0 '
+    test('dart pub get inside the scaffolded plugin exits with code 0 '
         '(the bug-validation test: hardcoded dowel paths fail here)', () async {
       // This test uses GENERIC mode (no --magic) so the plugin pubspec only
       // declares the `dowel:` path dep. This is intentional:
@@ -1239,9 +1251,9 @@ void main() {
       // 1. Scaffold into a nested path to exercise the relative-path computation.
       //    A two-level nesting (<tmpRoot>/consumer_app/packages/foo) is enough
       //    to prove the path is not hardcoded.
-      final pluginTarget =
-          Directory(p.join(tmpRoot.path, 'consumer_app', 'packages', 'foo'))
-            ..createSync(recursive: true);
+      final pluginTarget = Directory(
+        p.join(tmpRoot.path, 'consumer_app', 'packages', 'foo'),
+      )..createSync(recursive: true);
 
       // 2. Scaffold via REAL flutter create, generic mode.
       final cmd = _TestableMakePluginCommand(
@@ -1263,16 +1275,16 @@ void main() {
       //    `../../` from <tmpRoot>/consumer_app/packages/foo/ would point to
       //    <tmpRoot>/consumer_app/: not the dowel root: and pub get would
       //    fail with exit code 66.
-      final pubGet = await Process.run(
-        'dart',
-        ['pub', 'get'],
-        workingDirectory: pluginTarget.path,
-      );
+      final pubGet = await Process.run('dart', [
+        'pub',
+        'get',
+      ], workingDirectory: pluginTarget.path);
 
       expect(
         pubGet.exitCode,
         0,
-        reason: '`dart pub get` inside the scaffolded plugin failed.\n'
+        reason:
+            '`dart pub get` inside the scaffolded plugin failed.\n'
             'stdout: ${pubGet.stdout}\n'
             'stderr: ${pubGet.stderr}\n'
             'This is the bug-validation test: a hardcoded path like `../../` '
@@ -1280,20 +1292,13 @@ void main() {
       );
     }, timeout: const Timeout(Duration(minutes: 3)));
 
-    test(
-        'scaffolded pubspec has a computed relative path for dowel '
+    test('scaffolded pubspec has a computed relative path for dowel '
         '(not a literal hardcoded path)', () async {
       // 1. Scaffold into a deeply-nested target to prove the path is computed
       //    dynamically from the actual target location, not hardcoded.
       //    Generic mode: only dowel dep is in the pubspec.
       final deepTarget = Directory(
-        p.join(
-          tmpRoot.path,
-          'a',
-          'b',
-          'c',
-          'deeply_nested_plugin',
-        ),
+        p.join(tmpRoot.path, 'a', 'b', 'c', 'deeply_nested_plugin'),
       )..createSync(recursive: true);
 
       final cmd = _TestableMakePluginCommand(
@@ -1310,14 +1315,14 @@ void main() {
       final exit = await cmd.handle(ctx);
       expect(exit, 0);
 
-      final pubspec =
-          File(p.join(deepTarget.path, 'pubspec.yaml')).readAsStringSync();
+      final pubspec = File(p.join(deepTarget.path, 'pubspec.yaml'))
+          .readAsStringSync();
 
       // The dowel path in the pubspec must be a relative path that resolves
       // correctly from the actual deepTarget location to the dowel root.
       // We verify by reconstructing the absolute path and checking it exists.
-      final pathMatch =
-          RegExp(r'dowel:\s*\n\s*path:\s+(\S+)').firstMatch(pubspec);
+      final pathMatch = RegExp(r'dowel:\s*\n\s*path:\s+(\S+)')
+          .firstMatch(pubspec);
       expect(
         pathMatch,
         isNotNull,
@@ -1325,26 +1330,29 @@ void main() {
       );
 
       final renderedPath = pathMatch!.group(1)!;
-      final resolvedAbsolute =
-          p.normalize(p.join(deepTarget.path, renderedPath));
+      final resolvedAbsolute = p.normalize(
+        p.join(deepTarget.path, renderedPath),
+      );
 
       // The resolved path must point to an existing directory (the dowel root)
       // and must contain a pubspec.yaml with name: dowel.
       expect(
         Directory(resolvedAbsolute).existsSync(),
         isTrue,
-        reason: 'the rendered dowel path "$renderedPath" resolves to '
+        reason:
+            'the rendered dowel path "$renderedPath" resolves to '
             '"$resolvedAbsolute" which does not exist — '
             'DowelPathResolver produced a wrong relative path',
       );
 
       // Confirm the directory IS the dowel package (not some random dir).
-      final resolvedPubspec =
-          File(p.join(resolvedAbsolute, 'pubspec.yaml')).readAsStringSync();
+      final resolvedPubspec = File(p.join(resolvedAbsolute, 'pubspec.yaml'))
+          .readAsStringSync();
       expect(
         resolvedPubspec,
         contains('name: dowel'),
-        reason: 'resolved dowel path must point to the dowel '
+        reason:
+            'resolved dowel path must point to the dowel '
             'package root',
       );
     }, timeout: const Timeout(Duration(minutes: 3)));

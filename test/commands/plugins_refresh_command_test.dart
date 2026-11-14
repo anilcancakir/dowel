@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/plugins_refresh_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -122,144 +123,152 @@ void main() {
       );
     });
 
-    test('multiple plugins are sorted alphabetically by providerClass',
-        () async {
-      final fs = InMemoryFs();
-      _seedLibApp(fs, '/proj');
-      fs.writeAsString(
-        '/proj/.dowel/plugins.json',
-        jsonEncode(<String, dynamic>{
-          'version': 1,
-          'plugins': [
-            <String, dynamic>{
-              'name': 'z_logger',
-              'providerImport': 'package:z_logger/cli.dart',
-              'providerClass': 'ZLoggerDowelProvider',
-              'registeredAt': '2026-05-18T09:00:00.000Z',
-            },
-            <String, dynamic>{
-              'name': 'a_logger',
-              'providerImport': 'package:a_logger/cli.dart',
-              'providerClass': 'ALoggerDowelProvider',
-              'registeredAt': '2026-05-18T09:01:00.000Z',
-            },
-          ],
-        }),
-      );
+    test(
+      'multiple plugins are sorted alphabetically by providerClass',
+      () async {
+        final fs = InMemoryFs();
+        _seedLibApp(fs, '/proj');
+        fs.writeAsString(
+          '/proj/.dowel/plugins.json',
+          jsonEncode(<String, dynamic>{
+            'version': 1,
+            'plugins': [
+              <String, dynamic>{
+                'name': 'z_logger',
+                'providerImport': 'package:z_logger/cli.dart',
+                'providerClass': 'ZLoggerDowelProvider',
+                'registeredAt': '2026-05-18T09:00:00.000Z',
+              },
+              <String, dynamic>{
+                'name': 'a_logger',
+                'providerImport': 'package:a_logger/cli.dart',
+                'providerClass': 'ALoggerDowelProvider',
+                'registeredAt': '2026-05-18T09:01:00.000Z',
+              },
+            ],
+          }),
+        );
 
-      final code = await _cmd(fs, '/proj').handle(_ctx());
-      final generated = fs.readAsString('/proj/lib/app/_plugins.g.dart');
+        final code = await _cmd(fs, '/proj').handle(_ctx());
+        final generated = fs.readAsString('/proj/lib/app/_plugins.g.dart');
 
-      expect(code, 0);
-      final aIdx = generated.indexOf('ALoggerDowelProvider');
-      final zIdx = generated.indexOf('ZLoggerDowelProvider');
-      expect(aIdx, greaterThan(0));
-      expect(zIdx, greaterThan(aIdx),
-          reason: 'A* must precede Z* in deterministic output');
-    });
+        expect(code, 0);
+        final aIdx = generated.indexOf('ALoggerDowelProvider');
+        final zIdx = generated.indexOf('ZLoggerDowelProvider');
+        expect(aIdx, greaterThan(0));
+        expect(
+          zIdx,
+          greaterThan(aIdx),
+          reason: 'A* must precede Z* in deterministic output',
+        );
+      },
+    );
 
-    test('two plugins sharing providerClass hard-errors with both names',
-        () async {
-      final fs = InMemoryFs();
-      _seedLibApp(fs, '/proj');
-      fs.writeAsString(
-        '/proj/.dowel/plugins.json',
-        jsonEncode(<String, dynamic>{
-          'version': 1,
-          'plugins': [
-            <String, dynamic>{
-              'name': 'logger_a',
-              'providerImport': 'package:logger_a/cli.dart',
-              'providerClass': 'SameClassProvider',
-              'registeredAt': '2026-05-18T09:00:00.000Z',
-            },
-            <String, dynamic>{
-              'name': 'logger_b',
-              'providerImport': 'package:logger_b/cli.dart',
-              'providerClass': 'SameClassProvider',
-              'registeredAt': '2026-05-18T09:01:00.000Z',
-            },
-          ],
-        }),
-      );
+    test(
+      'two plugins sharing providerClass hard-errors with both names',
+      () async {
+        final fs = InMemoryFs();
+        _seedLibApp(fs, '/proj');
+        fs.writeAsString(
+          '/proj/.dowel/plugins.json',
+          jsonEncode(<String, dynamic>{
+            'version': 1,
+            'plugins': [
+              <String, dynamic>{
+                'name': 'logger_a',
+                'providerImport': 'package:logger_a/cli.dart',
+                'providerClass': 'SameClassProvider',
+                'registeredAt': '2026-05-18T09:00:00.000Z',
+              },
+              <String, dynamic>{
+                'name': 'logger_b',
+                'providerImport': 'package:logger_b/cli.dart',
+                'providerClass': 'SameClassProvider',
+                'registeredAt': '2026-05-18T09:01:00.000Z',
+              },
+            ],
+          }),
+        );
 
-      await expectLater(
-        _cmd(fs, '/proj').handle(_ctx()),
-        throwsA(
-          isA<FormatException>().having(
-            (e) => e.message,
-            'message',
-            allOf(
-              contains('SameClassProvider'),
-              contains('logger_a'),
-              contains('logger_b'),
+        await expectLater(
+          _cmd(fs, '/proj').handle(_ctx()),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('SameClassProvider'),
+                contains('logger_a'),
+                contains('logger_b'),
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
-    test('missing lib/app/ directory hard-errors with bootstrap hint',
-        () async {
-      final fs = InMemoryFs();
-      // NOTE: no _seedLibApp call so lib/app/ does not exist.
-      fs.writeAsString(
-        '/proj/.dowel/plugins.json',
-        jsonEncode(<String, dynamic>{
-          'version': 1,
-          'plugins': <dynamic>[],
-        }),
-      );
+    test(
+      'missing lib/app/ directory hard-errors with bootstrap hint',
+      () async {
+        final fs = InMemoryFs();
+        // NOTE: no _seedLibApp call so lib/app/ does not exist.
+        fs.writeAsString(
+          '/proj/.dowel/plugins.json',
+          jsonEncode(<String, dynamic>{'version': 1, 'plugins': <dynamic>[]}),
+        );
 
-      await expectLater(
-        _cmd(fs, '/proj').handle(_ctx()),
-        throwsA(
-          isA<FormatException>().having(
-            (e) => e.message,
-            'message',
-            allOf(
-              contains('lib/app/'),
-              contains('dowel install'),
+        await expectLater(
+          _cmd(fs, '/proj').handle(_ctx()),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('lib/app/'), contains('dowel install')),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
-    test('codegen is byte-identical across two consecutive runs (idempotent)',
-        () async {
-      final fs = InMemoryFs();
-      _seedLibApp(fs, '/proj');
-      fs.writeAsString(
-        '/proj/.dowel/plugins.json',
-        jsonEncode(<String, dynamic>{
-          'version': 1,
-          'plugins': [
-            <String, dynamic>{
-              'name': 'b_logger',
-              'providerImport': 'package:b_logger/cli.dart',
-              'providerClass': 'BLoggerDowelProvider',
-              'registeredAt': '2026-05-18T09:00:00.000Z',
-            },
-            <String, dynamic>{
-              'name': 'a_logger',
-              'providerImport': 'package:a_logger/cli.dart',
-              'providerClass': 'ALoggerDowelProvider',
-              'registeredAt': '2026-05-18T09:01:00.000Z',
-            },
-          ],
-        }),
-      );
+    test(
+      'codegen is byte-identical across two consecutive runs (idempotent)',
+      () async {
+        final fs = InMemoryFs();
+        _seedLibApp(fs, '/proj');
+        fs.writeAsString(
+          '/proj/.dowel/plugins.json',
+          jsonEncode(<String, dynamic>{
+            'version': 1,
+            'plugins': [
+              <String, dynamic>{
+                'name': 'b_logger',
+                'providerImport': 'package:b_logger/cli.dart',
+                'providerClass': 'BLoggerDowelProvider',
+                'registeredAt': '2026-05-18T09:00:00.000Z',
+              },
+              <String, dynamic>{
+                'name': 'a_logger',
+                'providerImport': 'package:a_logger/cli.dart',
+                'providerClass': 'ALoggerDowelProvider',
+                'registeredAt': '2026-05-18T09:01:00.000Z',
+              },
+            ],
+          }),
+        );
 
-      final cmd = _cmd(fs, '/proj');
-      await cmd.handle(_ctx());
-      final first = fs.readAsString('/proj/lib/app/_plugins.g.dart');
-      await cmd.handle(_ctx());
-      final second = fs.readAsString('/proj/lib/app/_plugins.g.dart');
+        final cmd = _cmd(fs, '/proj');
+        await cmd.handle(_ctx());
+        final first = fs.readAsString('/proj/lib/app/_plugins.g.dart');
+        await cmd.handle(_ctx());
+        final second = fs.readAsString('/proj/lib/app/_plugins.g.dart');
 
-      expect(second, first,
-          reason: 'codegen must be deterministic across consecutive runs');
-    });
+        expect(
+          second,
+          first,
+          reason: 'codegen must be deterministic across consecutive runs',
+        );
+      },
+    );
 
     test('malformed providerClass identifier is rejected', () async {
       final fs = InMemoryFs();
@@ -286,10 +295,7 @@ void main() {
           isA<FormatException>().having(
             (e) => e.message,
             'message',
-            allOf(
-              contains('providerClass'),
-              contains('evil'),
-            ),
+            allOf(contains('providerClass'), contains('evil')),
           ),
         ),
       );
@@ -326,8 +332,7 @@ void main() {
       expect(output.content, contains('lib/app/_plugins.g.dart'));
     });
 
-    test(
-        'refresh purges .dowel/cli-bundle and .dowel/build.stamp after '
+    test('refresh purges .dowel/cli-bundle and .dowel/build.stamp after '
         'regenerating _plugins.g.dart (real-FS path)', () async {
       // Issue #9 GAP A: the cache-purge runs against real-FS (dart:io), not
       // the InMemoryFs seam, because ./bin/dowel probes real disk for the stamp.
@@ -349,10 +354,7 @@ void main() {
       final dowelDir = Directory(p.join(tempDir.path, '.dowel'))
         ..createSync(recursive: true);
       File(p.join(dowelDir.path, 'plugins.json')).writeAsStringSync(
-        jsonEncode(<String, dynamic>{
-          'version': 1,
-          'plugins': <dynamic>[],
-        }),
+        jsonEncode(<String, dynamic>{'version': 1, 'plugins': <dynamic>[]}),
       );
 
       // 3. Pre-create the cache artefacts the post-refresh hook must purge.
@@ -381,14 +383,12 @@ void main() {
       expect(
         Directory(p.join(tempDir.path, '.dowel', 'cli-bundle')).existsSync(),
         isFalse,
-        reason:
-            'refresh must purge .dowel/cli-bundle/ so the next ./bin/dowel rebuilds',
+        reason: 'refresh must purge .dowel/cli-bundle/ so the next ./bin/dowel rebuilds',
       );
       expect(
         File(p.join(tempDir.path, '.dowel', 'build.stamp')).existsSync(),
         isFalse,
-        reason:
-            'refresh must purge .dowel/build.stamp so needs_build() trips on next call',
+        reason: 'refresh must purge .dowel/build.stamp so needs_build() trips on next call',
       );
     });
   });
@@ -419,7 +419,8 @@ void main() {
       return fs.readAsString('/proj/lib/app/_plugins.g.dart');
     }
 
-    const header = '// GENERATED: do not edit by hand.\n'
+    const header =
+        '// GENERATED: do not edit by hand.\n'
         '// Regenerate via: dart run dowel plugins:refresh\n'
         '//\n'
         '// Source: .dowel/plugins.json\n'

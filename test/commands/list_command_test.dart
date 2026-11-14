@@ -1,4 +1,5 @@
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/list_command.dart';
 import 'package:test/test.dart';
 
 void main() {

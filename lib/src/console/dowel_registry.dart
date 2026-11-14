@@ -18,7 +18,7 @@ import 'dowel_service_provider.dart';
 /// cost walking and validating tool descriptors they never consume. The
 /// MCP entry point (`runDowel(args, collectMcpTools: true)`) is the only
 /// caller that opts in.
-class DowelRegistry {
+final class DowelRegistry {
   final Map<String, _RegistryEntry> _commands = {};
   final Map<String, _RegisteredMcpTool> _mcpTools = {};
 
@@ -94,8 +94,8 @@ class DowelRegistry {
   /// Order is insertion order, which matches registration order across
   /// providers as visited by [registerMcpToolsFor].
   List<McpToolDescriptor> get mcpTools => List<McpToolDescriptor>.unmodifiable(
-        _mcpTools.values.map((entry) => entry.tool),
-      );
+    _mcpTools.values.map((entry) => entry.tool),
+  );
 
   /// Returns the name of the provider that contributed the MCP tool named
   /// [toolName], or `null` when no tool with that name is registered.

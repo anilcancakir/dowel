@@ -2,17 +2,41 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/installer/plugins_registry_file.dart';
 import 'package:test/test.dart';
 
-/// [InMemoryFs] that records the path of every `writeAsString`.
-class _RecordingFs extends InMemoryFs {
+/// [VirtualFs] over an [InMemoryFs] that records the path of every
+/// `writeAsString`.
+class _RecordingFs implements VirtualFs {
+  final InMemoryFs _fs = InMemoryFs();
   final List<String> writes = <String>[];
 
   @override
   void writeAsString(String absPath, String content) {
     writes.add(absPath);
-    super.writeAsString(absPath, content);
+    _fs.writeAsString(absPath, content);
   }
+
+  @override
+  bool exists(String absPath) => _fs.exists(absPath);
+
+  @override
+  String readAsString(String absPath) => _fs.readAsString(absPath);
+
+  @override
+  void delete(String absPath) => _fs.delete(absPath);
+
+  @override
+  void copy(String fromAbs, String toAbs) => _fs.copy(fromAbs, toAbs);
+
+  @override
+  void rename(String fromAbs, String toAbs) => _fs.rename(fromAbs, toAbs);
+
+  @override
+  List<String> listSync(String absDir) => _fs.listSync(absDir);
+
+  @override
+  String md5(String absPath) => _fs.md5(absPath);
 }
 
 void main() {
@@ -138,26 +162,28 @@ void main() {
       expect(read.plugins.first.name, 'push');
     });
 
-    test('atomic write uses .tmp then renames: no .tmp survives after write',
-        () async {
-      final fs = InMemoryFs();
-      final registryFile = PluginsRegistryFile(fs, '/proj');
-      final registry = PluginsRegistry.empty();
+    test(
+      'atomic write uses .tmp then renames: no .tmp survives after write',
+      () async {
+        final fs = InMemoryFs();
+        final registryFile = PluginsRegistryFile(fs, '/proj');
+        final registry = PluginsRegistry.empty();
 
-      await registryFile.write(registry);
+        await registryFile.write(registry);
 
-      // The temporary file must be gone and the target must exist.
-      expect(
-        fs.snapshot.keys.where((path) => path.endsWith('.tmp')),
-        isEmpty,
-        reason: '.tmp file must not survive after successful rename',
-      );
-      expect(
-        fs.exists('/proj/.dowel/plugins.json'),
-        isTrue,
-        reason: 'Target file must exist after write',
-      );
-    });
+        // The temporary file must be gone and the target must exist.
+        expect(
+          fs.snapshot.keys.where((path) => path.endsWith('.tmp')),
+          isEmpty,
+          reason: '.tmp file must not survive after successful rename',
+        );
+        expect(
+          fs.exists('/proj/.dowel/plugins.json'),
+          isTrue,
+          reason: 'Target file must exist after write',
+        );
+      },
+    );
 
     test('the temp file carries the process id', () async {
       // Two installs in one project at once both staged `plugins.json.tmp`,
@@ -189,30 +215,32 @@ void main() {
       expect(registry.plugins.first.name, 'logger');
     });
 
-    test('replaces an existing entry with the same name (idempotent add)',
-        () async {
-      final fs = InMemoryFs();
-      final registryFile = PluginsRegistryFile(fs, '/proj');
-      const original = PluginEntry(
-        name: 'logger',
-        providerImport: 'package:magic_logger/v1/provider.dart',
-        providerClass: 'LoggerProviderV1',
-        registeredAt: '2026-05-18T09:00:00.000Z',
-      );
-      const updated = PluginEntry(
-        name: 'logger',
-        providerImport: 'package:magic_logger/v2/provider.dart',
-        providerClass: 'LoggerProviderV2',
-        registeredAt: '2026-05-18T10:00:00.000Z',
-      );
+    test(
+      'replaces an existing entry with the same name (idempotent add)',
+      () async {
+        final fs = InMemoryFs();
+        final registryFile = PluginsRegistryFile(fs, '/proj');
+        const original = PluginEntry(
+          name: 'logger',
+          providerImport: 'package:magic_logger/v1/provider.dart',
+          providerClass: 'LoggerProviderV1',
+          registeredAt: '2026-05-18T09:00:00.000Z',
+        );
+        const updated = PluginEntry(
+          name: 'logger',
+          providerImport: 'package:magic_logger/v2/provider.dart',
+          providerClass: 'LoggerProviderV2',
+          registeredAt: '2026-05-18T10:00:00.000Z',
+        );
 
-      await registryFile.addPlugin(original);
-      await registryFile.addPlugin(updated);
-      final registry = await registryFile.read();
+        await registryFile.addPlugin(original);
+        await registryFile.addPlugin(updated);
+        final registry = await registryFile.read();
 
-      expect(registry.plugins, hasLength(1));
-      expect(registry.plugins.first.providerClass, 'LoggerProviderV2');
-    });
+        expect(registry.plugins, hasLength(1));
+        expect(registry.plugins.first.providerClass, 'LoggerProviderV2');
+      },
+    );
   });
 
   group('PluginsRegistryFile.removePlugin()', () {
@@ -233,16 +261,18 @@ void main() {
       expect(registry.plugins, isEmpty);
     });
 
-    test('is a no-op when the name is not present (idempotent remove)',
-        () async {
-      final fs = InMemoryFs();
-      final registryFile = PluginsRegistryFile(fs, '/proj');
+    test(
+      'is a no-op when the name is not present (idempotent remove)',
+      () async {
+        final fs = InMemoryFs();
+        final registryFile = PluginsRegistryFile(fs, '/proj');
 
-      // Should not throw even when the file does not exist yet.
-      await registryFile.removePlugin('nonexistent');
-      final registry = await registryFile.read();
+        // Should not throw even when the file does not exist yet.
+        await registryFile.removePlugin('nonexistent');
+        final registry = await registryFile.read();
 
-      expect(registry.plugins, isEmpty);
-    });
+        expect(registry.plugins, isEmpty);
+      },
+    );
   });
 }

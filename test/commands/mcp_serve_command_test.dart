@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/mcp_serve_command.dart';
+import 'package:dowel/src/mcp/mcp_filter_config.dart';
 import 'package:test/test.dart';
 
 /// Capture-only serve stub: records the call and returns immediately without
@@ -77,40 +79,42 @@ void main() {
     // CLI flag → McpFilterConfig.fromCli round-trip
     // -------------------------------------------------------------------------
 
-    test('--include-package and --exclude-tool populate cliConfig correctly',
-        () {
-      final command = McpServeCommand();
-      final parser = ArgParser();
-      command.configure(parser);
+    test(
+      '--include-package and --exclude-tool populate cliConfig correctly',
+      () {
+        final command = McpServeCommand();
+        final parser = ArgParser();
+        command.configure(parser);
 
-      final results = parser.parse([
-        '--include-package',
-        'x',
-        '--include-package',
-        'y',
-        '--exclude-tool',
-        'z',
-      ]);
+        final results = parser.parse([
+          '--include-package',
+          'x',
+          '--include-package',
+          'y',
+          '--exclude-tool',
+          'z',
+        ]);
 
-      final includePackage =
-          (results['include-package'] as List).cast<String>();
-      final excludePackage =
-          (results['exclude-package'] as List).cast<String>();
-      final includeTool = (results['include-tool'] as List).cast<String>();
-      final excludeTool = (results['exclude-tool'] as List).cast<String>();
+        final includePackage = (results['include-package'] as List)
+            .cast<String>();
+        final excludePackage = (results['exclude-package'] as List)
+            .cast<String>();
+        final includeTool = (results['include-tool'] as List).cast<String>();
+        final excludeTool = (results['exclude-tool'] as List).cast<String>();
 
-      final cliConfig = McpFilterConfig.fromCli(
-        includePackage: includePackage,
-        excludePackage: excludePackage,
-        includeTool: includeTool,
-        excludeTool: excludeTool,
-      );
+        final cliConfig = McpFilterConfig.fromCli(
+          includePackage: includePackage,
+          excludePackage: excludePackage,
+          includeTool: includeTool,
+          excludeTool: excludeTool,
+        );
 
-      expect(cliConfig.packagesAllow, {'x', 'y'});
-      expect(cliConfig.toolsDeny, {'z'});
-      expect(cliConfig.packagesDeny, isEmpty);
-      expect(cliConfig.toolsAllow, isNull);
-    });
+        expect(cliConfig.packagesAllow, {'x', 'y'});
+        expect(cliConfig.toolsDeny, {'z'});
+        expect(cliConfig.packagesDeny, isEmpty);
+        expect(cliConfig.toolsAllow, isNull);
+      },
+    );
 
     // -------------------------------------------------------------------------
     // Help text includes reconnect hint
@@ -121,10 +125,7 @@ void main() {
 
       // The reconnect hint must appear in the command's description or in the
       // extended help string (plan step: APPEND hint paragraph to description).
-      expect(
-        command.description,
-        contains('/mcp reconnect dowel'),
-      );
+      expect(command.description, contains('/mcp reconnect dowel'));
     });
 
     // -------------------------------------------------------------------------
@@ -132,22 +133,15 @@ void main() {
     // -------------------------------------------------------------------------
 
     test('env var DOWEL_MCP_PACKAGES_ALLOW populates envConfig', () {
-      final env = <String, String>{
-        'DOWEL_MCP_PACKAGES_ALLOW': 'tapir,crumbs',
-      };
+      final env = <String, String>{'DOWEL_MCP_PACKAGES_ALLOW': 'tapir,crumbs'};
 
       final envConfig = McpFilterConfig.fromEnv(env);
 
-      expect(
-        envConfig.packagesAllow,
-        {'tapir', 'crumbs'},
-      );
+      expect(envConfig.packagesAllow, {'tapir', 'crumbs'});
     });
 
     test('env var DOWEL_MCP_TOOLS_DENY populates envConfig', () {
-      final env = <String, String>{
-        'DOWEL_MCP_TOOLS_DENY': 'tapir_snap',
-      };
+      final env = <String, String>{'DOWEL_MCP_TOOLS_DENY': 'tapir_snap'};
 
       final envConfig = McpFilterConfig.fromEnv(env);
 
@@ -244,24 +238,26 @@ void main() {
     // handle: no-op serve path (stub injected to avoid live VM Service)
     // -------------------------------------------------------------------------
 
-    test('handle returns 0 via stub serve when no mcp.json and no env',
-        () async {
-      final command = McpServeCommand(serveOverride: _noOpServe);
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(const {
-          'include-package': <String>[],
-          'exclude-package': <String>[],
-          'include-tool': <String>[],
-          'exclude-tool': <String>[],
-        }),
-        output,
-      );
+    test(
+      'handle returns 0 via stub serve when no mcp.json and no env',
+      () async {
+        final command = McpServeCommand(serveOverride: _noOpServe);
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(const {
+            'include-package': <String>[],
+            'exclude-package': <String>[],
+            'include-tool': <String>[],
+            'exclude-tool': <String>[],
+          }),
+          output,
+        );
 
-      // Must not throw and must return 0.
-      final code = await command.handle(ctx);
+        // Must not throw and must return 0.
+        final code = await command.handle(ctx);
 
-      expect(code, 0);
-    });
+        expect(code, 0);
+      },
+    );
   });
 }

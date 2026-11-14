@@ -6,7 +6,7 @@
 /// silent last-wins via `Symfony Application::add()`. Silent shadowing of
 /// a vendor command by an unrelated provider command is a debugging black
 /// hole; making it loud forces explicit opt-in.
-class DowelCommandCollisionException implements Exception {
+final class DowelCommandCollisionException implements Exception {
   DowelCommandCollisionException({
     required this.commandName,
     required this.existingProvider,
@@ -22,7 +22,8 @@ class DowelCommandCollisionException implements Exception {
   /// Name of the provider attempting the duplicate registration.
   final String newProvider;
 
-  String get message => "Command '$commandName' already registered by provider "
+  String get message =>
+      "Command '$commandName' already registered by provider "
       "'$existingProvider'. Pass `override: true` to "
       "$newProvider.registerInto(...) to intentionally replace.";
 

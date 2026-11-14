@@ -30,8 +30,9 @@ class LogsCommand extends DowelCommand {
     // directory. An app started by an older dowel wrote it to the shared
     // `~/.dowel/` instead, so fall back there rather than reporting no
     // log for a run that has one.
-    final sessionLog =
-        File('${File(StateFile.path).parent.path}/flutter-dev.log');
+    final sessionLog = File(
+      '${File(StateFile.path).parent.path}/flutter-dev.log',
+    );
     final logFile = sessionLog.existsSync()
         ? sessionLog
         : File('${StateFile.homeDir}/flutter-dev.log');
@@ -67,8 +68,10 @@ class LogsCommand extends DowelCommand {
         if (lastNewline >= 0) {
           _writeLines(
             ctx,
-            utf8.decode(pending.sublist(0, lastNewline + 1),
-                allowMalformed: true),
+            utf8.decode(
+              pending.sublist(0, lastNewline + 1),
+              allowMalformed: true,
+            ),
           );
           pending.removeRange(0, lastNewline + 1);
         }

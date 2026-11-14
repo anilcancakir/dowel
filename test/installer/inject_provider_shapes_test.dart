@@ -12,8 +12,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      defaultValue ?? '';
+  }) => defaultValue ?? '';
 
   @override
   bool confirm(String question, {bool defaultValue = false}) => defaultValue;
@@ -23,8 +22,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      defaultValue ?? options.first;
+  }) => defaultValue ?? options.first;
 
   @override
   String secret(String question) => '';
@@ -144,8 +142,9 @@ const Map<String, dynamic> appConfig = <String, dynamic>{
     /// `configFactories`. Nothing stops a host from writing one, and
     /// `() => \w+,` before a `]` describes its last entry exactly as well.
     String mainDart({required bool factoriesPopulated}) {
-      final String factories =
-          factoriesPopulated ? '\n      () => appConfig,\n    ' : '';
+      final String factories = factoriesPopulated
+          ? '\n      () => appConfig,\n    '
+          : '';
       return '''
 final List<Widget Function()> screens = [
   () => homeScreen,
@@ -258,7 +257,8 @@ const Map<String, dynamic> appConfig = <String, dynamic>{
 
       expect(
         pattern.hasMatch(
-            appConfig('app').replaceAll("'providers'", '"providers"')),
+          appConfig('app').replaceAll("'providers'", '"providers"'),
+        ),
         isTrue,
       );
     });

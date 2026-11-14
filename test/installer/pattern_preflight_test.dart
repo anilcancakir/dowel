@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/installer/install_transaction.dart';
 import 'package:test/test.dart';
 
 class _SilentPromptDriver implements PromptDriver {
@@ -9,8 +10,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      defaultValue ?? '';
+  }) => defaultValue ?? '';
 
   @override
   bool confirm(String question, {bool defaultValue = false}) => defaultValue;
@@ -20,8 +20,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      defaultValue ?? options.first;
+  }) => defaultValue ?? options.first;
 
   @override
   String secret(String question) => '';
@@ -67,8 +66,9 @@ void main() {
 
   /// A providers list in the shape `injectProvider` appends to.
   void writeAppConfig(Directory root, {required bool populated}) {
-    final entries =
-        populated ? "      (MagicApp app) => AppServiceProvider(app),\n" : '';
+    final entries = populated
+        ? "      (MagicApp app) => AppServiceProvider(app),\n"
+        : '';
     File('${root.path}/lib/config/app.dart')
       ..createSync(recursive: true)
       ..writeAsStringSync(
@@ -88,11 +88,13 @@ void main() {
       writeAppConfig(root, populated: true);
 
       final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
-      tx.stage(InjectAfterPattern(
-        targetFile: 'lib/config/app.dart',
-        pattern: RegExp(r'NoSuchAnchorAnywhere'),
-        code: '\n      (app) => DemoServiceProvider(app),',
-      ));
+      tx.stage(
+        InjectAfterPattern(
+          targetFile: 'lib/config/app.dart',
+          pattern: RegExp(r'NoSuchAnchorAnywhere'),
+          code: '\n      (app) => DemoServiceProvider(app),',
+        ),
+      );
 
       final result = await tx.commit(force: true);
 
@@ -104,51 +106,61 @@ void main() {
       );
     });
 
-    test('leaves no partial write behind, which is why it runs first',
-        () async {
-      // The reason the check is a preflight rather than an in-loop return.
-      // `InjectImport` writes through `dart:io` during staging and sits
-      // outside the `.tmp` rollback, so discovering the miss after it had run
-      // would strand that import with no record to reverse it.
-      final root = makeProject();
-      writeAppConfig(root, populated: true);
-      final before =
-          File('${root.path}/lib/config/app.dart').readAsStringSync();
+    test(
+      'leaves no partial write behind, which is why it runs first',
+      () async {
+        // The reason the check is a preflight rather than an in-loop return.
+        // `InjectImport` writes through `dart:io` during staging and sits
+        // outside the `.tmp` rollback, so discovering the miss after it had run
+        // would strand that import with no record to reverse it.
+        final root = makeProject();
+        writeAppConfig(root, populated: true);
+        final before = File('${root.path}/lib/config/app.dart')
+            .readAsStringSync();
 
-      final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
-      tx.stage(const InjectImport(
-        targetFile: 'lib/config/app.dart',
-        importStatement: "import 'package:demo/demo.dart';",
-      ));
-      tx.stage(InjectAfterPattern(
-        targetFile: 'lib/config/app.dart',
-        pattern: RegExp(r'NoSuchAnchorAnywhere'),
-        code: '\n      (app) => DemoServiceProvider(app),',
-      ));
+        final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
+        tx.stage(
+          const InjectImport(
+            targetFile: 'lib/config/app.dart',
+            importStatement: "import 'package:demo/demo.dart';",
+          ),
+        );
+        tx.stage(
+          InjectAfterPattern(
+            targetFile: 'lib/config/app.dart',
+            pattern: RegExp(r'NoSuchAnchorAnywhere'),
+            code: '\n      (app) => DemoServiceProvider(app),',
+          ),
+        );
 
-      expect(await tx.commit(force: true), isA<InstallError>());
-      expect(
-        File('${root.path}/lib/config/app.dart').readAsStringSync(),
-        before,
-        reason: 'the import must not have landed',
-      );
-    });
+        expect(await tx.commit(force: true), isA<InstallError>());
+        expect(
+          File('${root.path}/lib/config/app.dart').readAsStringSync(),
+          before,
+          reason: 'the import must not have landed',
+        );
+      },
+    );
 
     test('names every offending op, not only the first', () async {
       final root = makeProject();
       writeAppConfig(root, populated: true);
 
       final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
-      tx.stage(InjectAfterPattern(
-        targetFile: 'lib/config/app.dart',
-        pattern: RegExp(r'FirstMissingAnchor'),
-        code: '// a',
-      ));
-      tx.stage(InjectBeforePattern(
-        targetFile: 'lib/config/app.dart',
-        pattern: RegExp(r'SecondMissingAnchor'),
-        code: '// b',
-      ));
+      tx.stage(
+        InjectAfterPattern(
+          targetFile: 'lib/config/app.dart',
+          pattern: RegExp(r'FirstMissingAnchor'),
+          code: '// a',
+        ),
+      );
+      tx.stage(
+        InjectBeforePattern(
+          targetFile: 'lib/config/app.dart',
+          pattern: RegExp(r'SecondMissingAnchor'),
+          code: '// b',
+        ),
+      );
 
       final result = await tx.commit(force: true) as InstallError;
 
@@ -160,11 +172,13 @@ void main() {
       final root = makeProject();
 
       final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
-      tx.stage(InjectAfterPattern(
-        targetFile: 'lib/config/app.dart',
-        pattern: RegExp(r'anything'),
-        code: '// a',
-      ));
+      tx.stage(
+        InjectAfterPattern(
+          targetFile: 'lib/config/app.dart',
+          pattern: RegExp(r'anything'),
+          code: '// a',
+        ),
+      );
 
       final result = await tx.commit(force: true) as InstallError;
 
@@ -181,14 +195,16 @@ void main() {
       writeAppConfig(root, populated: false);
 
       final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
-      tx.stage(InjectAfterPattern(
-        targetFile: 'lib/config/app.dart',
-        pattern: RegExp(
-          r'\((?:\w+\s+)?app\)\s*=>\s*\w+ServiceProvider\(app\),(?=\s*\n\s*\])',
+      tx.stage(
+        InjectAfterPattern(
+          targetFile: 'lib/config/app.dart',
+          pattern: RegExp(
+            r'\((?:\w+\s+)?app\)\s*=>\s*\w+ServiceProvider\(app\),(?=\s*\n\s*\])',
+          ),
+          fallbackPattern: RegExp(r"'providers'\s*:\s*\["),
+          code: '\n      (app) => DemoServiceProvider(app),',
         ),
-        fallbackPattern: RegExp(r"'providers'\s*:\s*\["),
-        code: '\n      (app) => DemoServiceProvider(app),',
-      ));
+      );
 
       expect(await tx.commit(force: true), isA<InstallSuccess>());
       expect(
@@ -197,32 +213,36 @@ void main() {
       );
     });
 
-    test('a populated list still appends at the end, not at the bracket',
-        () async {
-      // The fallback must not win where the primary matches, or every
-      // injection would land at the top of the list.
-      final root = makeProject();
-      writeAppConfig(root, populated: true);
+    test(
+      'a populated list still appends at the end, not at the bracket',
+      () async {
+        // The fallback must not win where the primary matches, or every
+        // injection would land at the top of the list.
+        final root = makeProject();
+        writeAppConfig(root, populated: true);
 
-      final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
-      tx.stage(InjectAfterPattern(
-        targetFile: 'lib/config/app.dart',
-        pattern: RegExp(
-          r'\((?:\w+\s+)?app\)\s*=>\s*\w+ServiceProvider\(app\),(?=\s*\n\s*\])',
-        ),
-        fallbackPattern: RegExp(r"'providers'\s*:\s*\["),
-        code: '\n      (app) => DemoServiceProvider(app),',
-      ));
+        final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
+        tx.stage(
+          InjectAfterPattern(
+            targetFile: 'lib/config/app.dart',
+            pattern: RegExp(
+              r'\((?:\w+\s+)?app\)\s*=>\s*\w+ServiceProvider\(app\),(?=\s*\n\s*\])',
+            ),
+            fallbackPattern: RegExp(r"'providers'\s*:\s*\["),
+            code: '\n      (app) => DemoServiceProvider(app),',
+          ),
+        );
 
-      expect(await tx.commit(force: true), isA<InstallSuccess>());
+        expect(await tx.commit(force: true), isA<InstallSuccess>());
 
-      final written =
-          File('${root.path}/lib/config/app.dart').readAsStringSync();
-      expect(
-        written.indexOf('DemoServiceProvider'),
-        greaterThan(written.indexOf('AppServiceProvider')),
-      );
-    });
+        final written = File('${root.path}/lib/config/app.dart')
+            .readAsStringSync();
+        expect(
+          written.indexOf('DemoServiceProvider'),
+          greaterThan(written.indexOf('AppServiceProvider')),
+        );
+      },
+    );
   });
 
   test('a re-run over an already-injected file still commits', () async {
@@ -233,14 +253,16 @@ void main() {
 
     Future<TransactionResult> install() {
       final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
-      tx.stage(InjectAfterPattern(
-        targetFile: 'lib/config/app.dart',
-        pattern: RegExp(
-          r'\((?:\w+\s+)?app\)\s*=>\s*\w+ServiceProvider\(app\),(?=\s*\n\s*\])',
+      tx.stage(
+        InjectAfterPattern(
+          targetFile: 'lib/config/app.dart',
+          pattern: RegExp(
+            r'\((?:\w+\s+)?app\)\s*=>\s*\w+ServiceProvider\(app\),(?=\s*\n\s*\])',
+          ),
+          fallbackPattern: RegExp(r"'providers'\s*:\s*\["),
+          code: '\n      (app) => DemoServiceProvider(app),',
         ),
-        fallbackPattern: RegExp(r"'providers'\s*:\s*\["),
-        code: '\n      (app) => DemoServiceProvider(app),',
-      ));
+      );
 
       return tx.commit(force: true);
     }

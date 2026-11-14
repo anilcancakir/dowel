@@ -87,19 +87,17 @@ import 'install_transaction.dart';
 ///   .endWith((ctx) => ctx.dowelContext.output.success('Run "flutter pub get"'))
 ///   .commit(dryRun: false, force: false);
 /// ```
-class PluginInstaller {
+final class PluginInstaller {
   /// Creates a `PluginInstaller` bound to [ctx] for the plugin identified by
-  /// [pluginName].
+  /// [_pluginName].
   ///
-  /// [pluginName] threads through [InstallTransaction] to the
+  /// [_pluginName] threads through [InstallTransaction] to the
   /// `.dowel/installed/<pluginName>.json` record file path.
   ///
   /// @param ctx         The active [InstallContext] (fs / prompt / stubs /
   ///                    clock / output).
   /// @param pluginName  Pubspec package name of the plugin under installation.
-  PluginInstaller(InstallContext ctx, {required String pluginName})
-      : _ctx = ctx,
-        _pluginName = pluginName;
+  PluginInstaller(InstallContext ctx, {required this._pluginName}) : _ctx = ctx;
 
   final InstallContext _ctx;
   final String _pluginName;
@@ -176,7 +174,7 @@ class PluginInstaller {
   /// method.
   ///
   /// Production callers should use the public chain methods; this exists so
-  /// the original Step 18 lifecycle tests can populate the queue with
+  /// the lifecycle tests can populate the queue with
   /// arbitrary op shapes without coupling to the chain-method surface.
   ///
   /// @param op  The [InstallOperation] to enqueue.
@@ -525,7 +523,10 @@ class PluginInstaller {
           r'\((?:\w+\s+)?app\)\s*=>\s*\w+ServiceProvider\(app\),'
           r'(?=(?:[^\S\n]*(?://[^\n]*)?\n)*?[^\S\n]*\])',
         ),
-        fallbackPattern: RegExp('''['"]providers['"]''' r'\s*:\s*\['),
+        fallbackPattern: RegExp(
+          '''['"]providers['"]'''
+          r'\s*:\s*\[',
+        ),
         code: '\n      (app) => $providerClassName(app),',
       ),
     );

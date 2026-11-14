@@ -25,7 +25,7 @@ import '../helpers/file_helper.dart';
 /// fs.writeAsString('/tmp/hello.txt', 'world');
 /// final hash = fs.md5('/tmp/hello.txt');
 /// ```
-abstract class VirtualFs {
+abstract interface class VirtualFs {
   /// Returns `true` when a file (not directory) exists at [absPath].
   ///
   /// @param absPath  Absolute path to test.
@@ -96,7 +96,7 @@ abstract class VirtualFs {
 /// const fs = RealFs();
 /// fs.writeAsString('/Users/anilcan/Code/app/lib/config/x.dart', '...');
 /// ```
-class RealFs implements VirtualFs {
+final class RealFs implements VirtualFs {
   /// Creates a stateless [RealFs]. The class holds no instance fields so the
   /// constructor is `const` and consumers can share a single literal.
   const RealFs();
@@ -171,7 +171,7 @@ class RealFs implements VirtualFs {
 /// fs.writeAsString('/virtual/pubspec.yaml', 'name: app\n');
 /// expect(fs.readAsString('/virtual/pubspec.yaml'), contains('name'));
 /// ```
-class InMemoryFs implements VirtualFs {
+final class InMemoryFs implements VirtualFs {
   /// Creates an empty in-memory file store.
   InMemoryFs();
 

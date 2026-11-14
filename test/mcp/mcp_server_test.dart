@@ -4,6 +4,13 @@ import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/doctor_command.dart';
+import 'package:dowel/src/commands/list_command.dart';
+import 'package:dowel/src/commands/logs_command.dart';
+import 'package:dowel/src/commands/reload_command.dart';
+import 'package:dowel/src/commands/status_command.dart';
+import 'package:dowel/src/mcp/mcp_filter_config.dart';
+import 'package:dowel/src/mcp/mcp_server.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart'
@@ -19,8 +26,8 @@ class _StubVmServiceClient extends VmServiceClient {
   _StubVmServiceClient({
     Map<String, Object?>? responses,
     this.failOnConnect = false,
-  })  : responses = responses ?? <String, Object?>{},
-        super('ws://stub-only/');
+  }) : responses = responses ?? <String, Object?>{},
+       super('ws://stub-only/');
 
   static const _stubIsolateId = 'isolate-stub';
 
@@ -29,7 +36,7 @@ class _StubVmServiceClient extends VmServiceClient {
 
   /// Every `callServiceExtension` invocation captured in arrival order.
   final List<({String method, String isolateId, Map<String, dynamic>? params})>
-      calls = [];
+  calls = [];
 
   /// Set to true after [connect] is called at least once.
   bool didConnect = false;
@@ -141,13 +148,12 @@ McpToolDescriptor _tool(
   String name, {
   String? extensionMethod,
   Map<String, dynamic>? inputSchema,
-}) =>
-    McpToolDescriptor(
-      name: name,
-      description: 'Test tool $name.',
-      inputSchema: inputSchema ?? const {'type': 'object', 'properties': {}},
-      extensionMethod: extensionMethod ?? 'ext.test.$name',
-    );
+}) => McpToolDescriptor(
+  name: name,
+  description: 'Test tool $name.',
+  inputSchema: inputSchema ?? const {'type': 'object', 'properties': {}},
+  extensionMethod: extensionMethod ?? 'ext.test.$name',
+);
 
 /// Wires the server + a real dart_mcp client around an in-memory channel pair
 /// so tests drive the server through its true public protocol surface.
@@ -272,28 +278,30 @@ void main() {
       expect(result.tools.map((t) => t.name), ['tapir_snap', 'tapir_tap']);
     });
 
-    test('keeps capabilities.tools.listChanged at the library default true',
-        () async {
-      final registry = DowelRegistry();
-      final harness = await _TestHarness.build(
-        registry: registry,
-        filter: McpFilterConfig.empty(),
-      );
-      addTearDown(harness.dispose);
+    test(
+      'keeps capabilities.tools.listChanged at the library default true',
+      () async {
+        final registry = DowelRegistry();
+        final harness = await _TestHarness.build(
+          registry: registry,
+          filter: McpFilterConfig.empty(),
+        );
+        addTearDown(harness.dispose);
 
-      // ToolsSupport.initialize sets listChanged = true unconditionally; our
-      // override must not flip it back to false (Oracle C1 revise: honest
-      // capability advertisement).
-      expect(harness.connection.serverCapabilities.tools?.listChanged, isTrue);
-    });
+        // ToolsSupport.initialize sets listChanged = true unconditionally; our
+        // override must not flip it back to false (Oracle C1 revise: honest
+        // capability advertisement).
+        expect(
+          harness.connection.serverCapabilities.tools?.listChanged,
+          isTrue,
+        );
+      },
+    );
 
     test('connects the VM Service client during initialize', () async {
       final registry = DowelRegistry()
         ..registerMcpToolsFor(
-          _FakeMcpProvider(
-            providerName: 'tapir',
-            tools: [_tool('tapir_snap')],
-          ),
+          _FakeMcpProvider(providerName: 'tapir', tools: [_tool('tapir_snap')]),
         );
 
       final harness = await _TestHarness.build(
@@ -306,66 +314,67 @@ void main() {
     });
 
     test(
-        'lazy-reconnect serializes via memoized future under concurrent dispatch',
-        () async {
-      // Race scenario: init runs with state.json absent (_vmClient stays
-      // null + server stays online). state.json appears (user runs
-      // `dowel start`). Two MCP tool calls arrive concurrently. Both see
-      // _vmClient == null and trigger the lazy-reconnect branch in _dispatch.
-      // The race guard MUST ensure the VmServiceClient factory runs exactly
-      // once across the two concurrent dispatches (no leak).
-      var stateRevealed = false;
-      final registry = DowelRegistry()
-        ..registerMcpToolsFor(
-          _FakeMcpProvider(
-            providerName: 'tapir',
-            tools: [_tool('tapir_snap', extensionMethod: 'ext.tapir.snap')],
-          ),
+      'lazy-reconnect serializes via memoized future under concurrent dispatch',
+      () async {
+        // Race scenario: init runs with state.json absent (_vmClient stays
+        // null + server stays online). state.json appears (user runs
+        // `dowel start`). Two MCP tool calls arrive concurrently. Both see
+        // _vmClient == null and trigger the lazy-reconnect branch in _dispatch.
+        // The race guard MUST ensure the VmServiceClient factory runs exactly
+        // once across the two concurrent dispatches (no leak).
+        var stateRevealed = false;
+        final registry = DowelRegistry()
+          ..registerMcpToolsFor(
+            _FakeMcpProvider(
+              providerName: 'tapir',
+              tools: [_tool('tapir_snap', extensionMethod: 'ext.tapir.snap')],
+            ),
+          );
+
+        final harness = await _TestHarness.build(
+          registry: registry,
+          filter: McpFilterConfig.empty(),
+          stubResponses: <String, Object?>{
+            'ext.tapir.snap': <String, dynamic>{'ok': true},
+          },
+          stateReader: () async {
+            // Return absent state during initialize; valid state on every
+            // subsequent call (which is the lazy-reconnect path).
+            if (!stateRevealed) {
+              stateRevealed = true;
+              return null;
+            }
+            return <String, dynamic>{
+              'vmServiceUri': 'ws://stub-only/',
+              'pid': 12345,
+            };
+          },
         );
+        addTearDown(harness.dispose);
 
-      final harness = await _TestHarness.build(
-        registry: registry,
-        filter: McpFilterConfig.empty(),
-        stubResponses: <String, Object?>{
-          'ext.tapir.snap': <String, dynamic>{'ok': true},
-        },
-        stateReader: () async {
-          // Return absent state during initialize; valid state on every
-          // subsequent call (which is the lazy-reconnect path).
-          if (!stateRevealed) {
-            stateRevealed = true;
-            return null;
-          }
-          return <String, dynamic>{
-            'vmServiceUri': 'ws://stub-only/',
-            'pid': 12345,
-          };
-        },
-      );
-      addTearDown(harness.dispose);
+        // Sanity: initialize ran without connecting (state was absent).
+        expect(harness.stub.connectCount, 0);
 
-      // Sanity: initialize ran without connecting (state was absent).
-      expect(harness.stub.connectCount, 0);
+        // Fire two concurrent tool calls; both should hit the lazy-reconnect
+        // branch with a null _vmClient.
+        final results = await Future.wait([
+          harness.connection.callTool(
+            CallToolRequest(name: 'tapir_snap', arguments: const {}),
+          ),
+          harness.connection.callTool(
+            CallToolRequest(name: 'tapir_snap', arguments: const {}),
+          ),
+        ]);
 
-      // Fire two concurrent tool calls; both should hit the lazy-reconnect
-      // branch with a null _vmClient.
-      final results = await Future.wait([
-        harness.connection.callTool(
-          CallToolRequest(name: 'tapir_snap', arguments: const {}),
-        ),
-        harness.connection.callTool(
-          CallToolRequest(name: 'tapir_snap', arguments: const {}),
-        ),
-      ]);
-
-      // Both calls succeeded.
-      expect(results.every((r) => r.isError != true), isTrue);
-      // The race guard ran the factory exactly once even though both
-      // dispatches needed the connection.
-      expect(harness.stub.connectCount, 1);
-      // Both dispatches reached the stub extension call.
-      expect(harness.stub.calls, hasLength(2));
-    });
+        // Both calls succeeded.
+        expect(results.every((r) => r.isError != true), isTrue);
+        // The race guard ran the factory exactly once even though both
+        // dispatches needed the connection.
+        expect(harness.stub.connectCount, 1);
+        // Both dispatches reached the stub extension call.
+        expect(harness.stub.calls, hasLength(2));
+      },
+    );
 
     test('substrate commands surface as dowel_* MCP tools', () async {
       // The 10 allowlisted substrate commands MUST appear as MCP tools even
@@ -373,14 +382,13 @@ void main() {
       // an MCP client (Claude Code) can call dowel_start BEFORE any
       // Flutter app is running.
       final registry = DowelRegistry();
-      registry.registerAll(
-        <DowelCommand>[
-          _FakeSubstrateCommand(
-              'start', 'Boot flutter run -d <device> detached.'),
-          _FakeSubstrateCommand('doctor', 'Run environment preflight checks.'),
-        ],
-        providerName: 'dowel',
-      );
+      registry.registerAll(<DowelCommand>[
+        _FakeSubstrateCommand(
+          'start',
+          'Boot flutter run -d <device> detached.',
+        ),
+        _FakeSubstrateCommand('doctor', 'Run environment preflight checks.'),
+      ], providerName: 'dowel');
 
       final harness = await _TestHarness.build(
         registry: registry,
@@ -394,11 +402,11 @@ void main() {
       expect(names, contains('dowel_doctor'));
     });
 
-    test('dowel_* tool dispatch runs command in-process + returns output',
-        () async {
-      final registry = DowelRegistry();
-      registry.registerAll(
-        <DowelCommand>[
+    test(
+      'dowel_* tool dispatch runs command in-process + returns output',
+      () async {
+        final registry = DowelRegistry();
+        registry.registerAll(<DowelCommand>[
           _FakeSubstrateCommand(
             'status',
             'Print JSON status.',
@@ -407,61 +415,62 @@ void main() {
               return 0;
             },
           ),
-        ],
-        providerName: 'dowel',
-      );
+        ], providerName: 'dowel');
 
-      final harness = await _TestHarness.build(
-        registry: registry,
-        filter: McpFilterConfig.empty(),
-      );
-      addTearDown(harness.dispose);
-
-      final result = await harness.connection.callTool(
-        CallToolRequest(name: 'dowel_status', arguments: const {}),
-      );
-      expect(result.isError, isFalse);
-      final text = (result.content.first as TextContent).text;
-      expect(text, contains('# `dowel status` exit 0'));
-      expect(text, contains('{"running":false}'));
-    });
-
-    test('initialize stays online when state.json has no vmServiceUri',
-        () async {
-      // V1 soft-fail policy: the MCP server stays connected even when no
-      // Flutter app is running. Individual tool calls return an actionable
-      // error at dispatch time so MCP clients (Claude Code, Cursor) can
-      // survive the natural dev cycle of starting/stopping the app without
-      // having to reconnect the server every time.
-      final registry = DowelRegistry()
-        ..registerMcpToolsFor(
-          _FakeMcpProvider(
-            providerName: 'tapir',
-            tools: [_tool('tapir_snap')],
-          ),
+        final harness = await _TestHarness.build(
+          registry: registry,
+          filter: McpFilterConfig.empty(),
         );
+        addTearDown(harness.dispose);
 
-      final harness = await _TestHarness.build(
-        registry: registry,
-        filter: McpFilterConfig.empty(),
-        stateOverride: const <String, dynamic>{},
-      );
-      addTearDown(harness.dispose);
+        final result = await harness.connection.callTool(
+          CallToolRequest(name: 'dowel_status', arguments: const {}),
+        );
+        expect(result.isError, isFalse);
+        final text = (result.content.first as TextContent).text;
+        expect(text, contains('# `dowel status` exit 0'));
+        expect(text, contains('{"running":false}'));
+      },
+    );
 
-      // Server initialized cleanly; tools registered.
-      expect(harness.stub.didConnect, isFalse);
-      final tools = await harness.connection.listTools();
-      expect(tools.tools.map((t) => t.name), contains('tapir_snap'));
+    test(
+      'initialize stays online when state.json has no vmServiceUri',
+      () async {
+        // V1 soft-fail policy: the MCP server stays connected even when no
+        // Flutter app is running. Individual tool calls return an actionable
+        // error at dispatch time so MCP clients (Claude Code, Cursor) can
+        // survive the natural dev cycle of starting/stopping the app without
+        // having to reconnect the server every time.
+        final registry = DowelRegistry()
+          ..registerMcpToolsFor(
+            _FakeMcpProvider(
+              providerName: 'tapir',
+              tools: [_tool('tapir_snap')],
+            ),
+          );
 
-      // Tool call surfaces the actionable error at dispatch time.
-      final result = await harness.connection.callTool(
-        CallToolRequest(name: 'tapir_snap', arguments: const {}),
-      );
-      expect(result.isError, isTrue);
-      final text = (result.content.first as TextContent).text;
-      expect(text, contains('dowel start'));
-      expect(text, contains('No Flutter app detected'));
-    });
+        final harness = await _TestHarness.build(
+          registry: registry,
+          filter: McpFilterConfig.empty(),
+          stateOverride: const <String, dynamic>{},
+        );
+        addTearDown(harness.dispose);
+
+        // Server initialized cleanly; tools registered.
+        expect(harness.stub.didConnect, isFalse);
+        final tools = await harness.connection.listTools();
+        expect(tools.tools.map((t) => t.name), contains('tapir_snap'));
+
+        // Tool call surfaces the actionable error at dispatch time.
+        final result = await harness.connection.callTool(
+          CallToolRequest(name: 'tapir_snap', arguments: const {}),
+        );
+        expect(result.isError, isTrue);
+        final text = (result.content.first as TextContent).text;
+        expect(text, contains('dowel start'));
+        expect(text, contains('No Flutter app detected'));
+      },
+    );
   });
 
   group('McpServer filter application', () {
@@ -493,10 +502,7 @@ void main() {
 
       final result = await harness.connection.listTools();
 
-      expect(
-        result.tools.map((t) => t.name),
-        ['tapir_snap', 'tapir_tap'],
-      );
+      expect(result.tools.map((t) => t.name), ['tapir_snap', 'tapir_tap']);
     });
 
     test('tool deny removes the matching tool BEFORE registerTool', () async {
@@ -524,49 +530,54 @@ void main() {
       final result = await harness.connection.listTools();
       expect(result.tools.map((t) => t.name), ['tapir_tap']);
 
-      final callResult = await harness.connection
-          .callTool(CallToolRequest(name: 'tapir_snap'));
+      final callResult = await harness.connection.callTool(
+        CallToolRequest(name: 'tapir_snap'),
+      );
       expect(callResult.isError, isTrue);
       expect(
         (callResult.content.single as TextContent).text,
         contains('No tool registered'),
       );
       // The stub was never asked to dispatch the denied tool.
-      expect(harness.stub.calls.where((c) => c.method == 'ext.tapir.snap'),
-          isEmpty);
+      expect(
+        harness.stub.calls.where((c) => c.method == 'ext.tapir.snap'),
+        isEmpty,
+      );
     });
   });
 
   group('McpServer tools/call dispatch', () {
-    test('forwards to the correct extensionMethod with the request arguments',
-        () async {
-      final registry = DowelRegistry()
-        ..registerMcpToolsFor(
-          _FakeMcpProvider(
-            providerName: 'tapir',
-            tools: [_tool('tapir_snap', extensionMethod: 'ext.tapir.snap')],
-          ),
+    test(
+      'forwards to the correct extensionMethod with the request arguments',
+      () async {
+        final registry = DowelRegistry()
+          ..registerMcpToolsFor(
+            _FakeMcpProvider(
+              providerName: 'tapir',
+              tools: [_tool('tapir_snap', extensionMethod: 'ext.tapir.snap')],
+            ),
+          );
+
+        final harness = await _TestHarness.build(
+          registry: registry,
+          filter: McpFilterConfig.empty(),
+          stubResponses: const {
+            'ext.tapir.snap': {'yaml': '- node'},
+          },
+        );
+        addTearDown(harness.dispose);
+
+        final callResult = await harness.connection.callTool(
+          CallToolRequest(name: 'tapir_snap', arguments: const {}),
         );
 
-      final harness = await _TestHarness.build(
-        registry: registry,
-        filter: McpFilterConfig.empty(),
-        stubResponses: const {
-          'ext.tapir.snap': {'yaml': '- node'},
-        },
-      );
-      addTearDown(harness.dispose);
-
-      final callResult = await harness.connection.callTool(
-        CallToolRequest(name: 'tapir_snap', arguments: const {}),
-      );
-
-      expect(harness.stub.calls.single.method, 'ext.tapir.snap');
-      expect(harness.stub.calls.single.isolateId, 'isolate-stub');
-      expect(callResult.isError, anyOf(isNull, isFalse));
-      final text = (callResult.content.single as TextContent).text;
-      expect(jsonDecode(text), {'yaml': '- node'});
-    });
+        expect(harness.stub.calls.single.method, 'ext.tapir.snap');
+        expect(harness.stub.calls.single.isolateId, 'isolate-stub');
+        expect(callResult.isError, anyOf(isNull, isFalse));
+        final text = (callResult.content.single as TextContent).text;
+        expect(jsonDecode(text), {'yaml': '- node'});
+      },
+    );
 
     test('wraps dispatch exceptions in CallToolResult.isError=true', () async {
       final registry = DowelRegistry()
@@ -584,8 +595,9 @@ void main() {
       );
       addTearDown(harness.dispose);
 
-      final callResult = await harness.connection
-          .callTool(CallToolRequest(name: 'tapir_snap'));
+      final callResult = await harness.connection.callTool(
+        CallToolRequest(name: 'tapir_snap'),
+      );
 
       expect(callResult.isError, isTrue);
       expect(
@@ -594,45 +606,47 @@ void main() {
       );
     });
 
-    test('inputSchema validation rejects calls missing a required arg',
-        () async {
-      final registry = DowelRegistry()
-        ..registerMcpToolsFor(
-          _FakeMcpProvider(
-            providerName: 'magic_tinker',
-            tools: [
-              _tool(
-                'tinker_eval',
-                extensionMethod: 'ext.tinker.evaluate',
-                inputSchema: const {
-                  'type': 'object',
-                  'properties': {
-                    'ref': {'type': 'string'},
+    test(
+      'inputSchema validation rejects calls missing a required arg',
+      () async {
+        final registry = DowelRegistry()
+          ..registerMcpToolsFor(
+            _FakeMcpProvider(
+              providerName: 'magic_tinker',
+              tools: [
+                _tool(
+                  'tinker_eval',
+                  extensionMethod: 'ext.tinker.evaluate',
+                  inputSchema: const {
+                    'type': 'object',
+                    'properties': {
+                      'ref': {'type': 'string'},
+                    },
+                    'required': ['ref'],
                   },
-                  'required': ['ref'],
-                },
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          );
+
+        final harness = await _TestHarness.build(
+          registry: registry,
+          filter: McpFilterConfig.empty(),
+        );
+        addTearDown(harness.dispose);
+
+        final callResult = await harness.connection.callTool(
+          CallToolRequest(name: 'tinker_eval', arguments: const {}),
         );
 
-      final harness = await _TestHarness.build(
-        registry: registry,
-        filter: McpFilterConfig.empty(),
-      );
-      addTearDown(harness.dispose);
+        expect(callResult.isError, isTrue);
+        // Stub was never reached because dart_mcp short-circuited on the
+        // missing required arg.
+        expect(harness.stub.calls, isEmpty);
+      },
+    );
 
-      final callResult = await harness.connection
-          .callTool(CallToolRequest(name: 'tinker_eval', arguments: const {}));
-
-      expect(callResult.isError, isTrue);
-      // Stub was never reached because dart_mcp short-circuited on the
-      // missing required arg.
-      expect(harness.stub.calls, isEmpty);
-    });
-
-    test(
-        'tapir_evaluate routes through vm.evaluate and returns the '
+    test('tapir_evaluate routes through vm.evaluate and returns the '
         'InstanceRef value as JSON', () async {
       final registry = DowelRegistry()
         ..registerMcpToolsFor(
@@ -649,11 +663,8 @@ void main() {
         filter: McpFilterConfig.empty(),
       );
       addTearDown(harness.dispose);
-      harness.stub._evaluateScript = (_, __) => InstanceRef(
-            kind: 'Int',
-            valueAsString: '3',
-            id: 'objects/int-3',
-          );
+      harness.stub._evaluateScript = (_, _) =>
+          InstanceRef(kind: 'Int', valueAsString: '3', id: 'objects/int-3');
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
@@ -662,15 +673,16 @@ void main() {
         ),
       );
 
-      expect(harness.stub.evaluateCalls.single,
-          (isolateId: 'isolate-stub', expression: '1 + 2'));
+      expect(harness.stub.evaluateCalls.single, (
+        isolateId: 'isolate-stub',
+        expression: '1 + 2',
+      ));
       expect(callResult.isError, anyOf(isNull, isFalse));
       final text = (callResult.content.single as TextContent).text;
       expect(jsonDecode(text), {'expression': '1 + 2', 'result': '3'});
     });
 
-    test(
-        'tapir_evaluate surfaces ErrorRef result as isError with a '
+    test('tapir_evaluate surfaces ErrorRef result as isError with a '
         'Runtime exception message', () async {
       final registry = DowelRegistry()
         ..registerMcpToolsFor(
@@ -687,11 +699,11 @@ void main() {
         filter: McpFilterConfig.empty(),
       );
       addTearDown(harness.dispose);
-      harness.stub._evaluateScript = (_, __) => ErrorRef(
-            kind: 'UnhandledException',
-            message: 'NoSuchMethodError: foo',
-            id: 'objects/error-1',
-          );
+      harness.stub._evaluateScript = (_, _) => ErrorRef(
+        kind: 'UnhandledException',
+        message: 'NoSuchMethodError: foo',
+        id: 'objects/error-1',
+      );
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
@@ -700,8 +712,10 @@ void main() {
         ),
       );
 
-      expect(harness.stub.evaluateCalls.single,
-          (isolateId: 'isolate-stub', expression: '1 + 2'));
+      expect(harness.stub.evaluateCalls.single, (
+        isolateId: 'isolate-stub',
+        expression: '1 + 2',
+      ));
       expect(callResult.isError, isTrue);
       final text = (callResult.content.single as TextContent).text;
       expect(text, contains('### Error'));
@@ -709,8 +723,7 @@ void main() {
       expect(text, contains('NoSuchMethodError: foo'));
     });
 
-    test(
-        'tapir_evaluate maps SentinelException to isError with an '
+    test('tapir_evaluate maps SentinelException to isError with an '
         'Isolate sentinel hint', () async {
       final registry = DowelRegistry()
         ..registerMcpToolsFor(
@@ -727,10 +740,10 @@ void main() {
         filter: McpFilterConfig.empty(),
       );
       addTearDown(harness.dispose);
-      harness.stub._evaluateScript = (_, __) => throw SentinelException.parse(
-            'evaluate',
-            <String, dynamic>{'kind': 'Collected', 'type': '@Sentinel'},
-          );
+      harness.stub._evaluateScript = (_, _) => throw SentinelException.parse(
+        'evaluate',
+        <String, dynamic>{'kind': 'Collected', 'type': '@Sentinel'},
+      );
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
@@ -739,8 +752,10 @@ void main() {
         ),
       );
 
-      expect(harness.stub.evaluateCalls.single,
-          (isolateId: 'isolate-stub', expression: '1 + 2'));
+      expect(harness.stub.evaluateCalls.single, (
+        isolateId: 'isolate-stub',
+        expression: '1 + 2',
+      ));
       expect(callResult.isError, isTrue);
       final text = (callResult.content.single as TextContent).text;
       expect(text, contains('### Error'));
@@ -750,8 +765,7 @@ void main() {
       expect(text, contains('dowel'));
     });
 
-    test(
-        'tapir_evaluate translates RPCError code 113 into a compile-error '
+    test('tapir_evaluate translates RPCError code 113 into a compile-error '
         'message', () async {
       final registry = DowelRegistry()
         ..registerMcpToolsFor(
@@ -768,12 +782,12 @@ void main() {
         filter: McpFilterConfig.empty(),
       );
       addTearDown(harness.dispose);
-      harness.stub._evaluateScript = (_, __) => throw RPCError(
-            'evaluate',
-            113,
-            'Expression compilation error',
-            <String, dynamic>{'details': 'Unterminated string literal'},
-          );
+      harness.stub._evaluateScript = (_, _) => throw RPCError(
+        'evaluate',
+        113,
+        'Expression compilation error',
+        <String, dynamic>{'details': 'Unterminated string literal'},
+      );
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
@@ -782,8 +796,10 @@ void main() {
         ),
       );
 
-      expect(harness.stub.evaluateCalls.single,
-          (isolateId: 'isolate-stub', expression: '1 + 2'));
+      expect(harness.stub.evaluateCalls.single, (
+        isolateId: 'isolate-stub',
+        expression: '1 + 2',
+      ));
       expect(callResult.isError, isTrue);
       final text = (callResult.content.single as TextContent).text;
       expect(text, contains('### Error'));
@@ -791,8 +807,7 @@ void main() {
       expect(text, contains('Unterminated string literal'));
     });
 
-    test(
-        'tapir_evaluate translates non-113 RPCError into an isError result '
+    test('tapir_evaluate translates non-113 RPCError into an isError result '
         'instead of bubbling as a protocol-level failure', () async {
       // The dispatch contract states errors surface as `isError: true`
       // rather than RPC failures. A non-113 RPCError (e.g. method-not-found,
@@ -812,11 +827,8 @@ void main() {
         filter: McpFilterConfig.empty(),
       );
       addTearDown(harness.dispose);
-      harness.stub._evaluateScript = (_, __) => throw RPCError(
-            'evaluate',
-            -32601,
-            'Method not found',
-          );
+      harness.stub._evaluateScript = (_, _) =>
+          throw RPCError('evaluate', -32601, 'Method not found');
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
@@ -825,8 +837,10 @@ void main() {
         ),
       );
 
-      expect(harness.stub.evaluateCalls.single,
-          (isolateId: 'isolate-stub', expression: '1 + 2'));
+      expect(harness.stub.evaluateCalls.single, (
+        isolateId: 'isolate-stub',
+        expression: '1 + 2',
+      ));
       expect(callResult.isError, isTrue);
       final text = (callResult.content.single as TextContent).text;
       expect(text, contains('### Error'));
@@ -835,8 +849,7 @@ void main() {
       expect(text, contains('Method not found'));
     });
 
-    test(
-        'tapir_evaluate translates an unexpected exception into an isError '
+    test('tapir_evaluate translates an unexpected exception into an isError '
         'result instead of bubbling as a protocol-level failure', () async {
       final registry = DowelRegistry()
         ..registerMcpToolsFor(
@@ -853,8 +866,8 @@ void main() {
         filter: McpFilterConfig.empty(),
       );
       addTearDown(harness.dispose);
-      harness.stub._evaluateScript =
-          (_, __) => throw StateError('isolate root library unavailable');
+      harness.stub._evaluateScript = (_, _) =>
+          throw StateError('isolate root library unavailable');
 
       final callResult = await harness.connection.callTool(
         CallToolRequest(
@@ -898,40 +911,43 @@ void main() {
         ),
       );
 
-    test('drops a client whose connection closed and reconnects on next call',
-        () async {
-      final clients = <_StubVmServiceClient>[];
-      final harness = await _TestHarness.build(
-        registry: snapRegistry(),
-        filter: McpFilterConfig.empty(),
-        vmClientFactory: restartableFactory(clients),
-      );
-      addTearDown(harness.dispose);
+    test(
+      'drops a client whose connection closed and reconnects on next call',
+      () async {
+        final clients = <_StubVmServiceClient>[];
+        final harness = await _TestHarness.build(
+          registry: snapRegistry(),
+          filter: McpFilterConfig.empty(),
+          vmClientFactory: restartableFactory(clients),
+        );
+        addTearDown(harness.dispose);
 
-      final before = await harness.connection.callTool(
-        CallToolRequest(name: 'tapir_snap', arguments: const {}),
-      );
-      expect(before.isError, isNot(isTrue));
+        final before = await harness.connection.callTool(
+          CallToolRequest(name: 'tapir_snap', arguments: const {}),
+        );
+        expect(before.isError, isNot(isTrue));
 
-      // The app stopped: vm_service disposed the socket and fired onDone.
-      clients.single.dispose();
-      await Future<void>.delayed(Duration.zero);
+        // The app stopped: vm_service disposed the socket and fired onDone.
+        clients.single.dispose();
+        await Future<void>.delayed(Duration.zero);
 
-      final after = await harness.connection.callTool(
-        CallToolRequest(name: 'tapir_snap', arguments: const {}),
-      );
+        final after = await harness.connection.callTool(
+          CallToolRequest(name: 'tapir_snap', arguments: const {}),
+        );
 
-      expect(after.isError, isNot(isTrue));
-      expect(jsonDecode((after.content.single as TextContent).text), {'ok': 1});
-      expect(clients, hasLength(2));
-      // The disposed client never saw the second call.
-      expect(clients.first.calls, hasLength(1));
-      expect(clients.last.calls, hasLength(1));
-    });
+        expect(after.isError, isNot(isTrue));
+        expect(jsonDecode((after.content.single as TextContent).text), {
+          'ok': 1,
+        });
+        expect(clients, hasLength(2));
+        // The disposed client never saw the second call.
+        expect(clients.first.calls, hasLength(1));
+        expect(clients.last.calls, hasLength(1));
+      },
+    );
 
     for (final code in <int>[-32010, -32000]) {
-      test(
-          'retries once on a fresh connection when an in-flight call finds '
+      test('retries once on a fresh connection when an in-flight call finds '
           'the connection disposed (code $code)', () async {
         final clients = <_StubVmServiceClient>[];
         final harness = await _TestHarness.build(
@@ -980,41 +996,43 @@ void main() {
       expect(clients, hasLength(2));
     });
 
-    test('tapir_evaluate retries on a fresh connection after disposal',
-        () async {
-      final clients = <_StubVmServiceClient>[];
-      final registry = DowelRegistry()
-        ..registerMcpToolsFor(
-          _FakeMcpProvider(
-            providerName: 'tapir',
-            tools: [
-              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
-            ],
+    test(
+      'tapir_evaluate retries on a fresh connection after disposal',
+      () async {
+        final clients = <_StubVmServiceClient>[];
+        final registry = DowelRegistry()
+          ..registerMcpToolsFor(
+            _FakeMcpProvider(
+              providerName: 'tapir',
+              tools: [
+                _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
+              ],
+            ),
+          );
+        final harness = await _TestHarness.build(
+          registry: registry,
+          filter: McpFilterConfig.empty(),
+          vmClientFactory: restartableFactory(
+            clients,
+            onCreate: (client) => client._evaluateScript = (_, _) =>
+                InstanceRef(kind: 'Int', valueAsString: '3', id: 'objects/3'),
           ),
         );
-      final harness = await _TestHarness.build(
-        registry: registry,
-        filter: McpFilterConfig.empty(),
-        vmClientFactory: restartableFactory(
-          clients,
-          onCreate: (client) => client._evaluateScript = (_, __) =>
-              InstanceRef(kind: 'Int', valueAsString: '3', id: 'objects/3'),
-        ),
-      );
-      addTearDown(harness.dispose);
-      clients.single.dispose(notifyDone: false);
+        addTearDown(harness.dispose);
+        clients.single.dispose(notifyDone: false);
 
-      final result = await harness.connection.callTool(
-        CallToolRequest(
-          name: 'tapir_evaluate',
-          arguments: const {'expression': '1 + 2'},
-        ),
-      );
+        final result = await harness.connection.callTool(
+          CallToolRequest(
+            name: 'tapir_evaluate',
+            arguments: const {'expression': '1 + 2'},
+          ),
+        );
 
-      expect(result.isError, isNot(isTrue));
-      expect(clients, hasLength(2));
-      expect(clients.last.evaluateCalls, hasLength(1));
-    });
+        expect(result.isError, isNot(isTrue));
+        expect(clients, hasLength(2));
+        expect(clients.last.evaluateCalls, hasLength(1));
+      },
+    );
   });
 
   group('McpServer substrate commands under stdio', () {
@@ -1030,80 +1048,81 @@ void main() {
       await tempHome.delete(recursive: true);
     });
 
-    test('dowel_logs returns the log in the result and writes no stdout',
-        () async {
-      Directory('${tempHome.path}/.dowel').createSync(recursive: true);
-      File('${tempHome.path}/.dowel/flutter-dev.log')
-          .writeAsStringSync('line one\nline two\n');
-      final registry = DowelRegistry()
-        ..registerAll(<DowelCommand>[LogsCommand()], providerName: 'dowel');
+    test(
+      'dowel_logs returns the log in the result and writes no stdout',
+      () async {
+        Directory('${tempHome.path}/.dowel').createSync(recursive: true);
+        File('${tempHome.path}/.dowel/flutter-dev.log')
+            .writeAsStringSync('line one\nline two\n');
+        final registry = DowelRegistry()
+          ..registerAll(<DowelCommand>[LogsCommand()], providerName: 'dowel');
 
-      final captured = await _captureStdio(() async {
-        final harness = await _TestHarness.build(
-          registry: registry,
-          filter: McpFilterConfig.empty(),
-        );
-        try {
-          return await harness.connection.callTool(
-            CallToolRequest(name: 'dowel_logs', arguments: const {}),
+        final captured = await _captureStdio(() async {
+          final harness = await _TestHarness.build(
+            registry: registry,
+            filter: McpFilterConfig.empty(),
           );
-        } finally {
-          await harness.dispose();
-        }
-      });
+          try {
+            return await harness.connection.callTool(
+              CallToolRequest(name: 'dowel_logs', arguments: const {}),
+            );
+          } finally {
+            await harness.dispose();
+          }
+        });
 
-      expect(captured.result.isError, isFalse);
-      final text = (captured.result.content.single as TextContent).text;
-      expect(text, contains('line one\nline two'));
-      // Stdout is the JSON-RPC channel under `mcp:serve`.
-      expect(captured.out, isEmpty);
-    });
+        expect(captured.result.isError, isFalse);
+        final text = (captured.result.content.single as TextContent).text;
+        expect(text, contains('line one\nline two'));
+        // Stdout is the JSON-RPC channel under `mcp:serve`.
+        expect(captured.out, isEmpty);
+      },
+    );
 
-    test('dowel_tinker rejects a blank eval instead of reading stdin',
-        () async {
-      final registry = DowelRegistry()
-        ..registerAll(<DowelCommand>[TinkerCommand()], providerName: 'dowel');
+    test(
+      'dowel_tinker rejects a blank eval instead of reading stdin',
+      () async {
+        final registry = DowelRegistry()
+          ..registerAll(<DowelCommand>[TinkerCommand()], providerName: 'dowel');
 
-      final captured = await _captureStdio(() async {
-        final harness = await _TestHarness.build(
-          registry: registry,
-          filter: McpFilterConfig.empty(),
-        );
-        try {
-          return await harness.connection.callTool(
-            CallToolRequest(
-              name: 'dowel_tinker',
-              arguments: const {'eval': '  '},
-            ),
+        final captured = await _captureStdio(() async {
+          final harness = await _TestHarness.build(
+            registry: registry,
+            filter: McpFilterConfig.empty(),
           );
-        } finally {
-          await harness.dispose();
-        }
-      });
+          try {
+            return await harness.connection.callTool(
+              CallToolRequest(
+                name: 'dowel_tinker',
+                arguments: const {'eval': '  '},
+              ),
+            );
+          } finally {
+            await harness.dispose();
+          }
+        });
 
-      expect(captured.result.isError, isTrue);
-      final text = (captured.result.content.single as TextContent).text;
-      expect(text, contains('--eval'));
-      expect(text, isNot(contains('Tinker connected')));
-      expect(captured.out, isEmpty);
-    });
+        expect(captured.result.isError, isTrue);
+        final text = (captured.result.content.single as TextContent).text;
+        expect(text, contains('--eval'));
+        expect(text, isNot(contains('Tinker connected')));
+        expect(captured.out, isEmpty);
+      },
+    );
 
     test('array arguments reach the command as List<String>', () async {
       List<String>? received;
       final registry = DowelRegistry()
-        ..registerAll(
-          <DowelCommand>[
-            _FakeSubstrateCommand(
-              'start',
-              'Boot the app.',
-              onHandle: (ctx) async {
-                received = ctx.input.option('flutter-arg') as List<String>?;
-                return 0;
-              },
-            ),
-          ],
-          providerName: 'dowel',
-        );
+        ..registerAll(<DowelCommand>[
+          _FakeSubstrateCommand(
+            'start',
+            'Boot the app.',
+            onHandle: (ctx) async {
+              received = ctx.input.option('flutter-arg') as List<String>?;
+              return 0;
+            },
+          ),
+        ], providerName: 'dowel');
       final harness = await _TestHarness.build(
         registry: registry,
         filter: McpFilterConfig.empty(),
@@ -1125,11 +1144,11 @@ void main() {
   });
 
   group('McpServer substrate tool schemas', () {
-    test('every CLI option of an allowlisted command has a schema property',
-        () async {
-      final registry = DowelRegistry();
-      registry.registerAll(
-        <DowelCommand>[
+    test(
+      'every CLI option of an allowlisted command has a schema property',
+      () async {
+        final registry = DowelRegistry();
+        registry.registerAll(<DowelCommand>[
           StartCommand(),
           StopCommand(),
           StatusCommand(),
@@ -1140,49 +1159,49 @@ void main() {
           DoctorCommand(),
           ListCommand(registry),
           TinkerCommand(),
-        ],
-        providerName: 'dowel',
-      );
-      final harness = await _TestHarness.build(
-        registry: registry,
-        filter: McpFilterConfig.empty(),
-      );
-      addTearDown(harness.dispose);
-
-      final tools = {
-        for (final tool in (await harness.connection.listTools()).tools)
-          tool.name: tool,
-      };
-      expect(tools, hasLength(10));
-
-      for (final command in registry.all()) {
-        final toolName = 'dowel_${command.name.replaceAll('-', '_')}';
-        final properties = Map<String, dynamic>.from(
-          (tools[toolName]!.inputSchema as Map)['properties'] as Map,
+        ], providerName: 'dowel');
+        final harness = await _TestHarness.build(
+          registry: registry,
+          filter: McpFilterConfig.empty(),
         );
-        final parser = ArgParser();
-        command.configure(parser);
+        addTearDown(harness.dispose);
 
-        for (final option in parser.options.values) {
-          final expectedType = option.isFlag
-              ? 'boolean'
-              : option.isMultiple
-                  ? 'array'
-                  : 'string';
+        final tools = {
+          for (final tool in (await harness.connection.listTools()).tools)
+            tool.name: tool,
+        };
+        expect(tools, hasLength(10));
+
+        for (final command in registry.all()) {
+          final toolName = 'dowel_${command.name.replaceAll('-', '_')}';
+          final properties = Map<String, dynamic>.from(
+            (tools[toolName]!.inputSchema as Map)['properties'] as Map,
+          );
+          final parser = ArgParser();
+          command.configure(parser);
+
+          for (final option in parser.options.values) {
+            final expectedType = option.isFlag
+                ? 'boolean'
+                : option.isMultiple
+                ? 'array'
+                : 'string';
+            expect(
+              properties[option.name]?['type'],
+              expectedType,
+              reason:
+                  '$toolName has no `${option.name}` property of type '
+                  '$expectedType',
+            );
+          }
           expect(
-            properties[option.name]?['type'],
-            expectedType,
-            reason: '$toolName has no `${option.name}` property of type '
-                '$expectedType',
+            properties.keys,
+            everyElement(isIn(parser.options.keys)),
+            reason: '$toolName advertises a property the CLI does not parse',
           );
         }
-        expect(
-          properties.keys,
-          everyElement(isIn(parser.options.keys)),
-          reason: '$toolName advertises a property the CLI does not parse',
-        );
-      }
-    });
+      },
+    );
   });
 
   group('McpServer handshake order', () {
@@ -1193,13 +1212,10 @@ void main() {
         (line) => received.add(jsonDecode(line) as Map<String, dynamic>),
       );
       final registry = DowelRegistry()
-        ..registerAll(
-          <DowelCommand>[
-            _FakeSubstrateCommand('status', 'Print status.'),
-            _FakeSubstrateCommand('doctor', 'Run checks.'),
-          ],
-          providerName: 'dowel',
-        );
+        ..registerAll(<DowelCommand>[
+          _FakeSubstrateCommand('status', 'Print status.'),
+          _FakeSubstrateCommand('doctor', 'Run checks.'),
+        ], providerName: 'dowel');
       final server = McpServer.test(
         channel: controller.local,
         registry: registry,
@@ -1240,8 +1256,9 @@ void main() {
       expect(received, isNotEmpty);
       expect(received.first['id'], 1);
       expect(
-        received
-            .where((m) => m['method'] == 'notifications/tools/list_changed'),
+        received.where(
+          (m) => m['method'] == 'notifications/tools/list_changed',
+        ),
         isEmpty,
       );
     });

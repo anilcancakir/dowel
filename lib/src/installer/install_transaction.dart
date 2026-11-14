@@ -61,14 +61,13 @@ import 'install_record.dart';
 /// ```
 class InstallTransaction {
   /// Creates a transaction bound to [ctx] for the plugin identified by
-  /// [pluginName]. The plugin name threads into the
+  /// [_pluginName]. The plugin name threads into the
   /// `.dowel/installed/<pluginName>.json` record path written on success.
   ///
   /// @param ctx         The active [InstallContext] (fs / clock / output).
   /// @param pluginName  Identifier used for the install record filename.
-  InstallTransaction(InstallContext ctx, {required String pluginName})
-      : _ctx = ctx,
-        _pluginName = pluginName;
+  InstallTransaction(InstallContext ctx, {required this._pluginName})
+    : _ctx = ctx;
 
   /// Build setting Xcode reads to find the entitlements file that signs the
   /// product. Named in the operator-facing lines [_pointXcodeAtEntitlements]
@@ -83,8 +82,9 @@ class InstallTransaction {
   /// Leading `$(SRCROOT)/` or `$(PROJECT_DIR)/` of a build-setting path: both
   /// name the directory holding the `.xcodeproj`, the base the path is
   /// relative to anyway.
-  static final RegExp _projectDirectoryVariable =
-      RegExp(r'^\$[({](?:SRCROOT|PROJECT_DIR)[)}]/');
+  static final RegExp _projectDirectoryVariable = RegExp(
+    r'^\$[({](?:SRCROOT|PROJECT_DIR)[)}]/',
+  );
 
   /// Any build variable reference, `$(NAME)` or `${NAME}`.
   static final RegExp _buildVariable = RegExp(r'\$[({]');
@@ -107,9 +107,9 @@ class InstallTransaction {
   /// a dependency that was the user's before the install.
   final Set<int> _preExistingDependencies = <int>{};
 
-  /// Conflict list injected by tests via [debugSetConflictsForTest]. Until
-  /// Step 7's `ConflictDetector` lands, the production code path treats this
-  /// as the authoritative pre-flight conflict source.
+  /// Conflict list injected by tests via [debugSetConflictsForTest]. When it
+  /// is non-empty it replaces the [ConflictDetector] result; production never
+  /// sets it.
   List<FileConflict> _conflictsOverride = const <FileConflict>[];
 
   /// One-shot guard. Flipped to `true` after the first [commit] returns so a
@@ -139,8 +139,9 @@ class InstallTransaction {
     _ops.add(op);
   }
 
-  /// Test-only seam (will be removed once Step 7's `ConflictDetector` is
-  /// wired): pre-populates the conflict list returned by [_detectConflicts].
+  /// Test-only seam: pre-populates the conflict list returned by
+  /// [_detectConflicts], so a test reaches the conflict branch without
+  /// building the filesystem state the real detector reads.
   ///
   /// @param conflicts  The synthetic conflict set to surface during the next
   ///                   non-dry-run [commit].
@@ -175,9 +176,8 @@ class InstallTransaction {
       return InstallDryRun(opCount: _ops.length);
     }
 
-    // 2. Conflict pre-flight. Until Step 7 wires the real ConflictDetector,
-    //    `_detectConflicts` returns the test-seeded list (or an empty list in
-    //    production). The `force` flag bypasses this gate.
+    // 2. Conflict pre-flight through `_detectConflicts`. The `force` flag
+    //    bypasses this gate.
     final conflicts = _detectConflicts();
     if (conflicts.isNotEmpty && !force) {
       return InstallConflict(conflicts: conflicts);
@@ -261,7 +261,8 @@ class InstallTransaction {
     );
     if (recordError != null) {
       return InstallError(
-        error: 'Every file landed, but $recordError plugin:uninstall cannot '
+        error:
+            'Every file landed, but $recordError plugin:uninstall cannot '
             'reverse this install until it is re-run.',
         rolledBack: false,
       );
@@ -330,10 +331,11 @@ class InstallTransaction {
     final recordError = _writeRecord(record);
 
     return InstallError(
-      error: '${failure.error}\nEarlier edits (pubspec, native files, '
+      error:
+          '${failure.error}\nEarlier edits (pubspec, native files, '
           'main.dart) were already applied and stay on disk. '
           '${recordError == null ? 'A partial install record lists them, so '
-              'plugin:uninstall reverses what it can.' : 'Also, $recordError'}',
+                    'plugin:uninstall reverses what it can.' : 'Also, $recordError'}',
       rolledBack: false,
     );
   }
@@ -756,12 +758,12 @@ class InstallTransaction {
 
   /// Resolves `<projectRoot>/lib/app/providers/route_service_provider.dart`.
   String _routeProviderPath() => p.join(
-        _ctx.projectRoot,
-        'lib',
-        'app',
-        'providers',
-        'route_service_provider.dart',
-      );
+    _ctx.projectRoot,
+    'lib',
+    'app',
+    'providers',
+    'route_service_provider.dart',
+  );
 
   /// Resolves `<projectRoot>/.env`.
   String _envPath() => p.join(_ctx.projectRoot, '.env');
@@ -988,20 +990,24 @@ class InstallTransaction {
     final problems = <String>[];
 
     for (final op in _ops) {
-      final (String target, Pattern pattern, Pattern? fallback, String code) =
-          switch (op) {
+      final (
+        String target,
+        Pattern pattern,
+        Pattern? fallback,
+        String code,
+      ) = switch (op) {
         InjectBeforePattern() => (
-            op.targetFile,
-            op.pattern,
-            op.fallbackPattern,
-            op.code,
-          ),
+          op.targetFile,
+          op.pattern,
+          op.fallbackPattern,
+          op.code,
+        ),
         InjectAfterPattern() => (
-            op.targetFile,
-            op.pattern,
-            op.fallbackPattern,
-            op.code,
-          ),
+          op.targetFile,
+          op.pattern,
+          op.fallbackPattern,
+          op.code,
+        ),
         _ => ('', '', null, ''),
       };
       if (target.isEmpty) continue;
@@ -1028,7 +1034,8 @@ class InstallTransaction {
     if (problems.isEmpty) return null;
 
     return InstallError(
-      error: 'Pattern injection cannot land, so nothing was installed:\n  '
+      error:
+          'Pattern injection cannot land, so nothing was installed:\n  '
           '${problems.join('\n  ')}\n'
           'The plugin expected a different shape in those files. Fix the host '
           'file or the plugin pattern; re-running changes nothing.',
@@ -1039,8 +1046,9 @@ class InstallTransaction {
   /// Whether [pattern] finds anything in [content], for either `Pattern` shape
   /// the ops accept.
   bool _matches(Pattern pattern, String content) {
-    final regex =
-        pattern is RegExp ? pattern : RegExp(RegExp.escape(pattern.toString()));
+    final regex = pattern is RegExp
+        ? pattern
+        : RegExp(RegExp.escape(pattern.toString()));
 
     return regex.hasMatch(content);
   }
@@ -1054,7 +1062,8 @@ class InstallTransaction {
   /// arm should be unreachable in practice.
   InstallError _patternMissed(String description, String targetFile) {
     return InstallError(
-      error: '$description matched nothing in $targetFile at stage time, after '
+      error:
+          '$description matched nothing in $targetFile at stage time, after '
           'the preflight accepted it. An earlier operation in the same install '
           'rewrote that file. Earlier helper writes may remain on disk.',
       rolledBack: false,
@@ -1078,7 +1087,8 @@ class InstallTransaction {
         );
         if (result.exitCode != 0) {
           return InstallError(
-            error: 'RunShell failed (${op.command} ${op.args.join(' ')}, exit '
+            error:
+                'RunShell failed (${op.command} ${op.args.join(' ')}, exit '
                 '${result.exitCode}): ${result.stderr}',
             rolledBack: false,
           );
@@ -1135,8 +1145,9 @@ class InstallTransaction {
       // The file just landed via rename, so md5 reads the freshly-committed
       // content. Tracking the hash here (rather than at write time) makes
       // ConflictDetector's later compare a single read per file.
-      stubHashes[installRecordKey(_ctx.projectRoot, entry.key)] =
-          _ctx.fs.md5(entry.key);
+      stubHashes[installRecordKey(_ctx.projectRoot, entry.key)] = _ctx.fs.md5(
+        entry.key,
+      );
     }
     for (final path in _helperWrittenTargets) {
       final key = installRecordKey(_ctx.projectRoot, path);
@@ -1181,19 +1192,19 @@ class InstallTransaction {
   Map<String, dynamic> _serializeOp(InstallOperation op) {
     return switch (op) {
       WriteFile(:final targetPath, :final content) => <String, dynamic>{
-          'type': 'WriteFile',
-          'targetPath': targetPath,
-          'content': content,
-        },
+        'type': 'WriteFile',
+        'targetPath': targetPath,
+        'content': content,
+      },
       DeleteFile(:final targetPath) => <String, dynamic>{
-          'type': 'DeleteFile',
-          'targetPath': targetPath,
-        },
+        'type': 'DeleteFile',
+        'targetPath': targetPath,
+      },
       CopyFile(:final sourcePath, :final targetPath) => <String, dynamic>{
-          'type': 'CopyFile',
-          'sourcePath': sourcePath,
-          'targetPath': targetPath,
-        },
+        'type': 'CopyFile',
+        'sourcePath': sourcePath,
+        'targetPath': targetPath,
+      },
       PublishFile(
         :final sourceStubName,
         :final targetPath,
@@ -1213,23 +1224,23 @@ class InstallTransaction {
           'isDev': isDev,
         },
       AddPathDependency(:final name, :final path) => <String, dynamic>{
-          'type': 'AddPathDependency',
-          'name': name,
-          'path': path,
-        },
+        'type': 'AddPathDependency',
+        'name': name,
+        'path': path,
+      },
       RemoveDependency(:final name) => <String, dynamic>{
-          'type': 'RemoveDependency',
-          'name': name,
-        },
+        'type': 'RemoveDependency',
+        'name': name,
+      },
       AddPubspecAsset(:final assetPath) => <String, dynamic>{
-          'type': 'AddPubspecAsset',
-          'assetPath': assetPath,
-        },
+        'type': 'AddPubspecAsset',
+        'assetPath': assetPath,
+      },
       MergeJson(:final targetPath, :final additive) => <String, dynamic>{
-          'type': 'MergeJson',
-          'targetPath': targetPath,
-          'additive': additive,
-        },
+        'type': 'MergeJson',
+        'targetPath': targetPath,
+        'additive': additive,
+      },
       InjectImport(:final targetFile, :final importStatement) =>
         <String, dynamic>{
           'type': 'InjectImport',
@@ -1251,14 +1262,14 @@ class InstallTransaction {
           'code': code,
         },
       InjectAndroidPermission(:final permission) => <String, dynamic>{
-          'type': 'InjectAndroidPermission',
-          'permission': permission,
-        },
+        'type': 'InjectAndroidPermission',
+        'permission': permission,
+      },
       InjectAndroidMetaData(:final name, :final value) => <String, dynamic>{
-          'type': 'InjectAndroidMetaData',
-          'name': name,
-          'value': value,
-        },
+        'type': 'InjectAndroidMetaData',
+        'name': name,
+        'value': value,
+      },
       InjectAndroidActivity(
         :final name,
         :final exported,
@@ -1295,15 +1306,15 @@ class InstallTransaction {
           'value': value is List ? value : value.toString(),
         },
       InjectPodfileLine(:final platform, :final line) => <String, dynamic>{
-          'type': 'InjectPodfileLine',
-          'platform': platform,
-          'line': line,
-        },
+        'type': 'InjectPodfileLine',
+        'platform': platform,
+        'line': line,
+      },
       InjectGradlePlugin(:final pluginId, :final version) => <String, dynamic>{
-          'type': 'InjectGradlePlugin',
-          'pluginId': pluginId,
-          if (version != null) 'version': version,
-        },
+        'type': 'InjectGradlePlugin',
+        'pluginId': pluginId,
+        'version': ?version,
+      },
       InjectGradleDependency(:final scope, :final notation) =>
         <String, dynamic>{
           'type': 'InjectGradleDependency',
@@ -1315,35 +1326,35 @@ class InstallTransaction {
           'type': 'InjectEnvVar',
           'key': key,
           'value': value,
-          if (comment != null) 'comment': comment,
+          'comment': ?comment,
         },
       InjectIntoWebHead(:final content) => <String, dynamic>{
-          'type': 'InjectIntoWebHead',
-          'content': content,
-        },
+        'type': 'InjectIntoWebHead',
+        'content': content,
+      },
       AddWebMetaTag(:final attributes) => <String, dynamic>{
-          'type': 'AddWebMetaTag',
-          'attributes': attributes,
-        },
+        'type': 'AddWebMetaTag',
+        'attributes': attributes,
+      },
       InjectMainDartImport(:final importStatement) => <String, dynamic>{
-          'type': 'InjectMainDartImport',
-          'importStatement': importStatement,
-        },
+        'type': 'InjectMainDartImport',
+        'importStatement': importStatement,
+      },
       InjectIntoMainDart(:final placement, :final code) => <String, dynamic>{
-          'type': 'InjectIntoMainDart',
-          'placement': placement.name,
-          'code': code,
-        },
+        'type': 'InjectIntoMainDart',
+        'placement': placement.name,
+        'code': code,
+      },
       InjectRouteRegistration(:final functionName) => <String, dynamic>{
-          'type': 'InjectRouteRegistration',
-          'functionName': functionName,
-        },
+        'type': 'InjectRouteRegistration',
+        'functionName': functionName,
+      },
       RunShell(:final command, :final args, :final workingDir) =>
         <String, dynamic>{
           'type': 'RunShell',
           'command': command,
           'args': args,
-          if (workingDir != null) 'workingDir': workingDir,
+          'workingDir': ?workingDir,
         },
     };
   }
@@ -1406,11 +1417,11 @@ final class InstallConflict extends TransactionResult {
   /// before reaching for `--force`.
   @override
   String describe() => <String>[
-        'Conflict: ${conflicts.length} file(s) modified out-of-band; '
-            'pass --force to override',
-        for (final conflict in conflicts)
-          '  ${conflict.absPath} (${conflict.reason})',
-      ].join('\n');
+    'Conflict: ${conflicts.length} file(s) modified out-of-band; '
+        'pass --force to override',
+    for (final conflict in conflicts)
+      '  ${conflict.absPath} (${conflict.reason})',
+  ].join('\n');
 }
 
 /// A write failed, an unimplemented op was encountered, or a post-rename step

@@ -17,7 +17,7 @@ const String _pkgName = 'dowel';
 ///   'tableName': 'monitors',
 /// });
 /// ```
-class StubLoader {
+final class StubLoader {
   /// Prevent instantiation — this is a pure static utility class.
   const StubLoader._();
 
@@ -108,8 +108,10 @@ class StubLoader {
       final pubspec = File(path.join(current.path, 'pubspec.yaml'));
       if (pubspec.existsSync()) {
         final content = pubspec.readAsStringSync();
-        if (RegExp('^name:\\s*$_pkgName\\s*\$', multiLine: true)
-            .hasMatch(content)) {
+        if (RegExp(
+          '^name:\\s*$_pkgName\\s*\$',
+          multiLine: true,
+        ).hasMatch(content)) {
           return [path.join(current.path, 'assets', 'stubs')];
         }
       }

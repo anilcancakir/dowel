@@ -18,6 +18,10 @@ import 'extension_not_registered_exception.dart';
 /// DDS namespace mapping is handled transparently by `package:vm_service`
 /// when the WebSocket URI points at a DDS endpoint (which `flutter run`
 /// does by default).
+///
+/// [evaluate] and [reloadSources] return `package:vm_service` types
+/// (`Response`, `ReloadReport`), so a caller that reads them depends on
+/// `vm_service` too.
 class VmServiceClient {
   VmServiceClient(this.wsUri);
 

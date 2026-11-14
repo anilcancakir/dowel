@@ -13,7 +13,7 @@ import '../stubs/stub_loader.dart';
 /// final content = driver.load('model');
 /// final result = driver.make('model', {'className': 'Monitor'});
 /// ```
-abstract class StubDriver {
+abstract interface class StubDriver {
   /// Load a `.stub` file by name and return its raw content.
   ///
   /// [name] is the stub name without extension (e.g., `model`,
@@ -60,7 +60,7 @@ abstract class StubDriver {
 /// final driver = RealStubDriver();
 /// final content = driver.make('model', {'className': 'Monitor'});
 /// ```
-class RealStubDriver implements StubDriver {
+final class RealStubDriver implements StubDriver {
   /// Creates a [RealStubDriver].
   const RealStubDriver();
 

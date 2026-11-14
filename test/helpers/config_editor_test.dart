@@ -255,26 +255,26 @@ void main() {
       if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
     });
 
-    test('insertCodeAfterPattern skips when code already present after pattern',
-        () {
-      final filePath = p.join(tempDir.path, 'after_idempotent.dart');
-      // Seed: pattern already followed by the code we intend to inject.
-      File(filePath).writeAsStringSync('MARK\ninjected_code\n');
-      final before = File(filePath).readAsStringSync();
-
-      ConfigEditor.insertCodeAfterPattern(
-        filePath: filePath,
-        pattern: 'MARK',
-        code: '\ninjected_code\n',
-      );
-
-      // File must be byte-for-byte identical; no duplicate injection.
-      expect(File(filePath).readAsStringSync(), before);
-    });
-
     test(
-        'insertCodeAfterPattern inserts when code is different from any existing snippet',
-        () {
+      'insertCodeAfterPattern skips when code already present after pattern',
+      () {
+        final filePath = p.join(tempDir.path, 'after_idempotent.dart');
+        // Seed: pattern already followed by the code we intend to inject.
+        File(filePath).writeAsStringSync('MARK\ninjected_code\n');
+        final before = File(filePath).readAsStringSync();
+
+        ConfigEditor.insertCodeAfterPattern(
+          filePath: filePath,
+          pattern: 'MARK',
+          code: '\ninjected_code\n',
+        );
+
+        // File must be byte-for-byte identical; no duplicate injection.
+        expect(File(filePath).readAsStringSync(), before);
+      },
+    );
+
+    test('insertCodeAfterPattern inserts when code is different from any existing snippet', () {
       final filePath = p.join(tempDir.path, 'after_inserts.dart');
       // Seed: pattern exists but the target code is absent.
       File(filePath).writeAsStringSync('MARK\nother_code\n');
@@ -293,22 +293,23 @@ void main() {
     });
 
     test(
-        'insertCodeBeforePattern skips when code already present before pattern',
-        () {
-      final filePath = p.join(tempDir.path, 'before_idempotent.dart');
-      // Seed: the code we intend to inject already precedes the pattern.
-      File(filePath).writeAsStringSync('injected_code\nMARK\n');
-      final before = File(filePath).readAsStringSync();
+      'insertCodeBeforePattern skips when code already present before pattern',
+      () {
+        final filePath = p.join(tempDir.path, 'before_idempotent.dart');
+        // Seed: the code we intend to inject already precedes the pattern.
+        File(filePath).writeAsStringSync('injected_code\nMARK\n');
+        final before = File(filePath).readAsStringSync();
 
-      ConfigEditor.insertCodeBeforePattern(
-        filePath: filePath,
-        pattern: 'MARK',
-        code: 'injected_code\n',
-      );
+        ConfigEditor.insertCodeBeforePattern(
+          filePath: filePath,
+          pattern: 'MARK',
+          code: 'injected_code\n',
+        );
 
-      // File must be byte-for-byte identical; no duplicate injection.
-      expect(File(filePath).readAsStringSync(), before);
-    });
+        // File must be byte-for-byte identical; no duplicate injection.
+        expect(File(filePath).readAsStringSync(), before);
+      },
+    );
 
     test('insertCodeBeforePattern inserts when code is different', () {
       final filePath = p.join(tempDir.path, 'before_inserts.dart');

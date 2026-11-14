@@ -38,10 +38,12 @@ class HelpCommand extends DowelCommand {
 
     final argsHint = signature == null
         ? '[arguments]'
-        : signature.arguments.map((a) {
-            final base = a.isOptional ? '[${a.name}]' : '<${a.name}>';
-            return a.isVariadic ? '$base...' : base;
-          }).join(' ');
+        : signature.arguments
+              .map((a) {
+                final base = a.isOptional ? '[${a.name}]' : '<${a.name}>';
+                return a.isVariadic ? '$base...' : base;
+              })
+              .join(' ');
 
     ctx.output.info('Description:');
     ctx.output.writeln('  ${command.description}');

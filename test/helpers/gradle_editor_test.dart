@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/helpers/gradle_editor.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -74,8 +74,11 @@ void main() {
 
     // 1. addPlugin KTS
     test('addPlugin inserts id("foo") version "1.0" inside plugins{}', () {
-      GradleEditor.addPlugin(ktsPath, 'com.google.gms.google-services',
-          version: '4.4.0');
+      GradleEditor.addPlugin(
+        ktsPath,
+        'com.google.gms.google-services',
+        version: '4.4.0',
+      );
 
       final content = File(ktsPath).readAsStringSync();
       expect(
@@ -86,21 +89,31 @@ void main() {
 
     // 3. addPlugin idempotent (tested from KTS side)
     test('addPlugin is idempotent — no double-insert', () {
-      GradleEditor.addPlugin(ktsPath, 'com.google.gms.google-services',
-          version: '4.4.0');
-      GradleEditor.addPlugin(ktsPath, 'com.google.gms.google-services',
-          version: '4.4.0');
+      GradleEditor.addPlugin(
+        ktsPath,
+        'com.google.gms.google-services',
+        version: '4.4.0',
+      );
+      GradleEditor.addPlugin(
+        ktsPath,
+        'com.google.gms.google-services',
+        version: '4.4.0',
+      );
 
       final content = File(ktsPath).readAsStringSync();
-      final occurrences =
-          'com.google.gms.google-services'.allMatches(content).length;
+      final occurrences = 'com.google.gms.google-services'
+          .allMatches(content)
+          .length;
       expect(occurrences, 1);
     });
 
     // 4. addDependency KTS
     test('addDependency inserts implementation("foo:bar:1.0")', () {
       GradleEditor.addDependency(
-          ktsPath, 'implementation', 'com.google.firebase:firebase-bom:32.0.0');
+        ktsPath,
+        'implementation',
+        'com.google.firebase:firebase-bom:32.0.0',
+      );
 
       final content = File(ktsPath).readAsStringSync();
       expect(
@@ -112,13 +125,20 @@ void main() {
     // 6. addDependency idempotent (KTS side)
     test('addDependency is idempotent — no double-insert', () {
       GradleEditor.addDependency(
-          ktsPath, 'implementation', 'com.google.firebase:firebase-bom:32.0.0');
+        ktsPath,
+        'implementation',
+        'com.google.firebase:firebase-bom:32.0.0',
+      );
       GradleEditor.addDependency(
-          ktsPath, 'implementation', 'com.google.firebase:firebase-bom:32.0.0');
+        ktsPath,
+        'implementation',
+        'com.google.firebase:firebase-bom:32.0.0',
+      );
 
       final content = File(ktsPath).readAsStringSync();
-      final occurrences =
-          'com.google.firebase:firebase-bom:32.0.0'.allMatches(content).length;
+      final occurrences = 'com.google.firebase:firebase-bom:32.0.0'
+          .allMatches(content)
+          .length;
       expect(occurrences, 1);
     });
 
@@ -162,8 +182,11 @@ void main() {
 
     // 2. addPlugin Groovy
     test("addPlugin inserts id 'foo' version '1.0' inside plugins{}", () {
-      GradleEditor.addPlugin(groovyPath, 'com.google.gms.google-services',
-          version: '4.4.0');
+      GradleEditor.addPlugin(
+        groovyPath,
+        'com.google.gms.google-services',
+        version: '4.4.0',
+      );
 
       final content = File(groovyPath).readAsStringSync();
       expect(
@@ -174,8 +197,11 @@ void main() {
 
     // 5. addDependency Groovy
     test("addDependency inserts implementation 'foo:bar:1.0'", () {
-      GradleEditor.addDependency(groovyPath, 'implementation',
-          'com.google.firebase:firebase-bom:32.0.0');
+      GradleEditor.addDependency(
+        groovyPath,
+        'implementation',
+        'com.google.firebase:firebase-bom:32.0.0',
+      );
 
       final content = File(groovyPath).readAsStringSync();
       expect(
@@ -195,27 +221,41 @@ void main() {
 
     // Groovy addPlugin idempotent
     test('addPlugin is idempotent — no double-insert (Groovy)', () {
-      GradleEditor.addPlugin(groovyPath, 'com.google.gms.google-services',
-          version: '4.4.0');
-      GradleEditor.addPlugin(groovyPath, 'com.google.gms.google-services',
-          version: '4.4.0');
+      GradleEditor.addPlugin(
+        groovyPath,
+        'com.google.gms.google-services',
+        version: '4.4.0',
+      );
+      GradleEditor.addPlugin(
+        groovyPath,
+        'com.google.gms.google-services',
+        version: '4.4.0',
+      );
 
       final content = File(groovyPath).readAsStringSync();
-      final occurrences =
-          'com.google.gms.google-services'.allMatches(content).length;
+      final occurrences = 'com.google.gms.google-services'
+          .allMatches(content)
+          .length;
       expect(occurrences, 1);
     });
 
     // Groovy addDependency idempotent
     test('addDependency is idempotent — no double-insert (Groovy)', () {
-      GradleEditor.addDependency(groovyPath, 'implementation',
-          'com.google.firebase:firebase-bom:32.0.0');
-      GradleEditor.addDependency(groovyPath, 'implementation',
-          'com.google.firebase:firebase-bom:32.0.0');
+      GradleEditor.addDependency(
+        groovyPath,
+        'implementation',
+        'com.google.firebase:firebase-bom:32.0.0',
+      );
+      GradleEditor.addDependency(
+        groovyPath,
+        'implementation',
+        'com.google.firebase:firebase-bom:32.0.0',
+      );
 
       final content = File(groovyPath).readAsStringSync();
-      final occurrences =
-          'com.google.firebase:firebase-bom:32.0.0'.allMatches(content).length;
+      final occurrences = 'com.google.firebase:firebase-bom:32.0.0'
+          .allMatches(content)
+          .length;
       expect(occurrences, 1);
     });
   });
@@ -248,7 +288,9 @@ buildscript {
       File(rootPath).writeAsStringSync(rootKts);
 
       GradleEditor.addClasspath(
-          rootPath, 'com.google.gms:google-services:4.4.0');
+        rootPath,
+        'com.google.gms:google-services:4.4.0',
+      );
 
       final content = File(rootPath).readAsStringSync();
       expect(
@@ -268,13 +310,18 @@ buildscript {
       File(rootPath).writeAsStringSync(rootKts);
 
       GradleEditor.addClasspath(
-          rootPath, 'com.google.gms:google-services:4.4.0');
+        rootPath,
+        'com.google.gms:google-services:4.4.0',
+      );
       GradleEditor.addClasspath(
-          rootPath, 'com.google.gms:google-services:4.4.0');
+        rootPath,
+        'com.google.gms:google-services:4.4.0',
+      );
 
       final content = File(rootPath).readAsStringSync();
-      final occurrences =
-          'com.google.gms:google-services:4.4.0'.allMatches(content).length;
+      final occurrences = 'com.google.gms:google-services:4.4.0'
+          .allMatches(content)
+          .length;
       expect(occurrences, 1);
     });
   });
@@ -322,9 +369,7 @@ android {
       expect(content, contains('minSdk = 24'));
     });
 
-    test(
-        'setMinSdkVersion inserts minSdkVersion when directive is absent (Groovy)',
-        () {
+    test('setMinSdkVersion inserts minSdkVersion when directive is absent (Groovy)', () {
       const noMinSdk = '''
 android {
     defaultConfig {
@@ -351,15 +396,18 @@ android {
       );
     });
 
-    test('addDependency throws StateError when dependencies{} block is absent',
-        () {
-      final path = p.join(tempDir.path, 'broken.gradle.kts');
-      File(path).writeAsStringSync('// no dependencies block\n');
+    test(
+      'addDependency throws StateError when dependencies{} block is absent',
+      () {
+        final path = p.join(tempDir.path, 'broken.gradle.kts');
+        File(path).writeAsStringSync('// no dependencies block\n');
 
-      expect(
-        () => GradleEditor.addDependency(path, 'implementation', 'foo:bar:1.0'),
-        throwsA(isA<StateError>()),
-      );
-    });
+        expect(
+          () =>
+              GradleEditor.addDependency(path, 'implementation', 'foo:bar:1.0'),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
   });
 }

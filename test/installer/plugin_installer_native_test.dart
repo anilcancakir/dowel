@@ -15,8 +15,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      defaultValue ?? '';
+  }) => defaultValue ?? '';
 
   @override
   bool confirm(String question, {bool defaultValue = false}) => defaultValue;
@@ -26,8 +25,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      defaultValue ?? options.first;
+  }) => defaultValue ?? options.first;
 
   @override
   String secret(String question) => '';
@@ -58,8 +56,14 @@ InstallContext _ctxFor(Directory tempDir) {
 // ---------------------------------------------------------------------------
 
 void _writeAndroidManifest(Directory root) {
-  final path =
-      p.join(root.path, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
+  final path = p.join(
+    root.path,
+    'android',
+    'app',
+    'src',
+    'main',
+    'AndroidManifest.xml',
+  );
   File(path).createSync(recursive: true);
   File(path).writeAsStringSync('''
 <?xml version="1.0" encoding="utf-8"?>
@@ -117,8 +121,12 @@ end
 ''');
 
   // Runner.entitlements
-  final entitlementsPath =
-      p.join(root.path, platform, 'Runner', 'Runner.entitlements');
+  final entitlementsPath = p.join(
+    root.path,
+    platform,
+    'Runner',
+    'Runner.entitlements',
+  );
   File(entitlementsPath).createSync(recursive: true);
   File(entitlementsPath).writeAsStringSync('''
 <?xml version="1.0" encoding="UTF-8"?>
@@ -241,31 +249,22 @@ const AndroidIntentFilter _callbackFilter = AndroidIntentFilter(
 );
 
 void _writeAppShapedManifest(Directory root, [String? content]) {
-  File(p.join(
-    root.path,
-    'android',
-    'app',
-    'src',
-    'main',
-    'AndroidManifest.xml',
-  ))
+  File(
+      p.join(root.path, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+    )
     ..createSync(recursive: true)
     ..writeAsStringSync(content ?? _appShapedManifest);
 }
 
-String _readManifest(Directory root) => File(p.join(
-      root.path,
-      'android',
-      'app',
-      'src',
-      'main',
-      'AndroidManifest.xml',
-    )).readAsStringSync();
+String _readManifest(Directory root) => File(
+  p.join(root.path, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+).readAsStringSync();
 
-int _callbackActivityCount(String manifest) => XmlDocument.parse(manifest)
-    .findAllElements('activity')
-    .where((e) => e.getAttribute('android:name') == _callbackName)
-    .length;
+int _callbackActivityCount(String manifest) =>
+    XmlDocument.parse(manifest)
+        .findAllElements('activity')
+        .where((e) => e.getAttribute('android:name') == _callbackName)
+        .length;
 
 void main() {
   group('PluginInstaller — native chain methods (enqueue)', () {
@@ -292,11 +291,11 @@ void main() {
     test('injectAndroidActivity enqueues an op carrying every field', () {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectAndroidActivity(
-        name: _callbackName,
-        exported: true,
-        taskAffinity: '',
-        intentFilters: const [_callbackFilter],
-      );
+            name: _callbackName,
+            exported: true,
+            taskAffinity: '',
+            intentFilters: const [_callbackFilter],
+          );
 
       final op = installer.pendingOps.single as InjectAndroidActivity;
       expect(op.name, _callbackName);
@@ -308,27 +307,30 @@ void main() {
     test('injectInfoPlistKey carries explicit platform', () {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectInfoPlistKey(
-        key: 'NSCameraUsageDescription',
-        value: 'Camera',
-        platform: 'macos',
-      );
+            key: 'NSCameraUsageDescription',
+            value: 'Camera',
+            platform: 'macos',
+          );
       final op = installer.pendingOps.single as InjectInfoPlistKey;
       expect(op.platform, 'macos');
       expect(op.value, 'Camera');
     });
 
     test('injectInfoPlistUrlScheme enqueues with the ios default', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectInfoPlistUrlScheme(scheme: 'com.example.app');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectInfoPlistUrlScheme(scheme: 'com.example.app');
       final op = installer.pendingOps.single as InjectInfoPlistUrlScheme;
       expect(op.platform, 'ios');
       expect(op.scheme, 'com.example.app');
     });
 
     test('injectInfoPlistUrlScheme carries an explicit platform', () {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectInfoPlistUrlScheme(
-              scheme: 'com.example.app', platform: 'macos');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectInfoPlistUrlScheme(scheme: 'com.example.app', platform: 'macos');
       expect(
         (installer.pendingOps.single as InjectInfoPlistUrlScheme).platform,
         'macos',
@@ -338,24 +340,27 @@ void main() {
     test('injectEntitlement enqueues with explicit platform', () {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectEntitlement(
-        platform: 'macos',
-        key: 'com.apple.security.network.client',
-        value: true,
-      );
+            platform: 'macos',
+            key: 'com.apple.security.network.client',
+            value: true,
+          );
       final op = installer.pendingOps.single as InjectEntitlement;
       expect(op.platform, 'macos');
       expect(op.value, isTrue);
     });
 
-    test(
-        'injectPodfileLine / injectGradlePlugin / injectGradleDependency '
+    test('injectPodfileLine / injectGradlePlugin / injectGradleDependency '
         'enqueue ops', () {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectPodfileLine(line: "pod 'Firebase/Core'")
           .injectGradlePlugin(
-              pluginId: 'com.google.gms.google-services', version: '4.4.2')
+            pluginId: 'com.google.gms.google-services',
+            version: '4.4.2',
+          )
           .injectGradleDependency(
-              scope: 'implementation', notation: 'androidx.x:x:1.0');
+            scope: 'implementation',
+            notation: 'androidx.x:x:1.0',
+          );
 
       expect(installer.pendingCount, 3);
       expect(installer.pendingOps[0], isA<InjectPodfileLine>());
@@ -378,26 +383,44 @@ void main() {
     });
 
     test('injectAndroidPermission writes <uses-permission> tag', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectAndroidPermission('android.permission.INTERNET');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectAndroidPermission('android.permission.INTERNET');
 
       final result = await installer.commit(force: true);
       expect(result, isA<InstallSuccess>());
-      final manifest = File(p.join(tempDir.path, 'android', 'app', 'src',
-              'main', 'AndroidManifest.xml'))
-          .readAsStringSync();
+      final manifest = File(
+        p.join(
+          tempDir.path,
+          'android',
+          'app',
+          'src',
+          'main',
+          'AndroidManifest.xml',
+        ),
+      ).readAsStringSync();
       expect(manifest, contains('android.permission.INTERNET'));
     });
 
     test('injectAndroidMetaData writes <meta-data> entry', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectAndroidMetaData(name: 'io.icon', value: '@mipmap/ic');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectAndroidMetaData(name: 'io.icon', value: '@mipmap/ic');
 
       final result = await installer.commit(force: true);
       expect(result, isA<InstallSuccess>());
-      final manifest = File(p.join(tempDir.path, 'android', 'app', 'src',
-              'main', 'AndroidManifest.xml'))
-          .readAsStringSync();
+      final manifest = File(
+        p.join(
+          tempDir.path,
+          'android',
+          'app',
+          'src',
+          'main',
+          'AndroidManifest.xml',
+        ),
+      ).readAsStringSync();
       expect(manifest, contains('io.icon'));
       expect(manifest, contains('@mipmap/ic'));
     });
@@ -405,30 +428,36 @@ void main() {
     test('injectGradlePlugin adds id("...") inside plugins block', () async {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectGradlePlugin(
-              pluginId: 'com.google.gms.google-services', version: '4.4.2');
+            pluginId: 'com.google.gms.google-services',
+            version: '4.4.2',
+          );
 
       final result = await installer.commit(force: true);
       expect(result, isA<InstallSuccess>());
-      final gradle =
-          File(p.join(tempDir.path, 'android', 'app', 'build.gradle.kts'))
-              .readAsStringSync();
+      final gradle = File(
+        p.join(tempDir.path, 'android', 'app', 'build.gradle.kts'),
+      ).readAsStringSync();
       expect(gradle, contains('com.google.gms.google-services'));
       expect(gradle, contains('"4.4.2"'));
     });
 
-    test('injectGradleDependency adds line inside dependencies block',
-        () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectGradleDependency(
-              scope: 'implementation', notation: 'com.x:y:1.0');
+    test(
+      'injectGradleDependency adds line inside dependencies block',
+      () async {
+        final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
+            .injectGradleDependency(
+              scope: 'implementation',
+              notation: 'com.x:y:1.0',
+            );
 
-      final result = await installer.commit(force: true);
-      expect(result, isA<InstallSuccess>());
-      final gradle =
-          File(p.join(tempDir.path, 'android', 'app', 'build.gradle.kts'))
-              .readAsStringSync();
-      expect(gradle, contains('implementation("com.x:y:1.0")'));
-    });
+        final result = await installer.commit(force: true);
+        expect(result, isA<InstallSuccess>());
+        final gradle = File(
+          p.join(tempDir.path, 'android', 'app', 'build.gradle.kts'),
+        ).readAsStringSync();
+        expect(gradle, contains('implementation("com.x:y:1.0")'));
+      },
+    );
   });
 
   group('PluginInstaller — native dispatcher (iOS present)', () {
@@ -446,9 +475,9 @@ void main() {
     test('injectInfoPlistKey (String value) calls setStringKey', () async {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectInfoPlistKey(
-        key: 'NSCameraUsageDescription',
-        value: 'Camera access needed.',
-      );
+            key: 'NSCameraUsageDescription',
+            value: 'Camera access needed.',
+          );
 
       final result = await installer.commit(force: true);
       expect(result, isA<InstallSuccess>());
@@ -459,11 +488,10 @@ void main() {
     });
 
     test('injectInfoPlistKey (bool value) calls setBoolKey', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectInfoPlistKey(
-        key: 'UIRequiresFullScreen',
-        value: true,
-      );
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectInfoPlistKey(key: 'UIRequiresFullScreen', value: true);
 
       final result = await installer.commit(force: true);
       expect(result, isA<InstallSuccess>());
@@ -473,42 +501,50 @@ void main() {
       expect(plist, contains('<true/>'));
     });
 
-    test('injectInfoPlistKey returns InstallError for unsupported value type',
-        () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectInfoPlistKey(key: 'Bad', value: 42);
+    test(
+      'injectInfoPlistKey returns InstallError for unsupported value type',
+      () async {
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).injectInfoPlistKey(key: 'Bad', value: 42);
 
-      final result = await installer.commit(force: true);
-      expect(result, isA<InstallError>());
-      expect(
-          (result as InstallError).error, contains('unsupported value type'));
-    });
+        final result = await installer.commit(force: true);
+        expect(result, isA<InstallError>());
+        expect(
+          (result as InstallError).error,
+          contains('unsupported value type'),
+        );
+      },
+    );
 
     test('injectEntitlement writes bool key to Runner.entitlements', () async {
       final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
           .injectEntitlement(
-        platform: 'ios',
-        key: 'com.apple.security.network.client',
-        value: true,
-      );
+            platform: 'ios',
+            key: 'com.apple.security.network.client',
+            value: true,
+          );
 
       final result = await installer.commit(force: true);
       expect(result, isA<InstallSuccess>());
-      final entitlements =
-          File(p.join(tempDir.path, 'ios', 'Runner', 'Runner.entitlements'))
-              .readAsStringSync();
+      final entitlements = File(
+        p.join(tempDir.path, 'ios', 'Runner', 'Runner.entitlements'),
+      ).readAsStringSync();
       expect(entitlements, contains('com.apple.security.network.client'));
       expect(entitlements, contains('<true/>'));
     });
 
     test('injectPodfileLine appends inside Runner target block', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectPodfileLine(line: "pod 'Firebase/Core'");
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).injectPodfileLine(line: "pod 'Firebase/Core'");
 
       final result = await installer.commit(force: true);
       expect(result, isA<InstallSuccess>());
-      final podfile =
-          File(p.join(tempDir.path, 'ios', 'Podfile')).readAsStringSync();
+      final podfile = File(p.join(tempDir.path, 'ios', 'Podfile'))
+          .readAsStringSync();
       expect(podfile, contains("pod 'Firebase/Core'"));
     });
   });
@@ -534,23 +570,23 @@ void main() {
     }
 
     test(
-        'lands the activity inside <application> and leaves MainActivity alone',
-        () async {
-      _writeAppShapedManifest(tempDir);
+      'lands the activity inside <application> and leaves MainActivity alone',
+      () async {
+        _writeAppShapedManifest(tempDir);
 
-      final result = await installerFor(_ctxFor(tempDir)).commit(force: true);
+        final result = await installerFor(_ctxFor(tempDir)).commit(force: true);
 
-      expect(result, isA<InstallSuccess>());
-      final manifest = _readManifest(tempDir);
-      expect(_callbackActivityCount(manifest), 1);
-      // The original text is intact on both sides of the new block.
-      final seam = _appShapedManifest.indexOf('    </application>');
-      expect(manifest, startsWith(_appShapedManifest.substring(0, seam)));
-      expect(manifest, endsWith(_appShapedManifest.substring(seam)));
-    });
+        expect(result, isA<InstallSuccess>());
+        final manifest = _readManifest(tempDir);
+        expect(_callbackActivityCount(manifest), 1);
+        // The original text is intact on both sides of the new block.
+        final seam = _appShapedManifest.indexOf('    </application>');
+        expect(manifest, startsWith(_appShapedManifest.substring(0, seam)));
+        expect(manifest, endsWith(_appShapedManifest.substring(seam)));
+      },
+    );
 
-    test('an existing activity with another host is kept and reported',
-        () async {
+    test('an existing activity with another host is kept and reported', () async {
       final handEdited = _appShapedManifest.replaceFirst(
         '    </application>',
         '''        <activity android:name="$_callbackName" android:exported="true">
@@ -598,12 +634,13 @@ void main() {
     });
 
     test(
-        'URL scheme, split entitlements and CallbackActivity in one run, twice: '
-        'the second run leaves every file byte-identical', () async {
-      _writeAppShapedManifest(root);
-      File(p.join(root.path, 'ios', 'Runner', 'Info.plist'))
-        ..createSync(recursive: true)
-        ..writeAsStringSync('''<?xml version="1.0" encoding="UTF-8"?>
+      'URL scheme, split entitlements and CallbackActivity in one run, twice: '
+      'the second run leaves every file byte-identical',
+      () async {
+        _writeAppShapedManifest(root);
+        File(p.join(root.path, 'ios', 'Runner', 'Info.plist'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('''<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
 \t<key>CFBundleName</key>
@@ -611,73 +648,97 @@ void main() {
 </dict>
 </plist>
 ''');
-      for (final name in const ['Runner', 'RunnerRelease']) {
-        File(p.join(root.path, 'ios', 'Runner', '$name.entitlements'))
-            .writeAsStringSync(_emptyEntitlements);
-      }
-      File(p.join(root.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'))
-        ..createSync(recursive: true)
-        ..writeAsStringSync(_splitPbxproj);
-      final files = <String, File>{
-        'Info.plist': File(p.join(root.path, 'ios', 'Runner', 'Info.plist')),
-        'Runner.entitlements':
-            File(p.join(root.path, 'ios', 'Runner', 'Runner.entitlements')),
-        'RunnerRelease.entitlements': File(
-            p.join(root.path, 'ios', 'Runner', 'RunnerRelease.entitlements')),
-        'project.pbxproj': File(
-            p.join(root.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj')),
-        'AndroidManifest.xml': File(p.join(
-            root.path, 'android', 'app', 'src', 'main', 'AndroidManifest.xml')),
-      };
+        for (final name in const ['Runner', 'RunnerRelease']) {
+          File(p.join(root.path, 'ios', 'Runner', '$name.entitlements'))
+              .writeAsStringSync(_emptyEntitlements);
+        }
+        File(p.join(root.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(_splitPbxproj);
+        final files = <String, File>{
+          'Info.plist': File(p.join(root.path, 'ios', 'Runner', 'Info.plist')),
+          'Runner.entitlements': File(
+            p.join(root.path, 'ios', 'Runner', 'Runner.entitlements'),
+          ),
+          'RunnerRelease.entitlements': File(
+            p.join(root.path, 'ios', 'Runner', 'RunnerRelease.entitlements'),
+          ),
+          'project.pbxproj': File(
+            p.join(root.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'),
+          ),
+          'AndroidManifest.xml': File(
+            p.join(
+              root.path,
+              'android',
+              'app',
+              'src',
+              'main',
+              'AndroidManifest.xml',
+            ),
+          ),
+        };
 
-      Future<void> run() async {
-        final result = await PluginInstaller(
-          _ctxFor(root),
-          pluginName: 'demo',
-        ).injectInfoPlistUrlScheme(scheme: 'com.example.app').injectEntitlement(
-          platform: 'ios',
-          key: 'com.apple.developer.applesignin',
-          value: const ['Default'],
-        ).injectAndroidActivity(
-          name: _callbackName,
-          exported: true,
-          taskAffinity: '',
-          intentFilters: const [_callbackFilter],
-        ).commit(force: true);
-        expect(result, isA<InstallSuccess>(),
-            reason: 'Got: ${result.describe()}');
-      }
+        Future<void> run() async {
+          final result =
+              await PluginInstaller(_ctxFor(root), pluginName: 'demo')
+                  .injectInfoPlistUrlScheme(scheme: 'com.example.app')
+                  .injectEntitlement(
+                    platform: 'ios',
+                    key: 'com.apple.developer.applesignin',
+                    value: const ['Default'],
+                  )
+                  .injectAndroidActivity(
+                    name: _callbackName,
+                    exported: true,
+                    taskAffinity: '',
+                    intentFilters: const [_callbackFilter],
+                  )
+                  .commit(force: true);
+          expect(
+            result,
+            isA<InstallSuccess>(),
+            reason: 'Got: ${result.describe()}',
+          );
+        }
 
-      await run();
-      final afterFirst = {
-        for (final entry in files.entries)
-          entry.key: entry.value.readAsStringSync(),
-      };
+        await run();
+        final afterFirst = {
+          for (final entry in files.entries)
+            entry.key: entry.value.readAsStringSync(),
+        };
 
-      // 1. The first run did the work in every file.
-      expect(afterFirst['Info.plist'],
-          contains('<string>com.example.app</string>'));
-      for (final name in const [
-        'Runner.entitlements',
-        'RunnerRelease.entitlements',
-      ]) {
-        expect(afterFirst[name], contains('com.apple.developer.applesignin'));
-        expect(afterFirst[name], contains('<string>Default</string>'));
-      }
-      expect(afterFirst['project.pbxproj'], _splitPbxproj);
-      expect(_callbackActivityCount(afterFirst['AndroidManifest.xml']!), 1);
+        // 1. The first run did the work in every file.
+        expect(
+          afterFirst['Info.plist'],
+          contains('<string>com.example.app</string>'),
+        );
+        for (final name in const [
+          'Runner.entitlements',
+          'RunnerRelease.entitlements',
+        ]) {
+          expect(afterFirst[name], contains('com.apple.developer.applesignin'));
+          expect(afterFirst[name], contains('<string>Default</string>'));
+        }
+        expect(afterFirst['project.pbxproj'], _splitPbxproj);
+        expect(_callbackActivityCount(afterFirst['AndroidManifest.xml']!), 1);
 
-      // 2. The second run changes nothing.
-      await run();
-      for (final entry in files.entries) {
-        expect(entry.value.readAsStringSync(), afterFirst[entry.key],
-            reason: '${entry.key} drifted on the second run');
-      }
-      expect(
+        // 2. The second run changes nothing.
+        await run();
+        for (final entry in files.entries) {
+          expect(
+            entry.value.readAsStringSync(),
+            afterFirst[entry.key],
+            reason: '${entry.key} drifted on the second run',
+          );
+        }
+        expect(
           _callbackActivityCount(
-              files['AndroidManifest.xml']!.readAsStringSync()),
-          1);
-    });
+            files['AndroidManifest.xml']!.readAsStringSync(),
+          ),
+          1,
+        );
+      },
+    );
   });
 
   group('PluginInstaller — native dispatcher (platform absent = no-op)', () {
@@ -692,34 +753,48 @@ void main() {
     });
 
     test(
-        'injectAndroidPermission on non-Android project commits InstallSuccess',
-        () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectAndroidPermission('android.permission.INTERNET');
+      'injectAndroidPermission on non-Android project commits InstallSuccess',
+      () async {
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).injectAndroidPermission('android.permission.INTERNET');
 
-      final result = await installer.commit();
-      expect(result, isA<InstallSuccess>());
-      // No android/ dir created as a side effect.
-      expect(Directory(p.join(tempDir.path, 'android')).existsSync(), isFalse);
-    });
+        final result = await installer.commit();
+        expect(result, isA<InstallSuccess>());
+        // No android/ dir created as a side effect.
+        expect(
+          Directory(p.join(tempDir.path, 'android')).existsSync(),
+          isFalse,
+        );
+      },
+    );
 
-    test('injectInfoPlistKey on non-iOS project commits InstallSuccess',
-        () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectInfoPlistKey(key: 'NSCameraUsageDescription', value: 'X');
+    test(
+      'injectInfoPlistKey on non-iOS project commits InstallSuccess',
+      () async {
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).injectInfoPlistKey(key: 'NSCameraUsageDescription', value: 'X');
 
-      final result = await installer.commit();
-      expect(result, isA<InstallSuccess>());
-      expect(Directory(p.join(tempDir.path, 'ios')).existsSync(), isFalse);
-    });
+        final result = await installer.commit();
+        expect(result, isA<InstallSuccess>());
+        expect(Directory(p.join(tempDir.path, 'ios')).existsSync(), isFalse);
+      },
+    );
 
-    test('injectPodfileLine on non-iOS project commits InstallSuccess',
-        () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .injectPodfileLine(line: "pod 'Firebase/Core'");
+    test(
+      'injectPodfileLine on non-iOS project commits InstallSuccess',
+      () async {
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).injectPodfileLine(line: "pod 'Firebase/Core'");
 
-      final result = await installer.commit();
-      expect(result, isA<InstallSuccess>());
-    });
+        final result = await installer.commit();
+        expect(result, isA<InstallSuccess>());
+      },
+    );
   });
 }

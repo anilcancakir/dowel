@@ -13,8 +13,7 @@ import 'package:test/test.dart';
 /// 3. `collectMcpTools: true` with non-colliding providers succeeds (exit 0).
 void main() {
   group('runDowel collectMcpTools', () {
-    test(
-        'default collectMcpTools:false does NOT call registerMcpToolsFor; '
+    test('default collectMcpTools:false does NOT call registerMcpToolsFor; '
         'duplicate tool names across two providers produce no collision '
         '(legacy CLI behavior preserved)', () async {
       // Two providers sharing a tool name. If collectMcpTools were true,
@@ -55,8 +54,7 @@ void main() {
       expect(code, 0);
     });
 
-    test(
-        'collectMcpTools:true with non-colliding tools from baseProviders '
+    test('collectMcpTools:true with non-colliding tools from baseProviders '
         'succeeds and exits 0', () async {
       final provider = _SimpleMcpProvider(
         name: 'tapir',
@@ -86,8 +84,7 @@ void main() {
       expect(code, 0);
     });
 
-    test(
-        'collectMcpTools:true with non-colliding tools from autoProviders '
+    test('collectMcpTools:true with non-colliding tools from autoProviders '
         'succeeds and exits 0', () async {
       final autoProvider = _SimpleMcpProvider(
         name: 'crumbs',
@@ -111,8 +108,7 @@ void main() {
       expect(code, 0);
     });
 
-    test(
-        'collectMcpTools:true with a duplicate tool name across two '
+    test('collectMcpTools:true with a duplicate tool name across two '
         'baseProviders throws DowelMcpToolCollisionException → exit 3; '
         'both provider names surface in the exception message', () async {
       // Use a command-capturing provider so we can verify the exception was
@@ -155,34 +151,36 @@ void main() {
     });
 
     test(
-        'collectMcpTools:true with a duplicate tool name across a baseProvider '
-        'and an autoProvider also throws → exit 3', () async {
-      const tool = McpToolDescriptor(
-        name: 'shared_tool',
-        description: 'shared',
-        inputSchema: <String, dynamic>{'type': 'object'},
-        extensionMethod: 'ext.shared',
-      );
+      'collectMcpTools:true with a duplicate tool name across a baseProvider '
+      'and an autoProvider also throws → exit 3',
+      () async {
+        const tool = McpToolDescriptor(
+          name: 'shared_tool',
+          description: 'shared',
+          inputSchema: <String, dynamic>{'type': 'object'},
+          extensionMethod: 'ext.shared',
+        );
 
-      final base = _SimpleMcpProvider(
-        name: 'base_provider',
-        tools: const <McpToolDescriptor>[tool],
-      );
-      final auto = _SimpleMcpProvider(
-        name: 'auto_provider',
-        tools: const <McpToolDescriptor>[tool],
-      );
+        final base = _SimpleMcpProvider(
+          name: 'base_provider',
+          tools: const <McpToolDescriptor>[tool],
+        );
+        final auto = _SimpleMcpProvider(
+          name: 'auto_provider',
+          tools: const <McpToolDescriptor>[tool],
+        );
 
-      final code = await runDowel(
-        <String>['list'],
-        wrapperExists: () => false,
-        baseProviders: <DowelServiceProvider>[base],
-        autoProviders: () => <DowelServiceProvider>[auto],
-        collectMcpTools: true,
-      );
+        final code = await runDowel(
+          <String>['list'],
+          wrapperExists: () => false,
+          baseProviders: <DowelServiceProvider>[base],
+          autoProviders: () => <DowelServiceProvider>[auto],
+          collectMcpTools: true,
+        );
 
-      expect(code, 3);
-    });
+        expect(code, 3);
+      },
+    );
   });
 }
 
@@ -192,11 +190,7 @@ void main() {
 
 /// A minimal provider exposing [tools] from [mcpTools]; no commands.
 class _SimpleMcpProvider extends DowelServiceProvider {
-  _SimpleMcpProvider({
-    required String name,
-    required List<McpToolDescriptor> tools,
-  })  : _name = name,
-        _tools = tools;
+  _SimpleMcpProvider({required this._name, required this._tools});
 
   final String _name;
   final List<McpToolDescriptor> _tools;

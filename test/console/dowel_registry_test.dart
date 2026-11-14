@@ -33,22 +33,20 @@ void main() {
       expect(registry.find('gamma'), isNotNull);
     });
 
-    test(
-        'register throws DowelCommandCollisionException on duplicate name from different providers',
-        () {
+    test('register throws DowelCommandCollisionException on duplicate name from different providers', () {
       final registry = DowelRegistry();
       registry.register(_FakeCommand('shared'), providerName: 'provider_a');
 
       expect(
-        () => registry.register(_FakeCommand('shared'),
-            providerName: 'provider_b'),
+        () => registry.register(
+          _FakeCommand('shared'),
+          providerName: 'provider_b',
+        ),
         throwsA(isA<DowelCommandCollisionException>()),
       );
     });
 
-    test(
-        'collision exception message names both the conflicting command and providers',
-        () {
+    test('collision exception message names both the conflicting command and providers', () {
       final registry = DowelRegistry();
       registry.register(_FakeCommand('tapir:snap'), providerName: 'tapir');
 
@@ -82,10 +80,7 @@ void main() {
       registry.register(_FakeCommand('a'), providerName: 'p');
       registry.register(_FakeCommand('m'), providerName: 'p');
 
-      expect(
-        registry.all().map((c) => c.name).toList(),
-        ['a', 'm', 'z'],
-      );
+      expect(registry.all().map((c) => c.name).toList(), ['a', 'm', 'z']);
     });
 
     test('groupedByNamespace splits on `:`, top-level under empty key', () {

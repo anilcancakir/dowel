@@ -2,8 +2,8 @@
 /// [PluginInstaller] chain methods and commits the result.
 ///
 /// `ManifestInstaller` is the bridge between the declarative `install.yaml`
-/// world (typed by Step 27 `ManifestParser`) and the imperative
-/// `PluginInstaller` DSL (Wave 3). It walks the manifest sections in a fixed
+/// world (typed by `ManifestParser`) and the imperative
+/// `PluginInstaller` DSL. It walks the manifest sections in a fixed
 /// order, drives prompts immediately, resolves placeholder templates, then
 /// translates each section into the matching chain method.
 ///
@@ -35,9 +35,8 @@
 /// `PublishFile` -> `DeleteFile`) have a typed reverse. Every other op
 /// (`Inject*`, `AddPubspecAsset`, `MergeJson`, `RunShell`, ...) returns
 /// null with a logged skip warning because the matching `removeX` editor
-/// helpers do not yet exist. The Plugin Authoring Guide (Step 40) and the
-/// `doc/install_yaml_schema.md` Uninstall section enumerate the limitation
-/// per op type and what manual cleanup is required.
+/// helpers do not yet exist. The install.yaml reference page in `doc/`
+/// lists the limitation per op type and the manual cleanup each needs.
 ///
 /// When the install record file is missing, `uninstall()` returns an `InstallError`
 /// so the operator does not silently believe the plugin was removed.
@@ -69,7 +68,7 @@ import 'install_transaction.dart';
 import 'plugin_installer.dart';
 
 /// Bridges an [InstallManifest] onto a [PluginInstaller] chain + commits.
-class ManifestInstaller {
+final class ManifestInstaller {
   /// Creates a `ManifestInstaller` for [manifest] bound to [ctx].
   ///
   /// [promptOverrides] lets the CLI inject prompt answers ahead of time so
@@ -83,9 +82,9 @@ class ManifestInstaller {
     InstallContext ctx,
     InstallManifest manifest, {
     Map<String, String> promptOverrides = const <String, String>{},
-  })  : _ctx = ctx,
-        _manifest = manifest,
-        _promptOverrides = Map<String, String>.unmodifiable(promptOverrides);
+  }) : _ctx = ctx,
+       _manifest = manifest,
+       _promptOverrides = Map<String, String>.unmodifiable(promptOverrides);
 
   final InstallContext _ctx;
   final InstallManifest _manifest;
@@ -174,7 +173,8 @@ class ManifestInstaller {
     );
     if (!_ctx.fs.exists(recordPath)) {
       return InstallError(
-        error: 'No install record at $recordPath; cannot derive an '
+        error:
+            'No install record at $recordPath; cannot derive an '
             'uninstall plan. Either the plugin was never installed via '
             'ManifestInstaller or the record was deleted manually.',
         rolledBack: false,

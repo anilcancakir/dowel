@@ -110,9 +110,7 @@ void main() {
       final fifoPath = '${tempHome.path}/fake.fifo';
       File(fifoPath).writeAsStringSync('');
 
-      await StateFile.write(<String, dynamic>{
-        'stdinPipe': fifoPath,
-      });
+      await StateFile.write(<String, dynamic>{'stdinPipe': fifoPath});
 
       final command = StopCommand();
       final output = BufferedOutput();
@@ -125,12 +123,8 @@ void main() {
 
     // CDP / Chrome cleanup tests (Step 13).
 
-    test(
-        'state without chromePid: existing behavior unchanged, no CDP output lines',
-        () async {
-      await StateFile.write(<String, dynamic>{
-        'pid': 999999999,
-      });
+    test('state without chromePid: existing behavior unchanged, no CDP output lines', () async {
+      await StateFile.write(<String, dynamic>{'pid': 999999999});
       final killLog = <int>[];
       StopCommand.stopKillFunction = (pid, signal) {
         killLog.add(pid);
@@ -151,42 +145,41 @@ void main() {
       expect(output.content, isNot(contains('tmpProfileDir')));
     });
 
-    test('state with chromePid: SIGTERM is sent to that PID via kill seam',
-        () async {
-      const chromePid = 12345;
-      await StateFile.write(<String, dynamic>{
-        'chromePid': chromePid,
-      });
-
-      final killLog = <({int pid, ProcessSignal signal})>[];
-      StopCommand.stopKillFunction = (pid, signal) {
-        killLog.add((pid: pid, signal: signal));
-        return true;
-      };
-
-      final command = StopCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(MapInput(const {}), output);
-
-      await command.handle(ctx);
-
-      expect(
-        killLog,
-        contains(
-          predicate<({int pid, ProcessSignal signal})>(
-            (e) => e.pid == chromePid && e.signal == ProcessSignal.sigterm,
-          ),
-        ),
-      );
-      expect(output.content, contains('Chrome SIGTERM'));
-      expect(output.content, contains('$chromePid'));
-    });
-
     test(
-        'state with chromePid + tmpProfileDir: profile dir is deleted after kill',
-        () async {
+      'state with chromePid: SIGTERM is sent to that PID via kill seam',
+      () async {
+        const chromePid = 12345;
+        await StateFile.write(<String, dynamic>{'chromePid': chromePid});
+
+        final killLog = <({int pid, ProcessSignal signal})>[];
+        StopCommand.stopKillFunction = (pid, signal) {
+          killLog.add((pid: pid, signal: signal));
+          return true;
+        };
+
+        final command = StopCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(MapInput(const {}), output);
+
+        await command.handle(ctx);
+
+        expect(
+          killLog,
+          contains(
+            predicate<({int pid, ProcessSignal signal})>(
+              (e) => e.pid == chromePid && e.signal == ProcessSignal.sigterm,
+            ),
+          ),
+        );
+        expect(output.content, contains('Chrome SIGTERM'));
+        expect(output.content, contains('$chromePid'));
+      },
+    );
+
+    test('state with chromePid + tmpProfileDir: profile dir is deleted after kill', () async {
       final profileDir = Directory(
-          '${tempHome.path}/chrome_profile_${DateTime.now().microsecondsSinceEpoch}');
+        '${tempHome.path}/chrome_profile_${DateTime.now().microsecondsSinceEpoch}',
+      );
       profileDir.createSync(recursive: true);
       File('${profileDir.path}/prefs').writeAsStringSync('{}');
 
@@ -206,13 +199,9 @@ void main() {
       expect(output.content, contains(profileDir.path));
     });
 
-    test(
-        'state with chromePid but no tmpProfileDir: only kill, no dir delete attempt',
-        () async {
+    test('state with chromePid but no tmpProfileDir: only kill, no dir delete attempt', () async {
       const chromePid = 22222;
-      await StateFile.write(<String, dynamic>{
-        'chromePid': chromePid,
-      });
+      await StateFile.write(<String, dynamic>{'chromePid': chromePid});
 
       StopCommand.stopKillFunction = (pid, signal) => false;
 
@@ -229,36 +218,39 @@ void main() {
       // killPid returned false; the cleanup branch surfaces a "not delivered"
       // warning instead of the success line so the operator sees that the
       // signal landed on no process. The phrase still mentions Chrome SIGTERM.
-      expect(output.content,
-          contains('Chrome SIGTERM not delivered to pid=22222'));
-    });
-
-    test('tmpProfileDir does not exist on disk: cleanup is a no-op, no error',
-        () async {
-      const nonExistentDir = '/tmp/dowel_test_non_existent_profile_dir_xyz';
-      await StateFile.write(<String, dynamic>{
-        'chromePid': 33333,
-        'tmpProfileDir': nonExistentDir,
-      });
-
-      final command = StopCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(MapInput(const {}), output);
-
-      // Must not throw.
-      final code = await command.handle(ctx);
-
-      expect(code, 0);
-      // The success line for tmpProfileDir is NOT emitted when the dir
-      // does not exist (cleanup was a no-op, no output is correct behavior
-      // per the plan: only emit when dir.existsSync() is true).
+      expect(
+        output.content,
+        contains('Chrome SIGTERM not delivered to pid=22222'),
+      );
     });
 
     test(
-        'full cleanup: ctx.output emits Chrome SIGTERM success + tmpProfileDir cleaned',
-        () async {
-      final profileDir =
-          Directory('${tempHome.path}/chrome_profile_full_cleanup');
+      'tmpProfileDir does not exist on disk: cleanup is a no-op, no error',
+      () async {
+        const nonExistentDir = '/tmp/dowel_test_non_existent_profile_dir_xyz';
+        await StateFile.write(<String, dynamic>{
+          'chromePid': 33333,
+          'tmpProfileDir': nonExistentDir,
+        });
+
+        final command = StopCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(MapInput(const {}), output);
+
+        // Must not throw.
+        final code = await command.handle(ctx);
+
+        expect(code, 0);
+        // The success line for tmpProfileDir is NOT emitted when the dir
+        // does not exist (cleanup was a no-op, no output is correct behavior
+        // per the plan: only emit when dir.existsSync() is true).
+      },
+    );
+
+    test('full cleanup: ctx.output emits Chrome SIGTERM success + tmpProfileDir cleaned', () async {
+      final profileDir = Directory(
+        '${tempHome.path}/chrome_profile_full_cleanup',
+      );
       profileDir.createSync(recursive: true);
 
       await StateFile.write(<String, dynamic>{
@@ -345,18 +337,20 @@ void main() {
       expect(output.content, contains('process group ${_FakeAppGroup.pgid}'));
     });
 
-    test('stops the group of a session recorded after its tool started',
-        () async {
-      useApp(_FakeAppGroup(ageSeconds: 90));
+    test(
+      'stops the group of a session recorded after its tool started',
+      () async {
+        useApp(_FakeAppGroup(ageSeconds: 90));
 
-      final (int code, BufferedOutput output) = await stop(
-        startedAt: DateTime.now().subtract(const Duration(seconds: 30)),
-      );
+        final (int code, BufferedOutput output) = await stop(
+          startedAt: DateTime.now().subtract(const Duration(seconds: 30)),
+        );
 
-      expect(code, 0, reason: output.content);
-      expect(app.signals.first, (-_FakeAppGroup.pgid, ProcessSignal.sigterm));
-      expect(app.members, isEmpty);
-    });
+        expect(code, 0, reason: output.content);
+        expect(app.signals.first, (-_FakeAppGroup.pgid, ProcessSignal.sigterm));
+        expect(app.members, isEmpty);
+      },
+    );
 
     test('leaves alone a pid that now belongs to a newer process', () async {
       // The session went stale (a reboot, a crash) and its numbers were
@@ -369,10 +363,7 @@ void main() {
       );
 
       expect(code, 0, reason: output.content);
-      expect(
-        app.signals.where(((int, ProcessSignal) s) => s.$1 < 0),
-        isEmpty,
-      );
+      expect(app.signals.where(((int, ProcessSignal) s) => s.$1 < 0), isEmpty);
       expect(
         app.signals.map(((int, ProcessSignal) s) => s.$1),
         isNot(contains(_FakeAppGroup.toolPid)),
@@ -381,25 +372,27 @@ void main() {
       expect(File(StateFile.path).existsSync(), isFalse);
     });
 
-    test('finds the group through the holder when the tool is already gone',
-        () async {
-      // The tool crashed and its frontend_server lives on in the group; the
-      // tool pid has no group left to read.
-      useApp(
-        _FakeAppGroup(
-          members: <int>{
-            _FakeAppGroup.holderPid,
-            _FakeAppGroup.frontendServerPid,
-          },
-        ),
-      );
+    test(
+      'finds the group through the holder when the tool is already gone',
+      () async {
+        // The tool crashed and its frontend_server lives on in the group; the
+        // tool pid has no group left to read.
+        useApp(
+          _FakeAppGroup(
+            members: <int>{
+              _FakeAppGroup.holderPid,
+              _FakeAppGroup.frontendServerPid,
+            },
+          ),
+        );
 
-      final (int code, BufferedOutput output) = await stop();
+        final (int code, BufferedOutput output) = await stop();
 
-      expect(code, 0, reason: output.content);
-      expect(app.signals.first, (-_FakeAppGroup.pgid, ProcessSignal.sigterm));
-      expect(app.members, isEmpty);
-    });
+        expect(code, 0, reason: output.content);
+        expect(app.signals.first, (-_FakeAppGroup.pgid, ProcessSignal.sigterm));
+        expect(app.members, isEmpty);
+      },
+    );
 
     test('deletes the session only after the whole group has exited', () async {
       // The group needs a few polls to exit. Returning straight after the
@@ -420,29 +413,28 @@ void main() {
       final (int code, BufferedOutput output) = await stop();
 
       expect(code, 0, reason: output.content);
-      expect(
-        app.signals.take(2),
-        <(int, ProcessSignal)>[
-          (-_FakeAppGroup.pgid, ProcessSignal.sigterm),
-          (-_FakeAppGroup.pgid, ProcessSignal.sigkill),
-        ],
-      );
+      expect(app.signals.take(2), <(int, ProcessSignal)>[
+        (-_FakeAppGroup.pgid, ProcessSignal.sigterm),
+        (-_FakeAppGroup.pgid, ProcessSignal.sigkill),
+      ]);
       expect(app.members, isEmpty);
       expect(output.content, contains('SIGKILL'));
     });
 
-    test('keeps the session and fails when the group outlives SIGKILL',
-        () async {
-      // Deleting it would leave a live app nothing can find, and `restart`
-      // would start on top of it.
-      useApp(_FakeAppGroup(survives: true));
+    test(
+      'keeps the session and fails when the group outlives SIGKILL',
+      () async {
+        // Deleting it would leave a live app nothing can find, and `restart`
+        // would start on top of it.
+        useApp(_FakeAppGroup(survives: true));
 
-      final (int code, BufferedOutput output) = await stop();
+        final (int code, BufferedOutput output) = await stop();
 
-      expect(code, 1);
-      expect(output.content, contains('still alive'));
-      expect(File(StateFile.path).existsSync(), isTrue);
-    });
+        expect(code, 1);
+        expect(output.content, contains('still alive'));
+        expect(File(StateFile.path).existsSync(), isTrue);
+      },
+    );
 
     test('waits for the web port of a browser session to come free', () async {
       useApp(_FakeAppGroup());
@@ -458,18 +450,21 @@ void main() {
       expect(output.content, isNot(contains('still bound')));
     });
 
-    test('warns when the web port stays bound after the group is gone',
-        () async {
-      useApp(_FakeAppGroup());
-      StopCommand.stopPortProbe = (int port) async => false;
+    test(
+      'warns when the web port stays bound after the group is gone',
+      () async {
+        useApp(_FakeAppGroup());
+        StopCommand.stopPortProbe = (int port) async => false;
 
-      final (int code, BufferedOutput output) =
-          await stop(device: 'web-server');
+        final (int code, BufferedOutput output) = await stop(
+          device: 'web-server',
+        );
 
-      expect(code, 0, reason: output.content);
-      expect(output.content, contains('Port 3187 is still bound'));
-      expect(File(StateFile.path).existsSync(), isFalse);
-    });
+        expect(code, 0, reason: output.content);
+        expect(output.content, contains('Port 3187 is still bound'));
+        expect(File(StateFile.path).existsSync(), isFalse);
+      },
+    );
 
     test('does not wait on the web port of a device session', () async {
       useApp(_FakeAppGroup());
@@ -551,9 +546,7 @@ void main() {
         'projectRoot': project.path,
       });
       final BufferedOutput output = BufferedOutput();
-      await StopCommand().handle(
-        DowelContext.bare(MapInput(const {}), output),
-      );
+      await StopCommand().handle(DowelContext.bare(MapInput(const {}), output));
       return output;
     }
 
@@ -592,12 +585,10 @@ android {
 
     test('warns and keeps going when adb answers non-zero', () async {
       seedGradle('build.gradle', 'applicationId "com.example.uptizm"');
-      StopCommand.stopProcessRunner =
-          (String executable, List<String> args) => executable == 'ps'
-              ? _noProcessRunner(executable, args)
-              : Future<ProcessResult>.value(
-                  ProcessResult(0, 1, '', 'no devices'),
-                );
+      StopCommand.stopProcessRunner = (String executable, List<String> args) =>
+          executable == 'ps'
+          ? _noProcessRunner(executable, args)
+          : Future<ProcessResult>.value(ProcessResult(0, 1, '', 'no devices'));
 
       final BufferedOutput output = await stopDevice('emulator-5554');
 
@@ -660,12 +651,7 @@ final class _FakeAppGroup {
     this.survives = false,
     this.ageSeconds = 60,
     Set<int>? members,
-  }) : members = members ??
-            <int>{
-              toolPid,
-              holderPid,
-              frontendServerPid,
-            };
+  }) : members = members ?? <int>{toolPid, holderPid, frontendServerPid};
 
   static const int pgid = 4240;
   static const int toolPid = 4242;
@@ -688,8 +674,9 @@ final class _FakeAppGroup {
 
   bool kill(int target, ProcessSignal signal) {
     signals.add((target, signal));
-    final Iterable<int> hit =
-        target == -pgid ? members : members.where((int pid) => pid == target);
+    final Iterable<int> hit = target == -pgid
+        ? members
+        : members.where((int pid) => pid == target);
     if (hit.isEmpty) return false;
     final bool fatal =
         !survives && (signal == ProcessSignal.sigkill || !ignoresTerm);
@@ -708,7 +695,11 @@ final class _FakeAppGroup {
     final String argv = args.join(' ');
     if (argv == '-A -o pgid=,stat=') {
       return ProcessResult(
-          0, 0, members.map((int _) => '$pgid S').join('\n'), '');
+        0,
+        0,
+        members.map((int _) => '$pgid S').join('\n'),
+        '',
+      );
     }
     // The caller's own group, which the reaper must never signal.
     if (argv == '-o pgid= -p $pid') return ProcessResult(0, 0, '50', '');

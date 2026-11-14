@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/console/dowel_version.dart';
 import 'package:test/test.dart';
 
 const _minimalYaml = '''
@@ -155,13 +158,8 @@ void main() {
     });
 
     test('parses pubspec dependencies + dev + assets', () {
-      expect(manifest.pubspec.deps, {
-        'intl': '^0.20.0',
-        'crypto': '^3.0.0',
-      });
-      expect(manifest.pubspec.devDeps, {
-        'mocktail': '^1.0.0',
-      });
+      expect(manifest.pubspec.deps, {'intl': '^0.20.0', 'crypto': '^3.0.0'});
+      expect(manifest.pubspec.devDeps, {'mocktail': '^1.0.0'});
       expect(manifest.pubspec.assets, [
         'assets/example/',
         'assets/lang/en.json',
@@ -193,9 +191,7 @@ void main() {
       final android = manifest.native.android!;
 
       expect(android.permissions, ['android.permission.INTERNET']);
-      expect(android.metaData, {
-        'io.flutter.embedded_views_preview': 'true',
-      });
+      expect(android.metaData, {'io.flutter.embedded_views_preview': 'true'});
       expect(android.gradle, isNotNull);
       expect(android.gradle!.plugins, hasLength(1));
       expect(android.gradle!.plugins.single.id, 'com.example.gradle.plugin');
@@ -208,8 +204,10 @@ void main() {
     test('parses native.ios + macos info_plist / entitlements / podfile', () {
       final ios = manifest.native.ios!;
 
-      expect(ios.infoPlist['NSExampleUsageDescription'],
-          'Reason shown in iOS permission dialog');
+      expect(
+        ios.infoPlist['NSExampleUsageDescription'],
+        'Reason shown in iOS permission dialog',
+      );
       expect(ios.infoPlist['UIBackgroundModes'], isA<List<dynamic>>());
       expect(ios.entitlements['com.apple.security.keychain'], true);
       expect(ios.podfile, isNotNull);
@@ -222,11 +220,14 @@ void main() {
     });
 
     test('parses native.ios + macos url_schemes and list entitlements', () {
+      expect(manifest.native.ios!.urlSchemes, [
+        'com.example.app',
+        'example-auth',
+      ]);
       expect(
-          manifest.native.ios!.urlSchemes, ['com.example.app', 'example-auth']);
-      expect(
-          manifest.native.ios!.entitlements['com.apple.developer.applesignin'],
-          ['Default']);
+        manifest.native.ios!.entitlements['com.apple.developer.applesignin'],
+        ['Default'],
+      );
       expect(manifest.native.macos!.urlSchemes, ['com.example.mac']);
     });
 
@@ -290,8 +291,10 @@ native:
     test('parses post_install run + ask_to_run + message', () {
       expect(manifest.postInstall.run, hasLength(1));
       expect(manifest.postInstall.run.single.cmd, 'dart');
-      expect(manifest.postInstall.run.single.args,
-          ['format', 'lib/config/example.dart']);
+      expect(manifest.postInstall.run.single.args, [
+        'format',
+        'lib/config/example.dart',
+      ]);
 
       expect(manifest.postInstall.askToRun, hasLength(1));
       expect(manifest.postInstall.askToRun.single.prompt, 'Run pub get now?');
@@ -299,7 +302,9 @@ native:
       expect(manifest.postInstall.askToRun.single.args, ['pub', 'get']);
 
       expect(
-          manifest.postInstall.message, contains('example_plugin installed'));
+        manifest.postInstall.message,
+        contains('example_plugin installed'),
+      );
     });
 
     test('parses bootstrap_command', () {
@@ -413,6 +418,76 @@ placeholders:
         'b': '{{ prompts.path }}',
         'c': 'literal',
       });
+    });
+  });
+
+  group('ManifestParser: unknown top-level keys', () {
+    // A key this dowel does not read is a section from a later schema. It
+    // must stop the install instead of half-applying the manifest.
+    const futureYaml = '''
+plugin_name: example_plugin
+magic:
+  provider: ExampleServiceProvider
+assets_v2:
+  - assets/future/
+''';
+
+    test('rejects the key and names it with the running dowel version', () {
+      expect(
+        () => ManifestParser.parseString(futureYaml),
+        throwsA(
+          isA<ManifestValidationException>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"assets_v2"'),
+              contains('newer dowel'),
+              contains(dowelVersion),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('names every unknown key, not only the first', () {
+      const yaml = '''
+plugin_name: example_plugin
+hooks: {}
+assets_v2: []
+''';
+
+      expect(
+        () => ManifestParser.parseString(yaml),
+        throwsA(
+          isA<ManifestValidationException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"hooks"'), contains('"assets_v2"')),
+          ),
+        ),
+      );
+    });
+
+    test('parseFile names the manifest path', () {
+      final dir = Directory.systemTemp.createTempSync('manifest_parser_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final file = File('${dir.path}/install.yaml')
+        ..writeAsStringSync(futureYaml);
+
+      expect(
+        () => ManifestParser.parseFile(file.path),
+        throwsA(
+          isA<ManifestValidationException>().having(
+            (e) => e.message,
+            'message',
+            contains(file.path),
+          ),
+        ),
+      );
+    });
+
+    test('accepts every key the parser reads', () {
+      expect(() => ManifestParser.parseString(_fullYaml), returnsNormally);
     });
   });
 

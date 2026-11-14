@@ -52,44 +52,50 @@ void main() {
       expect(code, 1);
     });
 
-    test('dispatches to a registered bare command and propagates exit code',
-        () async {
-      final registry = DowelRegistry();
-      registry.register(_FixedExitCommand('exit-7', 7));
-      final app = DowelApplication(registry: registry);
+    test(
+      'dispatches to a registered bare command and propagates exit code',
+      () async {
+        final registry = DowelRegistry();
+        registry.register(_FixedExitCommand('exit-7', 7));
+        final app = DowelApplication(registry: registry);
 
-      final code = await app.dispatch(<String>['exit-7']);
+        final code = await app.dispatch(<String>['exit-7']);
 
-      expect(code, 7);
-    });
+        expect(code, 7);
+      },
+    );
 
-    test('unknown long flag errors clearly on stderr and exits non-zero',
-        () async {
-      final registry = DowelRegistry();
-      registry.register(_OptionCommand());
-      final app = DowelApplication(registry: registry);
+    test(
+      'unknown long flag errors clearly on stderr and exits non-zero',
+      () async {
+        final registry = DowelRegistry();
+        registry.register(_OptionCommand());
+        final app = DowelApplication(registry: registry);
 
-      final result = await _captureDispatch(
-        () => app.dispatch(<String>['has-option', '--unknown']),
-      );
+        final result = await _captureDispatch(
+          () => app.dispatch(<String>['has-option', '--unknown']),
+        );
 
-      expect(result.code, isNonZero);
-      expect(result.err, contains('Unknown option: --unknown'));
-    });
+        expect(result.code, isNonZero);
+        expect(result.err, contains('Unknown option: --unknown'));
+      },
+    );
 
-    test('unknown short flag errors clearly on stderr and exits non-zero',
-        () async {
-      final registry = DowelRegistry();
-      registry.register(_OptionCommand());
-      final app = DowelApplication(registry: registry);
+    test(
+      'unknown short flag errors clearly on stderr and exits non-zero',
+      () async {
+        final registry = DowelRegistry();
+        registry.register(_OptionCommand());
+        final app = DowelApplication(registry: registry);
 
-      final result = await _captureDispatch(
-        () => app.dispatch(<String>['has-option', '-x']),
-      );
+        final result = await _captureDispatch(
+          () => app.dispatch(<String>['has-option', '-x']),
+        );
 
-      expect(result.code, isNonZero);
-      expect(result.err, contains('Unknown option: -x'));
-    });
+        expect(result.code, isNonZero);
+        expect(result.err, contains('Unknown option: -x'));
+      },
+    );
 
     test('valid flag set parses unchanged and reaches handle', () async {
       final command = _OptionCommand();
@@ -121,33 +127,37 @@ void main() {
       expect(result.err, isEmpty);
     });
 
-    test('genuine missing-required-value error keeps its original message',
-        () async {
-      final registry = DowelRegistry();
-      registry.register(_OptionCommand());
-      final app = DowelApplication(registry: registry);
+    test(
+      'genuine missing-required-value error keeps its original message',
+      () async {
+        final registry = DowelRegistry();
+        registry.register(_OptionCommand());
+        final app = DowelApplication(registry: registry);
 
-      final result = await _captureDispatch(
-        () => app.dispatch(<String>['has-option', '--output']),
-      );
+        final result = await _captureDispatch(
+          () => app.dispatch(<String>['has-option', '--output']),
+        );
 
-      expect(result.code, isNonZero);
-      expect(result.err, contains('Missing argument for "--output"'));
-      expect(result.err, isNot(contains('Unknown option')));
-    });
+        expect(result.code, isNonZero);
+        expect(result.err, contains('Missing argument for "--output"'));
+        expect(result.err, isNot(contains('Unknown option')));
+      },
+    );
 
-    test('command --help (per-command) returns 0 without running handle',
-        () async {
-      final command = _RecordingCommand();
-      final registry = DowelRegistry();
-      registry.register(command);
-      final app = DowelApplication(registry: registry);
+    test(
+      'command --help (per-command) returns 0 without running handle',
+      () async {
+        final command = _RecordingCommand();
+        final registry = DowelRegistry();
+        registry.register(command);
+        final app = DowelApplication(registry: registry);
 
-      final code = await app.dispatch(<String>['recording', '--help']);
+        final code = await app.dispatch(<String>['recording', '--help']);
 
-      expect(code, 0);
-      expect(command.calls, 0);
-    });
+        expect(code, 0);
+        expect(command.calls, 0);
+      },
+    );
 
     test('exception from handle returns exit 3', () async {
       final registry = DowelRegistry();
@@ -180,10 +190,7 @@ void main() {
     });
 
     test('custom version is honored', () {
-      final app = DowelApplication(
-        registry: DowelRegistry(),
-        version: '9.9.9',
-      );
+      final app = DowelApplication(registry: DowelRegistry(), version: '9.9.9');
 
       expect(app.version, '9.9.9');
     });
@@ -199,41 +206,45 @@ void main() {
       expect(capturingCommand.capturedRegistry, same(registry));
     });
 
-    test('a connected command refuses a foreign session before dialling',
-        () async {
-      // The guard has to fire BEFORE the VM Service connect: reaching the
-      // socket first means the command succeeds against the wrong app, which
-      // is the failure that once produced a screenshot of another product.
-      final Directory tempHome =
-          Directory.systemTemp.createTempSync('dowel_app_own_');
-      final Directory sibling =
-          Directory.systemTemp.createTempSync('dowel_app_sibling_');
-      addTearDown(() {
-        StateFile.debugHomeOverride = null;
-        tempHome.deleteSync(recursive: true);
-        sibling.deleteSync(recursive: true);
-      });
-      StateFile.debugHomeOverride = tempHome.path;
+    test(
+      'a connected command refuses a foreign session before dialling',
+      () async {
+        // The guard has to fire BEFORE the VM Service connect: reaching the
+        // socket first means the command succeeds against the wrong app, which
+        // is the failure that once produced a screenshot of another product.
+        final Directory tempHome = Directory.systemTemp.createTempSync(
+          'dowel_app_own_',
+        );
+        final Directory sibling = Directory.systemTemp.createTempSync(
+          'dowel_app_sibling_',
+        );
+        addTearDown(() {
+          StateFile.debugHomeOverride = null;
+          tempHome.deleteSync(recursive: true);
+          sibling.deleteSync(recursive: true);
+        });
+        StateFile.debugHomeOverride = tempHome.path;
 
-      final Directory stateDir = Directory('${tempHome.path}/.dowel');
-      stateDir.createSync(recursive: true);
-      File('${stateDir.path}/state.json').writeAsStringSync(
-        jsonEncode(<String, dynamic>{
-          'pid': 4242,
-          'projectRoot': sibling.path,
-          // A URI that would hang or throw if the guard let it through.
-          'vmServiceUri': 'ws://127.0.0.1:1/ws',
-        }),
-      );
+        final Directory stateDir = Directory('${tempHome.path}/.dowel');
+        stateDir.createSync(recursive: true);
+        File('${stateDir.path}/state.json').writeAsStringSync(
+          jsonEncode(<String, dynamic>{
+            'pid': 4242,
+            'projectRoot': sibling.path,
+            // A URI that would hang or throw if the guard let it through.
+            'vmServiceUri': 'ws://127.0.0.1:1/ws',
+          }),
+        );
 
-      final registry = DowelRegistry();
-      registry.register(_ConnectedCommand());
-      final app = DowelApplication(registry: registry);
+        final registry = DowelRegistry();
+        registry.register(_ConnectedCommand());
+        final app = DowelApplication(registry: registry);
 
-      final code = await app.dispatch(<String>['connected']);
+        final code = await app.dispatch(<String>['connected']);
 
-      expect(code, 1);
-    });
+        expect(code, 1);
+      },
+    );
 
     test('a booting session recovers its URI from the session log', () async {
       // The field case: the MCP client killed `dowel_start` at 60s while an
@@ -241,8 +252,9 @@ void main() {
       // in the log after the process that would have recorded it was gone.
       // The next command reads it back instead of the operator hand-writing
       // the file.
-      final Directory tempHome =
-          Directory.systemTemp.createTempSync('dowel_recover_');
+      final Directory tempHome = Directory.systemTemp.createTempSync(
+        'dowel_recover_',
+      );
       addTearDown(() {
         StateFile.debugHomeOverride = null;
         StateFile.debugProjectRootOverride = null;
@@ -260,10 +272,10 @@ void main() {
       });
       File('${File(StateFile.path).parent.path}/flutter-dev.log')
           .writeAsStringSync(
-        'Launching lib/main.dart on iPhone in debug mode...\n'
-        'A Dart VM Service on iPhone is available at: '
-        'http://127.0.0.1:8183/AbC=/\n',
-      );
+            'Launching lib/main.dart on iPhone in debug mode...\n'
+            'A Dart VM Service on iPhone is available at: '
+            'http://127.0.0.1:8183/AbC=/\n',
+          );
 
       final registry = DowelRegistry();
       registry.register(_ConnectedCommand());
@@ -383,43 +395,47 @@ void main() {
         tempHome.deleteSync(recursive: true);
       });
 
-      test('reports an unregistered extension in one line and exits 75',
-          () async {
-        // The field case: a connected command run while the app is still
-        // booting, before it registered its extension, printed the raw
-        // `(-32601) Method not found` RPC error and a vm_service stack.
-        await serveVm(-32601);
-        final registry = DowelRegistry()..register(_ExtensionCommand());
-        final app = DowelApplication(registry: registry);
+      test(
+        'reports an unregistered extension in one line and exits 75',
+        () async {
+          // The field case: a connected command run while the app is still
+          // booting, before it registered its extension, printed the raw
+          // `(-32601) Method not found` RPC error and a vm_service stack.
+          await serveVm(-32601);
+          final registry = DowelRegistry()..register(_ExtensionCommand());
+          final app = DowelApplication(registry: registry);
 
-        final result = await _captureDispatch(
-          () => app.dispatch(<String>['player:state']),
-        );
+          final result = await _captureDispatch(
+            () => app.dispatch(<String>['player:state']),
+          );
 
-        expect(result.code, 75);
-        expect(
-          result.err,
-          contains(
-            'ext.watchools.player is not registered in the running app yet',
-          ),
-        );
-        expect(result.err, isNot(contains('#0')), reason: 'no stack trace');
-        expect(result.err.trim().split('\n'), hasLength(1));
-      });
+          expect(result.code, 75);
+          expect(
+            result.err,
+            contains(
+              'ext.watchools.player is not registered in the running app yet',
+            ),
+          );
+          expect(result.err, isNot(contains('#0')), reason: 'no stack trace');
+          expect(result.err.trim().split('\n'), hasLength(1));
+        },
+      );
 
-      test('keeps any other RPC error on the unexpected-failure path',
-          () async {
-        await serveVm(-32000);
-        final registry = DowelRegistry()..register(_ExtensionCommand());
-        final app = DowelApplication(registry: registry);
+      test(
+        'keeps any other RPC error on the unexpected-failure path',
+        () async {
+          await serveVm(-32000);
+          final registry = DowelRegistry()..register(_ExtensionCommand());
+          final app = DowelApplication(registry: registry);
 
-        final result = await _captureDispatch(
-          () => app.dispatch(<String>['player:state']),
-        );
+          final result = await _captureDispatch(
+            () => app.dispatch(<String>['player:state']),
+          );
 
-        expect(result.code, 3);
-        expect(result.err, contains('Connected command player:state failed'));
-      });
+          expect(result.code, 3);
+          expect(result.err, contains('Connected command player:state failed'));
+        },
+      );
     });
   });
 }

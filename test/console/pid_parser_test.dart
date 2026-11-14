@@ -1,4 +1,4 @@
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/console/pid_parser.dart';
 import 'package:test/test.dart';
 
 void main() {

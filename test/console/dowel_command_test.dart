@@ -22,10 +22,7 @@ void main() {
 
     test('handle returns the value the subclass produces', () async {
       final command = _NoOpCommand();
-      final ctx = DowelContext.bare(
-        MapInput(const {}),
-        BufferedOutput(),
-      );
+      final ctx = DowelContext.bare(MapInput(const {}), BufferedOutput());
 
       final code = await command.handle(ctx);
 

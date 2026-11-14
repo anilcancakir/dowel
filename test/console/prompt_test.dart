@@ -107,10 +107,7 @@ void main() {
     });
 
     test('throws ArgumentError on empty options list', () {
-      expect(
-        () => Prompt.choice('?', options: const []),
-        throwsArgumentError,
-      );
+      expect(() => Prompt.choice('?', options: const []), throwsArgumentError);
     });
   });
 

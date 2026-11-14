@@ -30,10 +30,7 @@ void main() {
     test('the legacy pointer still resolves to the well-known path', () {
       // Hand-writing this file is the documented recovery recipe when
       // `dowel start` cannot boot an app, so the location is a contract.
-      expect(
-        StateFile.legacyPointerPath,
-        '${tempHome.path}/.dowel/state.json',
-      );
+      expect(StateFile.legacyPointerPath, '${tempHome.path}/.dowel/state.json');
     });
 
     test('read returns null when the file does not exist', () async {
@@ -57,8 +54,11 @@ void main() {
       await StateFile.write({'pid': 1});
 
       final tmp = File('${StateFile.path}.tmp');
-      expect(tmp.existsSync(), isFalse,
-          reason: '.tmp file must be renamed away after a successful write');
+      expect(
+        tmp.existsSync(),
+        isFalse,
+        reason: '.tmp file must be renamed away after a successful write',
+      );
     });
 
     test('write creates the parent directory when missing', () async {

@@ -63,22 +63,20 @@ final class McpServer extends MCPServer with ToolsSupport {
     required StreamChannel<String> channel,
     required this.registry,
     required this.filter,
-    required VmServiceClientFactory vmClientFactory,
-    required StateReader stateReader,
-  })  : _vmClientFactory = vmClientFactory,
-        _stateReader = stateReader,
-        super.fromStreamChannel(
-          channel,
-          implementation: Implementation(
-            name: 'dowel_mcp',
-            // dowelVersion is kept in sync with pubspec.yaml `version:` on
-            // each release cut; test/console/dowel_version_test.dart and
-            // test/mcp/mcp_server_version_test.dart fail the build when it is
-            // not. The 0.0.9 cut missed it and shipped a handshake one
-            // release behind.
-            version: dowelVersion,
-          ),
-        ) {
+    required this._vmClientFactory,
+    required this._stateReader,
+  }) : super.fromStreamChannel(
+         channel,
+         implementation: Implementation(
+           name: 'dowel_mcp',
+           // dowelVersion is kept in sync with pubspec.yaml `version:` on
+           // each release cut; test/console/dowel_version_test.dart and
+           // test/mcp/mcp_server_version_test.dart fail the build when it is
+           // not. The 0.0.9 cut missed it and shipped a handshake one
+           // release behind.
+           version: dowelVersion,
+         ),
+       ) {
     _registerTools();
   }
 
@@ -87,14 +85,13 @@ final class McpServer extends MCPServer with ToolsSupport {
   factory McpServer.stdio({
     required DowelRegistry registry,
     required McpFilterConfig filter,
-  }) =>
-      McpServer._(
-        channel: stdioChannel(input: stdin, output: stdout),
-        registry: registry,
-        filter: filter,
-        vmClientFactory: VmServiceClient.new,
-        stateReader: StateFile.read,
-      );
+  }) => McpServer._(
+    channel: stdioChannel(input: stdin, output: stdout),
+    registry: registry,
+    filter: filter,
+    vmClientFactory: VmServiceClient.new,
+    stateReader: StateFile.read,
+  );
 
   /// Test factory: caller supplies the channel + every external seam.
   factory McpServer.test({
@@ -103,14 +100,13 @@ final class McpServer extends MCPServer with ToolsSupport {
     required McpFilterConfig filter,
     required VmServiceClientFactory vmClientFactory,
     required StateReader stateReader,
-  }) =>
-      McpServer._(
-        channel: channel,
-        registry: registry,
-        filter: filter,
-        vmClientFactory: vmClientFactory,
-        stateReader: stateReader,
-      );
+  }) => McpServer._(
+    channel: channel,
+    registry: registry,
+    filter: filter,
+    vmClientFactory: vmClientFactory,
+    stateReader: stateReader,
+  );
 
   /// Source of the tool catalog and provider attribution.
   final DowelRegistry registry;
@@ -254,7 +250,8 @@ final class McpServer extends MCPServer with ToolsSupport {
         isError: true,
         content: [
           TextContent(
-            text: '### Error\nVM Service connect failed: $e\n\n'
+            text:
+                '### Error\nVM Service connect failed: $e\n\n'
                 'Run `dowel start` to launch the Flutter app, then '
                 'retry the tool call.',
           ),
@@ -269,7 +266,8 @@ final class McpServer extends MCPServer with ToolsSupport {
         isError: true,
         content: [
           TextContent(
-            text: '### Error\nNo Flutter app detected '
+            text:
+                '### Error\nNo Flutter app detected '
                 '(~/.dowel/state.json missing or has no vmServiceUri).\n\n'
                 'Run `dowel start` to launch the Flutter app, then retry '
                 'the tool call. The MCP server will lazy-connect on the '
@@ -291,7 +289,8 @@ final class McpServer extends MCPServer with ToolsSupport {
     }
 
     try {
-      final args = request.arguments?.cast<String, dynamic>() ??
+      final args =
+          request.arguments?.cast<String, dynamic>() ??
           const <String, dynamic>{};
       final result = await _withVmReconnect(
         vmClient,
@@ -332,7 +331,8 @@ final class McpServer extends MCPServer with ToolsSupport {
         isError: true,
         content: [
           TextContent(
-            text: '### Error\nMissing required argument: '
+            text:
+                '### Error\nMissing required argument: '
                 '`expression` (non-empty string).',
           ),
         ],
@@ -351,7 +351,8 @@ final class McpServer extends MCPServer with ToolsSupport {
           isError: true,
           content: [
             TextContent(
-              text: '### Error\nRuntime exception: '
+              text:
+                  '### Error\nRuntime exception: '
                   '${result.message ?? '(no message)'}',
             ),
           ],
@@ -378,7 +379,8 @@ final class McpServer extends MCPServer with ToolsSupport {
         isError: true,
         content: [
           TextContent(
-            text: '### Error\nIsolate sentinel encountered '
+            text:
+                '### Error\nIsolate sentinel encountered '
                 '(kind: ${e.sentinel.kind}).\n\nRun `dowel restart` to '
                 'mint a fresh isolate, then retry the evaluation.',
           ),
@@ -404,7 +406,8 @@ final class McpServer extends MCPServer with ToolsSupport {
         isError: true,
         content: [
           TextContent(
-            text: '### Error\nVM Service RPC error (code ${e.code}): '
+            text:
+                '### Error\nVM Service RPC error (code ${e.code}): '
                 '${e.message}',
           ),
         ],
@@ -460,9 +463,7 @@ final class McpServer extends MCPServer with ToolsSupport {
       return;
     }
     await _connect(wsUri);
-    stderr.writeln(
-      '[dowel_mcp] lazy-connected to VM Service at $wsUri',
-    );
+    stderr.writeln('[dowel_mcp] lazy-connected to VM Service at $wsUri');
   }
 
   // Connects one client to [wsUri] and makes it the live one.
@@ -774,32 +775,37 @@ final class McpServer extends MCPServer with ToolsSupport {
           'properties': <String, dynamic>{
             'device': <String, dynamic>{
               'type': 'string',
-              'description': 'Target Flutter device id. Common values: '
+              'description':
+                  'Target Flutter device id. Common values: '
                   '`chrome` (web), `macos` (desktop), `<adb-serial>` '
                   '(Android), or any id from `flutter devices`. Omit to '
                   'use `chrome`.',
             },
             'port': <String, dynamic>{
               'type': 'string',
-              'description': 'Web port for the chrome device as a numeric '
+              'description':
+                  'Web port for the chrome device as a numeric '
                   'string (Flutter parses `--port` as String). Default '
                   '`3100`. Ignored for non-web devices.',
             },
             'vm-service-port': <String, dynamic>{
               'type': 'string',
-              'description': 'Port the VM Service binds to on the host as '
+              'description':
+                  'Port the VM Service binds to on the host as '
                   'a numeric string. Default `8181`. Change when 8181 is '
                   'already taken by a sibling process.',
             },
             'dds': <String, dynamic>{
               'type': 'boolean',
-              'description': 'Enable the Dart Development Service (DDS) '
+              'description':
+                  'Enable the Dart Development Service (DDS) '
                   'proxy in front of the VM Service. Default `false`. Set '
                   '`true` when a tool needs DDS-only features.',
             },
             'profile-static': <String, dynamic>{
               'type': 'boolean',
-              'description': 'Build a device (Android, iOS, desktop) with '
+              'description':
+                  'Build a device (Android, iOS, desktop) with '
                   '`flutter run --profile`: release-like performance, no hot '
                   'reload. On `chrome` it only tags the session '
                   '(`profile: static`), because a web profile build has no VM '
@@ -807,7 +813,8 @@ final class McpServer extends MCPServer with ToolsSupport {
             },
             'cdp-port': <String, dynamic>{
               'type': 'string',
-              'description': 'Chrome DevTools Protocol port as a numeric '
+              'description':
+                  'Chrome DevTools Protocol port as a numeric '
                   'string. When set, pre-launches Chrome with '
                   '`--remote-debugging-port=N` and runs flutter with '
                   '`-d web-server`. Required for `tapir_resize` and '
@@ -815,14 +822,16 @@ final class McpServer extends MCPServer with ToolsSupport {
             },
             'timeout': <String, dynamic>{
               'type': 'string',
-              'description': 'Seconds to wait for the VM Service URI, as a '
+              'description':
+                  'Seconds to wait for the VM Service URI, as a '
                   'numeric string. Default `90`. Raise it for a cold native '
                   'build.',
             },
             'flutter-arg': <String, dynamic>{
               'type': 'array',
               'items': <String, dynamic>{'type': 'string'},
-              'description': 'Extra arguments forwarded verbatim to '
+              'description':
+                  'Extra arguments forwarded verbatim to '
                   '`flutter run`, one per item (e.g. '
                   '`["--dart-define=KEY=VALUE", "--flavor=dev"]`). Forwarded '
                   'last, so a repeated flag overrides the default this tool '
@@ -838,33 +847,39 @@ final class McpServer extends MCPServer with ToolsSupport {
           'properties': <String, dynamic>{
             'device': <String, dynamic>{
               'type': 'string',
-              'description': 'Flutter device id. Omit to keep the prior '
+              'description':
+                  'Flutter device id. Omit to keep the prior '
                   'session\'s device.',
             },
             'port': <String, dynamic>{
               'type': 'string',
-              'description': 'Web port as a numeric string. Omit to keep the '
+              'description':
+                  'Web port as a numeric string. Omit to keep the '
                   'prior session\'s port.',
             },
             'vm-service-port': <String, dynamic>{
               'type': 'string',
-              'description': 'Host VM Service port as a numeric string. Omit '
+              'description':
+                  'Host VM Service port as a numeric string. Omit '
                   'to keep the prior session\'s port.',
             },
             'cdp-port': <String, dynamic>{
               'type': 'string',
-              'description': 'Chrome DevTools Protocol port as a numeric '
+              'description':
+                  'Chrome DevTools Protocol port as a numeric '
                   'string. Omit to keep the prior session\'s port.',
             },
             'profile-static': <String, dynamic>{
               'type': 'boolean',
-              'description': 'Profile build on a device. Omit to keep the '
+              'description':
+                  'Profile build on a device. Omit to keep the '
                   'prior session\'s build mode; `false` forces a debug build.',
             },
             'flutter-arg': <String, dynamic>{
               'type': 'array',
               'items': <String, dynamic>{'type': 'string'},
-              'description': 'Extra arguments forwarded verbatim to '
+              'description':
+                  'Extra arguments forwarded verbatim to '
                   '`flutter run`, one per item. Omit to keep the prior '
                   'session\'s arguments; passing any replaces the whole '
                   'carried set.',
@@ -878,7 +893,8 @@ final class McpServer extends MCPServer with ToolsSupport {
           'properties': <String, dynamic>{
             'follow': <String, dynamic>{
               'type': 'boolean',
-              'description': 'When `true`, tail the live log stream until '
+              'description':
+                  'When `true`, tail the live log stream until '
                   'the client disconnects (`-f` short form on the CLI). '
                   'When `false` or omitted, return the whole captured log '
                   'and exit immediately. Default `false`.',
@@ -901,7 +917,8 @@ final class McpServer extends MCPServer with ToolsSupport {
           'properties': <String, dynamic>{
             'eval': <String, dynamic>{
               'type': 'string',
-              'description': 'Dart expression to evaluate in the running '
+              'description':
+                  'Dart expression to evaluate in the running '
                   'app\'s root library (e.g. '
                   '`WidgetsBinding.instance.lifecycleState`, '
                   '`MyService.instance.refresh()`, `1+1`). The expression '
@@ -963,19 +980,15 @@ final class McpServer extends MCPServer with ToolsSupport {
           isError: true,
           content: [
             TextContent(
-              text: '### Error\nNot connected to a running Flutter app. '
+              text:
+                  '### Error\nNot connected to a running Flutter app. '
                   'Run `dart run dowel start` first so '
                   '`~/.dowel/state.json` records the VM Service URI.',
             ),
           ],
         );
       }
-      ctx = DowelContext.connected(
-        input,
-        output,
-        vmClient,
-        registry: registry,
-      );
+      ctx = DowelContext.connected(input, output, vmClient, registry: registry);
     } else {
       ctx = DowelContext.bare(input, output, registry: registry);
     }

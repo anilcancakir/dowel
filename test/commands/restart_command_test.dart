@@ -54,14 +54,12 @@ void main() {
 
     test('sessionOverridesFrom carries the prior ports and device', () {
       final Map<String, Object?> forwarded =
-          RestartCommand.sessionOverridesFrom(
-        <String, dynamic>{
-          'cdpPort': 9333,
-          'webPort': 3180,
-          'vmServicePort': 8281,
-          'device': 'chrome',
-        },
-      );
+          RestartCommand.sessionOverridesFrom(<String, dynamic>{
+            'cdpPort': 9333,
+            'webPort': 3180,
+            'vmServicePort': 8281,
+            'device': 'chrome',
+          });
 
       expect(forwarded['cdpPort'], 9333);
       expect(forwarded['webPort'], 3180);
@@ -71,15 +69,15 @@ void main() {
 
     test('sessionOverridesFrom carries a profile session as profileStatic', () {
       expect(
-        RestartCommand.sessionOverridesFrom(
-          <String, dynamic>{'profile': 'static'},
-        ),
+        RestartCommand.sessionOverridesFrom(<String, dynamic>{
+          'profile': 'static',
+        }),
         equals(<String, Object?>{'profileStatic': true}),
       );
       expect(
-        RestartCommand.sessionOverridesFrom(
-          <String, dynamic>{'profile': 'debug'},
-        ),
+        RestartCommand.sessionOverridesFrom(<String, dynamic>{
+          'profile': 'debug',
+        }),
         isEmpty,
       );
     });
@@ -106,8 +104,9 @@ void main() {
     setUp(() async {
       tempHome = await Directory.systemTemp.createTemp('dowel_restart_cdp_');
       StateFile.debugHomeOverride = tempHome.path;
-      tempProfileRoot =
-          await Directory.systemTemp.createTemp('dowel_restart_cdp_profile_');
+      tempProfileRoot = await Directory.systemTemp.createTemp(
+        'dowel_restart_cdp_profile_',
+      );
       // Reset seams.
       StopCommand.stopKillFunction = _noOpKill;
       StopCommand.stopIsAlive = _alwaysDead;
@@ -124,12 +123,7 @@ void main() {
       StopCommand.stopProcessRunner = Process.run;
       StopCommand.stopPortProbe = StartCommand.defaultPortProbe;
       StartCommand.cdpProcessRunner = Process.run;
-      StartCommand.cdpProcessStarter = (
-        exec,
-        args, {
-        workingDirectory,
-        mode,
-      }) =>
+      StartCommand.cdpProcessStarter = (exec, args, {workingDirectory, mode}) =>
           Process.start(
             exec,
             args,
@@ -155,8 +149,7 @@ void main() {
 
     // (a) Prior state has cdpPort=9333 and restart has no explicit flag:
     //     the forwarded value 9333 drives the CDP branch.
-    test(
-        '(a) restart with no --cdp-port flag forwards prior cdpPort=9333 to '
+    test('(a) restart with no --cdp-port flag forwards prior cdpPort=9333 to '
         'StartCommand CDP branch', () async {
       // Seed state.json with cdpPort=9333 (as written by a prior `start --cdp-port=9333`).
       await _writeFakeState(tempHome, cdpPort: 9333);
@@ -166,31 +159,32 @@ void main() {
       StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
 
       int? launchedCdpPort;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') {
-          // Record which --remote-debugging-port was requested.
-          final portArg = args.firstWhere(
-            (a) => a.startsWith('--remote-debugging-port='),
-            orElse: () => '',
-          );
-          if (portArg.isNotEmpty) {
-            launchedCdpPort = int.tryParse(portArg.split('=').last);
-          }
-          return _SpyProcess(pid: 1111);
-        }
-        return _FakeFlutterProcess(holderPid: 10, flutterPid: 11);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') {
+              // Record which --remote-debugging-port was requested.
+              final portArg = args.firstWhere(
+                (a) => a.startsWith('--remote-debugging-port='),
+                orElse: () => '',
+              );
+              if (portArg.isNotEmpty) {
+                launchedCdpPort = int.tryParse(portArg.split('=').last);
+              }
+              return _SpyProcess(pid: 1111);
+            }
+            return _FakeFlutterProcess(holderPid: 10, flutterPid: 11);
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
       StartCommand.cdpChromeNavigator = (port, url) async {};
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpVmServiceScraper = (_) async =>
+          'ws://127.0.0.1:8181/abc/ws';
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
       };
@@ -214,7 +208,8 @@ void main() {
       expect(
         launchedCdpPort,
         9333,
-        reason: 'restart must forward prior cdpPort=9333 into the CDP branch '
+        reason:
+            'restart must forward prior cdpPort=9333 into the CDP branch '
             'even when --cdp-port is absent on the context',
       );
       final state = await StateFile.read();
@@ -223,88 +218,90 @@ void main() {
     });
 
     // (b) Explicit --cdp-port=4444 on context wins over forwarded 9333.
-    test('(b) explicit --cdp-port=4444 on restart overrides prior cdpPort=9333',
-        () async {
-      await _writeFakeState(tempHome, cdpPort: 9333);
+    test(
+      '(b) explicit --cdp-port=4444 on restart overrides prior cdpPort=9333',
+      () async {
+        await _writeFakeState(tempHome, cdpPort: 9333);
 
-      StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
-      StartCommand.cdpProcessRunner = _fakeFlutterVersionRunner('3.30.0');
-      StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
+        StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
+        StartCommand.cdpProcessRunner = _fakeFlutterVersionRunner('3.30.0');
+        StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
 
-      int? launchedCdpPort;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') {
-          final portArg = args.firstWhere(
-            (a) => a.startsWith('--remote-debugging-port='),
-            orElse: () => '',
-          );
-          if (portArg.isNotEmpty) {
-            launchedCdpPort = int.tryParse(portArg.split('=').last);
-          }
-          return _SpyProcess(pid: 2222);
-        }
-        return _FakeFlutterProcess(holderPid: 20, flutterPid: 21);
-      };
+        int? launchedCdpPort;
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              if (exec == '/fake/chrome') {
+                final portArg = args.firstWhere(
+                  (a) => a.startsWith('--remote-debugging-port='),
+                  orElse: () => '',
+                );
+                if (portArg.isNotEmpty) {
+                  launchedCdpPort = int.tryParse(portArg.split('=').last);
+                }
+                return _SpyProcess(pid: 2222);
+              }
+              return _FakeFlutterProcess(holderPid: 20, flutterPid: 21);
+            };
 
-      StartCommand.cdpChromeProber = (port, timeout) async {};
-      StartCommand.cdpChromeNavigator = (port, url) async {};
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
-      StartCommand.cdpFifoMaker = (path) async {
-        File(path).writeAsStringSync('');
-      };
+        StartCommand.cdpChromeProber = (port, timeout) async {};
+        StartCommand.cdpChromeNavigator = (port, url) async {};
+        StartCommand.cdpVmServiceScraper = (_) async =>
+            'ws://127.0.0.1:8181/abc/ws';
+        StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
+        StartCommand.cdpFifoMaker = (path) async {
+          File(path).writeAsStringSync('');
+        };
 
-      final command = RestartCommand();
-      final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(<String, dynamic>{
-          'device': 'chrome',
-          'port': '3100',
-          'dds': false,
-          'profile-static': false,
-          'cdp-port': '4444', // explicit flag overrides the forwarded 9333.
-        }),
-        output,
-      );
+        final command = RestartCommand();
+        final output = BufferedOutput();
+        final ctx = DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '4444', // explicit flag overrides the forwarded 9333.
+          }),
+          output,
+        );
 
-      final code = await command.handle(ctx);
+        final code = await command.handle(ctx);
 
-      expect(code, 0, reason: output.content);
-      expect(
-        launchedCdpPort,
-        4444,
-        reason:
-            'explicit --cdp-port=4444 must win over the forwarded prior value of 9333',
-      );
-      final state = await StateFile.read();
-      expect(state, isNotNull);
-      expect(state!['cdpPort'], 4444);
-    });
+        expect(code, 0, reason: output.content);
+        expect(
+          launchedCdpPort,
+          4444,
+          reason: 'explicit --cdp-port=4444 must win over the forwarded prior value of 9333',
+        );
+        final state = await StateFile.read();
+        expect(state, isNotNull);
+        expect(state!['cdpPort'], 4444);
+      },
+    );
 
     // (d) Prior state has cdpPort:null (non-CDP session): restart resolves null.
-    test(
-        '(d) restart when prior state has cdpPort:null resolves cdpPort==null '
+    test('(d) restart when prior state has cdpPort:null resolves cdpPort==null '
         '(non-CDP branch used)', () async {
       await _writeFakeState(tempHome, cdpPort: null);
 
       var chromeLaunched = false;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') chromeLaunched = true;
-        return _FakeFlutterProcess(holderPid: 30, flutterPid: 31);
-      };
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') chromeLaunched = true;
+            return _FakeFlutterProcess(holderPid: 30, flutterPid: 31);
+          };
+      StartCommand.cdpVmServiceScraper = (_) async =>
+          'ws://127.0.0.1:8181/abc/ws';
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
       };
@@ -345,10 +342,9 @@ void main() {
           List<String> args, {
           String? workingDirectory,
           ProcessStartMode? mode,
-        }) async =>
-            _FakeFlutterProcess(holderPid: 30, flutterPid: 31);
-        StartCommand.cdpVmServiceScraper =
-            (_) async => 'ws://127.0.0.1:8181/abc/ws';
+        }) async => _FakeFlutterProcess(holderPid: 30, flutterPid: 31);
+        StartCommand.cdpVmServiceScraper = (_) async =>
+            'ws://127.0.0.1:8181/abc/ws';
         StartCommand.cdpFifoMaker = (path) async {
           File(path).writeAsStringSync('');
         };
@@ -364,81 +360,91 @@ void main() {
       // A restart between two measurements came back as a debug build and
       // recorded `profile: debug`, so the second run measured a different
       // build mode from the first without saying so.
-      test('a restart with no flag keeps a profile session in profile',
-          () async {
-        final state = await restartWith(<String, dynamic>{'dds': false});
+      test(
+        'a restart with no flag keeps a profile session in profile',
+        () async {
+          final state = await restartWith(<String, dynamic>{'dds': false});
 
-        expect(state!['profile'], 'static');
-      });
+          expect(state!['profile'], 'static');
+        },
+      );
 
       test('an explicit --no-profile-static on restart wins', () async {
-        final state = await restartWith(
-          <String, dynamic>{'dds': false, 'profile-static': false},
-        );
+        final state = await restartWith(<String, dynamic>{
+          'dds': false,
+          'profile-static': false,
+        });
 
         expect(state!['profile'], 'debug');
       });
     });
 
-    test('does not relaunch until the old app and its web port are gone',
-        () async {
-      // `stop` returned straight after the SIGTERM, so the relaunch raced the
-      // old tool for its port: a start with --cdp-port failed at once on
-      // "Port 3100 is already in use", and tapir's perf campaign grew its own
-      // wait to get around it.
-      await _writeFakeState(tempHome, cdpPort: null);
-      const int pgid = 12340;
-      final Set<int> oldApp = <int>{12345, 12346, 12350};
-      int pollsLeft = 3;
-      bool signalled = false;
-      StopCommand.stopGracePeriod = const Duration(seconds: 1);
-      StopCommand.stopKillFunction = (int target, ProcessSignal _) {
-        if (target == -pgid) signalled = true;
-        return true;
-      };
-      StopCommand.stopIsAlive = oldApp.contains;
-      StopCommand.stopProcessRunner = (String exe, List<String> args) async {
-        if (signalled && --pollsLeft <= 0) oldApp.clear();
-        final String argv = args.join(' ');
-        if (argv == '-o pgid= -p 12345' && oldApp.isNotEmpty) {
-          return ProcessResult(0, 0, '$pgid', '');
-        }
-        // Started long before the fixture's recorded `startedAt`.
-        if (argv == '-o etime= -p 12345' && oldApp.isNotEmpty) {
-          return ProcessResult(0, 0, '200-00:00:00', '');
-        }
-        if (argv == '-A -o pgid=,stat=') {
-          return ProcessResult(
-              0, 0, oldApp.map((int _) => '$pgid S').join('\n'), '');
-        }
-        return ProcessResult(0, 1, '', '');
-      };
-      StopCommand.stopPortProbe = (int port) async => oldApp.isEmpty;
+    test(
+      'does not relaunch until the old app and its web port are gone',
+      () async {
+        // `stop` returned straight after the SIGTERM, so the relaunch raced the
+        // old tool for its port: a start with --cdp-port failed at once on
+        // "Port 3100 is already in use", and tapir's perf campaign grew its own
+        // wait to get around it.
+        await _writeFakeState(tempHome, cdpPort: null);
+        const int pgid = 12340;
+        final Set<int> oldApp = <int>{12345, 12346, 12350};
+        int pollsLeft = 3;
+        bool signalled = false;
+        StopCommand.stopGracePeriod = const Duration(seconds: 1);
+        StopCommand.stopKillFunction = (int target, ProcessSignal _) {
+          if (target == -pgid) signalled = true;
+          return true;
+        };
+        StopCommand.stopIsAlive = oldApp.contains;
+        StopCommand.stopProcessRunner = (String exe, List<String> args) async {
+          if (signalled && --pollsLeft <= 0) oldApp.clear();
+          final String argv = args.join(' ');
+          if (argv == '-o pgid= -p 12345' && oldApp.isNotEmpty) {
+            return ProcessResult(0, 0, '$pgid', '');
+          }
+          // Started long before the fixture's recorded `startedAt`.
+          if (argv == '-o etime= -p 12345' && oldApp.isNotEmpty) {
+            return ProcessResult(0, 0, '200-00:00:00', '');
+          }
+          if (argv == '-A -o pgid=,stat=') {
+            return ProcessResult(
+              0,
+              0,
+              oldApp.map((int _) => '$pgid S').join('\n'),
+              '',
+            );
+          }
+          return ProcessResult(0, 1, '', '');
+        };
+        StopCommand.stopPortProbe = (int port) async => oldApp.isEmpty;
 
-      bool? oldAppGoneAtRelaunch;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        oldAppGoneAtRelaunch = oldApp.isEmpty;
-        return _FakeFlutterProcess(holderPid: 30, flutterPid: 31);
-      };
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpFifoMaker = (path) async {
-        File(path).writeAsStringSync('');
-      };
+        bool? oldAppGoneAtRelaunch;
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              oldAppGoneAtRelaunch = oldApp.isEmpty;
+              return _FakeFlutterProcess(holderPid: 30, flutterPid: 31);
+            };
+        StartCommand.cdpVmServiceScraper = (_) async =>
+            'ws://127.0.0.1:8181/abc/ws';
+        StartCommand.cdpFifoMaker = (path) async {
+          File(path).writeAsStringSync('');
+        };
 
-      final output = BufferedOutput();
-      final int code = await RestartCommand().handle(
-        DowelContext.bare(MapInput(<String, dynamic>{'dds': false}), output),
-      );
+        final output = BufferedOutput();
+        final int code = await RestartCommand().handle(
+          DowelContext.bare(MapInput(<String, dynamic>{'dds': false}), output),
+        );
 
-      expect(code, 0, reason: output.content);
-      expect(oldAppGoneAtRelaunch, isTrue);
-    });
+        expect(code, 0, reason: output.content);
+        expect(oldAppGoneAtRelaunch, isTrue);
+      },
+    );
 
     test('a refused stop aborts the restart', () async {
       // `stop` returns 1 when the recorded session belongs to another
@@ -446,8 +452,9 @@ void main() {
       // project's ports and device, carried over by sessionOverridesFrom,
       // which is the `Address already in use` restart exists to stop
       // producing.
-      final Directory sibling =
-          Directory.systemTemp.createTempSync('dowel_restart_sibling_');
+      final Directory sibling = Directory.systemTemp.createTempSync(
+        'dowel_restart_sibling_',
+      );
       addTearDown(() => sibling.deleteSync(recursive: true));
 
       final Directory stateDir = Directory('${tempHome.path}/.dowel');
@@ -488,19 +495,15 @@ void main() {
     setUp(() async {
       tempHome = await Directory.systemTemp.createTemp('dowel_start_fwd_cdp_');
       StateFile.debugHomeOverride = tempHome.path;
-      tempProfileRoot =
-          await Directory.systemTemp.createTemp('dowel_start_fwd_cdp_profile_');
+      tempProfileRoot = await Directory.systemTemp.createTemp(
+        'dowel_start_fwd_cdp_profile_',
+      );
     });
 
     tearDown(() async {
       StateFile.debugHomeOverride = null;
       StartCommand.cdpProcessRunner = Process.run;
-      StartCommand.cdpProcessStarter = (
-        exec,
-        args, {
-        workingDirectory,
-        mode,
-      }) =>
+      StartCommand.cdpProcessStarter = (exec, args, {workingDirectory, mode}) =>
           Process.start(
             exec,
             args,
@@ -525,21 +528,21 @@ void main() {
     });
 
     // (c) Bare start: no --cdp-port flag and no forwarded param => cdpPort==null.
-    test(
-        '(c) bare start with no flag and no forwarded cdpPort resolves '
+    test('(c) bare start with no flag and no forwarded cdpPort resolves '
         'cdpPort==null (non-CDP path)', () async {
       var chromeLaunched = false;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') chromeLaunched = true;
-        return _FakeFlutterProcess(holderPid: 40, flutterPid: 41);
-      };
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') chromeLaunched = true;
+            return _FakeFlutterProcess(holderPid: 40, flutterPid: 41);
+          };
+      StartCommand.cdpVmServiceScraper = (_) async =>
+          'ws://127.0.0.1:8181/abc/ws';
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
       };
@@ -568,38 +571,38 @@ void main() {
     });
 
     // Forwarded cdpPort param drives the CDP branch when flag is absent.
-    test(
-        'forwarded cdpPort=9333 via parameter drives the CDP branch when '
+    test('forwarded cdpPort=9333 via parameter drives the CDP branch when '
         '--cdp-port flag is absent', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       StartCommand.cdpProcessRunner = _fakeFlutterVersionRunner('3.30.0');
       StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
 
       int? launchedCdpPort;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') {
-          final portArg = args.firstWhere(
-            (a) => a.startsWith('--remote-debugging-port='),
-            orElse: () => '',
-          );
-          if (portArg.isNotEmpty) {
-            launchedCdpPort = int.tryParse(portArg.split('=').last);
-          }
-          return _SpyProcess(pid: 3333);
-        }
-        return _FakeFlutterProcess(holderPid: 50, flutterPid: 51);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') {
+              final portArg = args.firstWhere(
+                (a) => a.startsWith('--remote-debugging-port='),
+                orElse: () => '',
+              );
+              if (portArg.isNotEmpty) {
+                launchedCdpPort = int.tryParse(portArg.split('=').last);
+              }
+              return _SpyProcess(pid: 3333);
+            }
+            return _FakeFlutterProcess(holderPid: 50, flutterPid: 51);
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
       StartCommand.cdpChromeNavigator = (port, url) async {};
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpVmServiceScraper = (_) async =>
+          'ws://127.0.0.1:8181/abc/ws';
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
       };
@@ -624,7 +627,8 @@ void main() {
       expect(
         launchedCdpPort,
         9333,
-        reason: 'forwarded cdpPort parameter must drive the CDP branch when '
+        reason:
+            'forwarded cdpPort parameter must drive the CDP branch when '
             '--cdp-port flag is absent',
       );
       final state = await StateFile.read();
@@ -633,38 +637,37 @@ void main() {
     });
 
     // Explicit --cdp-port flag wins over forwarded cdpPort parameter.
-    test(
-        'explicit --cdp-port=4444 flag wins over forwarded cdpPort=9333 parameter',
-        () async {
+    test('explicit --cdp-port=4444 flag wins over forwarded cdpPort=9333 parameter', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
       StartCommand.cdpProcessRunner = _fakeFlutterVersionRunner('3.30.0');
       StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
 
       int? launchedCdpPort;
-      StartCommand.cdpProcessStarter = (
-        String exec,
-        List<String> args, {
-        String? workingDirectory,
-        ProcessStartMode? mode,
-      }) async {
-        if (exec == '/fake/chrome') {
-          final portArg = args.firstWhere(
-            (a) => a.startsWith('--remote-debugging-port='),
-            orElse: () => '',
-          );
-          if (portArg.isNotEmpty) {
-            launchedCdpPort = int.tryParse(portArg.split('=').last);
-          }
-          return _SpyProcess(pid: 4444);
-        }
-        return _FakeFlutterProcess(holderPid: 60, flutterPid: 61);
-      };
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            if (exec == '/fake/chrome') {
+              final portArg = args.firstWhere(
+                (a) => a.startsWith('--remote-debugging-port='),
+                orElse: () => '',
+              );
+              if (portArg.isNotEmpty) {
+                launchedCdpPort = int.tryParse(portArg.split('=').last);
+              }
+              return _SpyProcess(pid: 4444);
+            }
+            return _FakeFlutterProcess(holderPid: 60, flutterPid: 61);
+          };
 
       StartCommand.cdpChromeProber = (port, timeout) async {};
       StartCommand.cdpChromeNavigator = (port, url) async {};
-      StartCommand.cdpVmServiceScraper =
-          (_) async => 'ws://127.0.0.1:8181/abc/ws';
-      StartCommand.cdpWebServerReadyWaiter = (_, __) async {};
+      StartCommand.cdpVmServiceScraper = (_) async =>
+          'ws://127.0.0.1:8181/abc/ws';
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
       StartCommand.cdpFifoMaker = (path) async {
         File(path).writeAsStringSync('');
       };
@@ -709,29 +712,34 @@ Future<ProcessResult> _noProcessRunner(String executable, List<String> args) =>
     Future<ProcessResult>.value(ProcessResult(0, 1, '', ''));
 
 /// Writes a minimal state.json to [tempHome]/.dowel/state.json.
-Future<void> _writeFakeState(Directory tempHome,
-    {required int? cdpPort, String profile = 'debug'}) async {
+Future<void> _writeFakeState(
+  Directory tempHome, {
+  required int? cdpPort,
+  String profile = 'debug',
+}) async {
   final dowelDir = Directory('${tempHome.path}/.dowel');
   await dowelDir.create(recursive: true);
   final file = File('${dowelDir.path}/state.json');
-  await file.writeAsString(jsonEncode(<String, dynamic>{
-    'pid': 12345,
-    'stdinPipe': '${dowelDir.path}/flutter-dev.fifo',
-    'stdinHolderPid': 12346,
-    'vmServiceUri': 'ws://127.0.0.1:8181/abc/ws',
-    'webPort': 3100,
-    'vmServicePort': 8181,
-    'startedAt': '2026-06-16T00:00:00.000Z',
-    'profile': profile,
-    // This project's own directory: `restart` refuses a session that
-    // belongs to somebody else, so a fake root here would exercise the
-    // refusal path rather than the carry-over these cases are about.
-    'projectRoot': Directory.current.path,
-    'device': 'chrome',
-    'chromePid': null,
-    'tmpProfileDir': null,
-    'cdpPort': cdpPort,
-  }));
+  await file.writeAsString(
+    jsonEncode(<String, dynamic>{
+      'pid': 12345,
+      'stdinPipe': '${dowelDir.path}/flutter-dev.fifo',
+      'stdinHolderPid': 12346,
+      'vmServiceUri': 'ws://127.0.0.1:8181/abc/ws',
+      'webPort': 3100,
+      'vmServicePort': 8181,
+      'startedAt': '2026-06-16T00:00:00.000Z',
+      'profile': profile,
+      // This project's own directory: `restart` refuses a session that
+      // belongs to somebody else, so a fake root here would exercise the
+      // refusal path rather than the carry-over these cases are about.
+      'projectRoot': Directory.current.path,
+      'device': 'chrome',
+      'chromePid': null,
+      'tmpProfileDir': null,
+      'cdpPort': cdpPort,
+    }),
+  );
 }
 
 CdpProcessRunner _fakeFlutterVersionRunner(String version) {

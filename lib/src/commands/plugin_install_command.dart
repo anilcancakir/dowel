@@ -59,7 +59,8 @@ class PluginInstallCommand extends DowelInstallCommand {
   PluginInstallCommand();
 
   @override
-  String get signature => 'plugin:install '
+  String get signature =>
+      'plugin:install '
       '$baseFlags'
       '{name : Plugin pubspec package name (e.g. magic_logger)} '
       '{--bootstrap-command= : Plugin install sub-command to chain after registration (e.g. logger:install)} '
@@ -412,8 +413,8 @@ class PluginInstallCommand extends DowelInstallCommand {
 
     try {
       await PluginsRegistryFile(const RealFs(), root).addPlugin(entry);
-      final refreshed =
-          await PluginsRefreshCommand(projectRoot: root).handle(ctx);
+      final refreshed = await PluginsRefreshCommand(projectRoot: root)
+          .handle(ctx);
       return refreshed == 0;
     } catch (e) {
       ctx.output.warning(

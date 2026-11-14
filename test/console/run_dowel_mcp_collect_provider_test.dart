@@ -5,6 +5,8 @@ import 'dart:async';
 
 import 'package:dart_mcp/client.dart';
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/mcp/mcp_filter_config.dart';
+import 'package:dowel/src/mcp/mcp_server.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 
@@ -14,16 +16,12 @@ void main() {
     // Contract A (positive): collectMcpTools: true surfaces plugin tools
     // -------------------------------------------------------------------------
 
-    test(
-        'collectMcpTools:true registers plugin tools so tools/list contains '
+    test('collectMcpTools:true registers plugin tools so tools/list contains '
         'fake_tool_a, fake_tool_b alongside substrate dowel_* tools', () async {
       // 1. Build the registry replicating the runDowel standalone path with
       //    collectMcpTools: true.
       final registry = DowelRegistry();
-      registry.registerAll(
-        _substrateCommands(),
-        providerName: 'dowel',
-      );
+      registry.registerAll(_substrateCommands(), providerName: 'dowel');
       final provider = _FakeProvider();
       registry.registerProvider(provider);
       registry.registerMcpToolsFor(provider); // collectMcpTools: true path
@@ -51,34 +49,32 @@ void main() {
     // -------------------------------------------------------------------------
 
     test(
-        'collectMcpTools:false (default) does NOT register plugin tools; '
-        'tools/list has zero fake_* entries but substrate dowel_* tools remain',
-        () async {
-      // 1. Build the registry replicating the runDowel standalone path with
-      //    collectMcpTools: false (default). registerMcpToolsFor is never called.
-      final registry = DowelRegistry();
-      registry.registerAll(
-        _substrateCommands(),
-        providerName: 'dowel',
-      );
-      final provider = _FakeProvider();
-      registry.registerProvider(provider);
-      // collectMcpTools: false (default), intentionally omit registerMcpToolsFor.
+      'collectMcpTools:false (default) does NOT register plugin tools; '
+      'tools/list has zero fake_* entries but substrate dowel_* tools remain',
+      () async {
+        // 1. Build the registry replicating the runDowel standalone path with
+        //    collectMcpTools: false (default). registerMcpToolsFor is never called.
+        final registry = DowelRegistry();
+        registry.registerAll(_substrateCommands(), providerName: 'dowel');
+        final provider = _FakeProvider();
+        registry.registerProvider(provider);
+        // collectMcpTools: false (default), intentionally omit registerMcpToolsFor.
 
-      // 2. Spin up an in-memory MCP channel pair.
-      final harness = await _McpHarness.build(registry: registry);
-      addTearDown(harness.dispose);
+        // 2. Spin up an in-memory MCP channel pair.
+        final harness = await _McpHarness.build(registry: registry);
+        addTearDown(harness.dispose);
 
-      // 3. tools/list must NOT include any fake_* tool.
-      final result = await harness.connection.listTools();
-      final names = result.tools.map((t) => t.name).toList();
+        // 3. tools/list must NOT include any fake_* tool.
+        final result = await harness.connection.listTools();
+        final names = result.tools.map((t) => t.name).toList();
 
-      expect(names.any((n) => n.startsWith('fake_')), isFalse);
+        expect(names.any((n) => n.startsWith('fake_')), isFalse);
 
-      // 4. Substrate dowel_* tools must still be present even without
-      //    plugin MCP registration.
-      expect(names.any((n) => n.startsWith('dowel_')), isTrue);
-    });
+        // 4. Substrate dowel_* tools must still be present even without
+        //    plugin MCP registration.
+        expect(names.any((n) => n.startsWith('dowel_')), isTrue);
+      },
+    );
   });
 }
 
@@ -99,9 +95,7 @@ class _McpHarness {
   final ServerConnection connection;
   final MCPClient client;
 
-  static Future<_McpHarness> build({
-    required DowelRegistry registry,
-  }) async {
+  static Future<_McpHarness> build({required DowelRegistry registry}) async {
     // 1. Paired channels: local side drives the server, foreign side drives
     //    the client.
     final controller = StreamChannelController<String>(sync: true);
@@ -160,9 +154,9 @@ class _McpHarness {
 /// tools surface via McpServer's synthesis path. Avoids spinning up the full
 /// 22-command builtin list (which would pull in live-FS commands).
 List<DowelCommand> _substrateCommands() => <DowelCommand>[
-      _StubCommand('start', 'Boot flutter run -d <device> detached.'),
-      _StubCommand('doctor', 'Run environment preflight checks.'),
-    ];
+  _StubCommand('start', 'Boot flutter run -d <device> detached.'),
+  _StubCommand('doctor', 'Run environment preflight checks.'),
+];
 
 /// Minimal no-op command that satisfies [DowelCommand] without live I/O.
 class _StubCommand extends DowelCommand {
@@ -199,25 +193,25 @@ class _FakeProvider extends DowelServiceProvider {
 
   @override
   List<McpToolDescriptor> mcpTools() => const <McpToolDescriptor>[
-        McpToolDescriptor(
-          name: 'fake_tool_a',
-          description: 'Fake tool A for contract regression net.',
-          inputSchema: <String, dynamic>{
-            'type': 'object',
-            'properties': <String, dynamic>{},
-            'additionalProperties': false,
-          },
-          extensionMethod: 'ext.fake.a',
-        ),
-        McpToolDescriptor(
-          name: 'fake_tool_b',
-          description: 'Fake tool B for contract regression net.',
-          inputSchema: <String, dynamic>{
-            'type': 'object',
-            'properties': <String, dynamic>{},
-            'additionalProperties': false,
-          },
-          extensionMethod: 'ext.fake.b',
-        ),
-      ];
+    McpToolDescriptor(
+      name: 'fake_tool_a',
+      description: 'Fake tool A for contract regression net.',
+      inputSchema: <String, dynamic>{
+        'type': 'object',
+        'properties': <String, dynamic>{},
+        'additionalProperties': false,
+      },
+      extensionMethod: 'ext.fake.a',
+    ),
+    McpToolDescriptor(
+      name: 'fake_tool_b',
+      description: 'Fake tool B for contract regression net.',
+      inputSchema: <String, dynamic>{
+        'type': 'object',
+        'properties': <String, dynamic>{},
+        'additionalProperties': false,
+      },
+      extensionMethod: 'ext.fake.b',
+    ),
+  ];
 }

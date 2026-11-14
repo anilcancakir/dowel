@@ -14,7 +14,8 @@ final class ExtensionNotRegisteredException implements Exception {
   /// The extension that was called, e.g. `ext.tapir.snapshot`.
   final String method;
 
-  String get message => '$method is not registered in the running app yet '
+  String get message =>
+      '$method is not registered in the running app yet '
       '(still booting, a release build, or the plugin is not installed). '
       'Retry in a few seconds.';
 

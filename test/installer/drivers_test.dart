@@ -1,4 +1,5 @@
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/installer/prompt_driver.dart';
 import 'package:test/test.dart';
 
 // ---------------------------------------------------------------------------
@@ -29,8 +30,7 @@ class FakePromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      _next();
+  }) => _next();
 
   @override
   bool confirm(String question, {bool defaultValue = false}) {
@@ -43,8 +43,7 @@ class FakePromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      _next();
+  }) => _next();
 
   @override
   String secret(String question) => _next();
@@ -111,13 +110,14 @@ void main() {
     });
 
     test(
-        'RealPromptDriver.confirm delegates to Prompt.confirm via testOverride',
-        () {
-      Prompt.testOverride = ['y'];
-      final driver = RealPromptDriver();
+      'RealPromptDriver.confirm delegates to Prompt.confirm via testOverride',
+      () {
+        Prompt.testOverride = ['y'];
+        final driver = RealPromptDriver();
 
-      expect(driver.confirm('Proceed?'), isTrue);
-    });
+        expect(driver.confirm('Proceed?'), isTrue);
+      },
+    );
 
     test('RealPromptDriver.confirm returns false for "n"', () {
       Prompt.testOverride = ['n'];
@@ -126,19 +126,21 @@ void main() {
       expect(driver.confirm('Proceed?'), isFalse);
     });
 
-    test('RealPromptDriver.choice delegates to Prompt.choice via testOverride',
-        () {
-      Prompt.testOverride = ['2'];
-      final driver = RealPromptDriver();
+    test(
+      'RealPromptDriver.choice delegates to Prompt.choice via testOverride',
+      () {
+        Prompt.testOverride = ['2'];
+        final driver = RealPromptDriver();
 
-      final chosen = driver.choice(
-        'Pick env:',
-        options: ['local', 'staging', 'production'],
-        defaultValue: 'local',
-      );
+        final chosen = driver.choice(
+          'Pick env:',
+          options: ['local', 'staging', 'production'],
+          defaultValue: 'local',
+        );
 
-      expect(chosen, 'staging');
-    });
+        expect(chosen, 'staging');
+      },
+    );
 
     test('RealPromptDriver.secret signature matches PromptDriver contract', () {
       // Prompt.secret reads stdin.hasTerminal which throws StdinException in

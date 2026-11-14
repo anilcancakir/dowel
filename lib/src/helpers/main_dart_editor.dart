@@ -35,7 +35,7 @@ import 'file_helper.dart';
 /// // Wrap a custom entry point (e.g. runWidget) instead of runApp.
 /// MainDartEditor.wrapRunApp('lib/main.dart', 'SentryWidget', appCall: 'runWidget');
 /// ```
-class MainDartEditor {
+final class MainDartEditor {
   MainDartEditor._();
 
   /// Regex that matches the opening of a `Magic.init(` call.

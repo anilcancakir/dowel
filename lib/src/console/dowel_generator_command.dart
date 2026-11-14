@@ -71,8 +71,9 @@ abstract class DowelGeneratorCommand extends DowelCommand {
   String _replaceNamespace(String stub, String name) {
     final parsed = StringHelper.parseName(name);
     final defaultNs = getDefaultNamespace();
-    final namespace =
-        parsed.directory.isEmpty ? defaultNs : '$defaultNs/${parsed.directory}';
+    final namespace = parsed.directory.isEmpty
+        ? defaultNs
+        : '$defaultNs/${parsed.directory}';
     return stub.replaceAll('{{ namespace }}', namespace);
   }
 

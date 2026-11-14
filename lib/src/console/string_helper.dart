@@ -1,4 +1,4 @@
-class StringHelper {
+final class StringHelper {
   /// Converts string to PascalCase
   static String toPascalCase(String input) {
     if (input.isEmpty) return '';
@@ -8,10 +8,12 @@ class StringHelper {
 
     // Then split by underscore and capitalize each part
     final parts = snakeCase.split('_');
-    return parts.map((part) {
-      if (part.isEmpty) return '';
-      return part[0].toUpperCase() + part.substring(1).toLowerCase();
-    }).join('');
+    return parts
+        .map((part) {
+          if (part.isEmpty) return '';
+          return part[0].toUpperCase() + part.substring(1).toLowerCase();
+        })
+        .join('');
   }
 
   /// Converts string to snake_case
@@ -83,9 +85,9 @@ class StringHelper {
 
     final directory = parts.length > 1
         ? parts
-            .sublist(0, parts.length - 1)
-            .map((p) => toSnakeCase(p))
-            .join('/')
+              .sublist(0, parts.length - 1)
+              .map((p) => toSnakeCase(p))
+              .join('/')
         : '';
 
     final fileName = toSnakeCase(className);

@@ -3,8 +3,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('DowelRegistry MCP tool collection', () {
-    test(
-        'registerMcpToolsFor with a single provider exposing two unique tools '
+    test('registerMcpToolsFor with a single provider exposing two unique tools '
         'registers both into mcpTools', () {
       final registry = DowelRegistry();
       final provider = _FakeMcpProvider('tapir', const <McpToolDescriptor>[
@@ -32,42 +31,42 @@ void main() {
     });
 
     test(
-        'registerMcpToolsFor throws DowelMcpToolCollisionException when two '
-        'providers register the same tool name; toString names both providers',
-        () {
-      final registry = DowelRegistry();
-      final first = _FakeMcpProvider('tapir', const <McpToolDescriptor>[
-        McpToolDescriptor(
-          name: 'shared_tool',
-          description: 'first',
-          inputSchema: <String, dynamic>{'type': 'object'},
-          extensionMethod: 'ext.tapir.shared',
-        ),
-      ]);
-      final second = _FakeMcpProvider('crumbs', const <McpToolDescriptor>[
-        McpToolDescriptor(
-          name: 'shared_tool',
-          description: 'second',
-          inputSchema: <String, dynamic>{'type': 'object'},
-          extensionMethod: 'ext.crumbs.shared',
-        ),
-      ]);
+      'registerMcpToolsFor throws DowelMcpToolCollisionException when two '
+      'providers register the same tool name; toString names both providers',
+      () {
+        final registry = DowelRegistry();
+        final first = _FakeMcpProvider('tapir', const <McpToolDescriptor>[
+          McpToolDescriptor(
+            name: 'shared_tool',
+            description: 'first',
+            inputSchema: <String, dynamic>{'type': 'object'},
+            extensionMethod: 'ext.tapir.shared',
+          ),
+        ]);
+        final second = _FakeMcpProvider('crumbs', const <McpToolDescriptor>[
+          McpToolDescriptor(
+            name: 'shared_tool',
+            description: 'second',
+            inputSchema: <String, dynamic>{'type': 'object'},
+            extensionMethod: 'ext.crumbs.shared',
+          ),
+        ]);
 
-      registry.registerMcpToolsFor(first);
+        registry.registerMcpToolsFor(first);
 
-      try {
-        registry.registerMcpToolsFor(second);
-        fail('expected DowelMcpToolCollisionException');
-      } on DowelMcpToolCollisionException catch (e) {
-        final msg = e.toString();
-        expect(msg, contains('shared_tool'));
-        expect(msg, contains('tapir'));
-        expect(msg, contains('crumbs'));
-      }
-    });
+        try {
+          registry.registerMcpToolsFor(second);
+          fail('expected DowelMcpToolCollisionException');
+        } on DowelMcpToolCollisionException catch (e) {
+          final msg = e.toString();
+          expect(msg, contains('shared_tool'));
+          expect(msg, contains('tapir'));
+          expect(msg, contains('crumbs'));
+        }
+      },
+    );
 
-    test(
-        'registerMcpToolsFor is a clean no-op when the provider returns an '
+    test('registerMcpToolsFor is a clean no-op when the provider returns an '
         'empty mcpTools() list (default-empty providers stay safe)', () {
       final registry = DowelRegistry();
       final provider = _FakeMcpProvider('silent', const <McpToolDescriptor>[]);

@@ -542,7 +542,8 @@ final class InjectAndroidActivity extends InstallOperation {
   });
 
   @override
-  String describe() => '[inject-android-activity] $name '
+  String describe() =>
+      '[inject-android-activity] $name '
       '(exported=$exported, intent-filters=${intentFilters.length})';
 }
 
@@ -644,7 +645,6 @@ final class InjectEntitlement extends InstallOperation {
   });
 
   @override
-
   /// Names BOTH writes, because this op can perform two.
   ///
   /// It sets the key in every entitlements plist the application target already
@@ -654,7 +654,8 @@ final class InjectEntitlement extends InstallOperation {
   /// reads the plist and the entitlement is inert. A dry run that mentioned only
   /// the plist would under-report what the real run does to the consumer's
   /// project, which is the one thing a preview exists to prevent.
-  String describe() => '[inject-entitlement] $platform: $key = $value '
+  String describe() =>
+      '[inject-entitlement] $platform: $key = $value '
       '(in every file the application target signs with, or '
       'Runner.entitlements plus CODE_SIGN_ENTITLEMENTS when it names none)';
 }
@@ -811,8 +812,9 @@ final class AddWebMetaTag extends InstallOperation {
 
   @override
   String describe() {
-    final String attrs =
-        attributes.entries.map((e) => '${e.key}="${e.value}"').join(' ');
+    final String attrs = attributes.entries
+        .map((e) => '${e.key}="${e.value}"')
+        .join(' ');
     return '[add-web-meta] $attrs';
   }
 }

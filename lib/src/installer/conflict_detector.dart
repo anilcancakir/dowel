@@ -24,7 +24,7 @@ import 'install_record.dart';
 /// - `'unsupported-install-record'` -- [absPath] is the plugin's own install
 ///   record, and this version cannot read it (no `version`, absolute
 ///   `stubHashes` keys, or not JSON). `--force` rewrites it.
-class FileConflict {
+final class FileConflict {
   /// Absolute path of the conflicting file.
   final String absPath;
 
@@ -84,7 +84,7 @@ class FileConflict {
 ///   // Surface to user or pass --force to bypass.
 /// }
 /// ```
-class ConflictDetector {
+final class ConflictDetector {
   /// Creates a [ConflictDetector] bound to [ctx] for filesystem and path
   /// resolution.
   ///
@@ -263,8 +263,8 @@ class ConflictDetector {
       InjectMainDartImport() => _abs('lib/main.dart'),
       InjectIntoMainDart() => _abs('lib/main.dart'),
       InjectRouteRegistration() => _abs(
-          'lib/app/providers/route_service_provider.dart',
-        ),
+        'lib/app/providers/route_service_provider.dart',
+      ),
       // Pubspec helper writes.
       AddDependency() => _abs('pubspec.yaml'),
       AddPathDependency() => _abs('pubspec.yaml'),
@@ -272,14 +272,14 @@ class ConflictDetector {
       AddPubspecAsset() => _abs('pubspec.yaml'),
       // Android native writes.
       InjectAndroidPermission() => PlatformHelper.androidManifestPath(
-          _ctx.projectRoot,
-        ),
+        _ctx.projectRoot,
+      ),
       InjectAndroidMetaData() => PlatformHelper.androidManifestPath(
-          _ctx.projectRoot,
-        ),
+        _ctx.projectRoot,
+      ),
       InjectAndroidActivity() => PlatformHelper.androidManifestPath(
-          _ctx.projectRoot,
-        ),
+        _ctx.projectRoot,
+      ),
       InjectGradlePlugin() => _appBuildGradlePath(),
       InjectGradleDependency() => _appBuildGradlePath(),
       // iOS / macOS native writes.

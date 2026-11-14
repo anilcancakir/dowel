@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/make_command_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -62,12 +63,7 @@ void main() {
 
       expect(
         filePath,
-        p.join(
-          command.fakeRoot,
-          'lib/app/commands',
-          'admin',
-          'cleanup.dart',
-        ),
+        p.join(command.fakeRoot, 'lib/app/commands', 'admin', 'cleanup.dart'),
       );
     });
   });

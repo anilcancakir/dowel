@@ -175,7 +175,8 @@ class EnvEditor {
   /// Values containing spaces, `#`, `"`, `'`, or `$` are wrapped in
   /// double quotes with inner double quotes backslash-escaped.
   static String _encode(String value) {
-    final needsQuotes = value.contains(' ') ||
+    final needsQuotes =
+        value.contains(' ') ||
         value.contains('#') ||
         value.contains('"') ||
         value.contains("'") ||

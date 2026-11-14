@@ -78,9 +78,7 @@ void main() {
         'cat $fifoPath > /dev/null',
       ]);
 
-      await StateFile.write(<String, dynamic>{
-        'stdinPipe': fifoPath,
-      });
+      await StateFile.write(<String, dynamic>{'stdinPipe': fifoPath});
 
       final command = HotRestartCommand();
       final output = BufferedOutput();
@@ -99,8 +97,9 @@ void main() {
       // The legacy pointer describes whichever app started last, so without
       // this a hot restart run from here writes `R` into a sibling project's FIFO
       // and reports success while nothing in this project moved.
-      final Directory sibling =
-          Directory.systemTemp.createTempSync('dowel_sibling_');
+      final Directory sibling = Directory.systemTemp.createTempSync(
+        'dowel_sibling_',
+      );
       addTearDown(() => sibling.deleteSync(recursive: true));
 
       final Directory stateDir = Directory('${tempHome.path}/.dowel');

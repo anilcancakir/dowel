@@ -36,7 +36,7 @@ class McpServeCommand extends DowelCommand {
   /// JSON-RPC connection. Production callers leave it null and get
   /// [McpServer.serve] by default.
   McpServeCommand({ServeStrategy? serveOverride})
-      : _serve = serveOverride ?? McpServer.serve;
+    : _serve = serveOverride ?? McpServer.serve;
 
   final ServeStrategy _serve;
 
@@ -58,26 +58,30 @@ class McpServeCommand extends DowelCommand {
     parser
       ..addMultiOption(
         'include-package',
-        help: 'Include tools from this package only (repeatable). '
+        help:
+            'Include tools from this package only (repeatable). '
             'When absent all packages are included. '
             'CLI value replaces env and file allow lists.',
         valueHelp: 'package_name',
       )
       ..addMultiOption(
         'exclude-package',
-        help: 'Exclude all tools from this package (repeatable). '
+        help:
+            'Exclude all tools from this package (repeatable). '
             'Deny wins over allow across all layers.',
         valueHelp: 'package_name',
       )
       ..addMultiOption(
         'include-tool',
-        help: 'Include only this tool name (repeatable). '
+        help:
+            'Include only this tool name (repeatable). '
             'CLI value replaces env and file allow lists.',
         valueHelp: 'tool_name',
       )
       ..addMultiOption(
         'exclude-tool',
-        help: 'Exclude this tool name (repeatable). '
+        help:
+            'Exclude this tool name (repeatable). '
             'Deny wins over allow across all layers.',
         valueHelp: 'tool_name',
       );
@@ -87,10 +91,10 @@ class McpServeCommand extends DowelCommand {
   Future<int> handle(DowelContext ctx) async {
     // 1. Parse CLI flags into a filter layer.
     final cliConfig = McpFilterConfig.fromCli(
-      includePackage:
-          (ctx.input.option('include-package') as List?)?.cast<String>(),
-      excludePackage:
-          (ctx.input.option('exclude-package') as List?)?.cast<String>(),
+      includePackage: (ctx.input.option('include-package') as List?)
+          ?.cast<String>(),
+      excludePackage: (ctx.input.option('exclude-package') as List?)
+          ?.cast<String>(),
       includeTool: (ctx.input.option('include-tool') as List?)?.cast<String>(),
       excludeTool: (ctx.input.option('exclude-tool') as List?)?.cast<String>(),
     );

@@ -78,18 +78,9 @@ void main() {
         2,
         reason: '-v alone -> verbose',
       );
-      expect(
-        ArgvInput.parse(parser, <String>['--', '-vv']).verbosity,
-        2,
-      );
-      expect(
-        ArgvInput.parse(parser, <String>['--', '-vvv']).verbosity,
-        3,
-      );
-      expect(
-        ArgvInput.parse(parser, <String>['--', '-vvvv']).verbosity,
-        4,
-      );
+      expect(ArgvInput.parse(parser, <String>['--', '-vv']).verbosity, 2);
+      expect(ArgvInput.parse(parser, <String>['--', '-vvv']).verbosity, 3);
+      expect(ArgvInput.parse(parser, <String>['--', '-vvvv']).verbosity, 4);
     });
 
     test('-q via positional rest tokens drops to 0', () {

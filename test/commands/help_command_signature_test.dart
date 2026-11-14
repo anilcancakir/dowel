@@ -1,4 +1,5 @@
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/help_command.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -32,8 +33,10 @@ void main() {
       final output = BufferedOutput();
       await cmd.handle(
         DowelContext.bare(
-          MapInput(const <String, dynamic>{},
-              positional: <String>['sync:demo']),
+          MapInput(
+            const <String, dynamic>{},
+            positional: <String>['sync:demo'],
+          ),
           output,
         ),
       );

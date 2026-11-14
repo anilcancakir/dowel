@@ -53,7 +53,8 @@ class PluginUninstallCommand extends DowelInstallCommand {
   PluginUninstallCommand();
 
   @override
-  String get signature => 'plugin:uninstall '
+  String get signature =>
+      'plugin:uninstall '
       '$baseFlags'
       '{name : Plugin pubspec package name}';
 
@@ -245,8 +246,8 @@ class PluginUninstallCommand extends DowelInstallCommand {
     if (!File(p.join(root, '.dowel', 'plugins.json')).existsSync()) return;
     try {
       await PluginsRegistryFile(const RealFs(), root).removePlugin(name);
-      final refreshed =
-          await PluginsRefreshCommand(projectRoot: root).handle(ctx);
+      final refreshed = await PluginsRefreshCommand(projectRoot: root)
+          .handle(ctx);
       if (refreshed != 0) {
         ctx.output.warning(
           'Plugin "$name" was uninstalled but lib/app/_plugins.g.dart was not '

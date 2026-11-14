@@ -19,7 +19,10 @@ import 'android_intent_filter.dart';
 /// Every field except [pluginName] has a sensible empty default so partial
 /// manifests parse without raising. `final` everywhere so the model is
 /// effectively immutable post-construction.
-class InstallManifest {
+///
+/// The section classes' `fromYaml` factories take a `package:yaml` `YamlMap`;
+/// build a manifest through `ManifestParser` to stay clear of that type.
+final class InstallManifest {
   /// Plugin pubspec package name. MUST match `^[a-z_][a-z0-9_]*$`.
   final String pluginName;
 
@@ -73,7 +76,7 @@ class InstallManifest {
 
 /// Pubspec dependency section: `dependencies` / `dev_dependencies` / asset
 /// paths to append under `flutter.assets`.
-class PubspecDeps {
+final class PubspecDeps {
   /// `dependencies:` map (package name → version constraint).
   final Map<String, String> deps;
 
@@ -92,10 +95,10 @@ class PubspecDeps {
 
   /// Empty payload used when the `dependencies:` section is absent.
   factory PubspecDeps.empty() => const PubspecDeps(
-        deps: <String, String>{},
-        devDeps: <String, String>{},
-        assets: <String>[],
-      );
+    deps: <String, String>{},
+    devDeps: <String, String>{},
+    assets: <String>[],
+  );
 
   /// Parses the `dependencies:` sub-map. Tolerates missing nested keys.
   factory PubspecDeps.fromYaml(YamlMap m) {
@@ -109,7 +112,7 @@ class PubspecDeps {
 
 /// JSON merge spec: where to read the source from + whether existing keys
 /// survive a collision.
-class JsonMergeSpec {
+final class JsonMergeSpec {
   /// Stub key whose content is parsed as JSON.
   final String source;
 
@@ -136,7 +139,7 @@ class JsonMergeSpec {
 }
 
 /// Magic-framework integration block. Every slot is optional.
-class MagicIntegration {
+final class MagicIntegration {
   /// Provider class name. Translates to `injectProvider(provider)`.
   final String? provider;
 
@@ -156,15 +159,16 @@ class MagicIntegration {
   factory MagicIntegration.fromYaml(YamlMap m) {
     return MagicIntegration(
       provider: m['provider'] is String ? m['provider'] as String : null,
-      configFactory:
-          m['config_factory'] is String ? m['config_factory'] as String : null,
+      configFactory: m['config_factory'] is String
+          ? m['config_factory'] as String
+          : null,
       routes: m['routes'] is String ? m['routes'] as String : null,
     );
   }
 }
 
 /// Per-platform native configuration. Each slot is independently optional.
-class NativeConfig {
+final class NativeConfig {
   /// Android sub-section (permissions / meta_data / activities / gradle).
   final AndroidConfig? android;
 
@@ -186,8 +190,9 @@ class NativeConfig {
   /// Parses the `native:` sub-map.
   factory NativeConfig.fromYaml(YamlMap m) {
     return NativeConfig(
-      android:
-          m['android'] is YamlMap ? AndroidConfig.fromYaml(m['android']) : null,
+      android: m['android'] is YamlMap
+          ? AndroidConfig.fromYaml(m['android'])
+          : null,
       ios: m['ios'] is YamlMap ? IosConfig.fromYaml(m['ios']) : null,
       macos: m['macos'] is YamlMap ? MacosConfig.fromYaml(m['macos']) : null,
       web: m['web'] is YamlMap ? WebConfig.fromYaml(m['web']) : null,
@@ -196,7 +201,7 @@ class NativeConfig {
 }
 
 /// Android native configuration sub-section.
-class AndroidConfig {
+final class AndroidConfig {
   /// Permissions to add under `<uses-permission>`.
   final List<String> permissions;
 
@@ -223,8 +228,9 @@ class AndroidConfig {
       permissions: _stringList(m['permissions']),
       metaData: _stringMap(m['meta_data']),
       activities: _mapList(m['activities'], AndroidActivitySpec.fromYaml),
-      gradle:
-          m['gradle'] is YamlMap ? GradleConfig.fromYaml(m['gradle']) : null,
+      gradle: m['gradle'] is YamlMap
+          ? GradleConfig.fromYaml(m['gradle'])
+          : null,
     );
   }
 }
@@ -232,7 +238,7 @@ class AndroidConfig {
 /// One activity entry under `native.android.activities`:
 /// `{name, exported, task_affinity, intent_filters: [{auto_verify, actions,
 /// categories, data: [{scheme, host, path, path_prefix}]}]}`.
-class AndroidActivitySpec {
+final class AndroidActivitySpec {
   /// `android:name`, a class name or a fully-qualified one.
   final String name;
 
@@ -262,8 +268,9 @@ class AndroidActivitySpec {
     return AndroidActivitySpec(
       name: name,
       exported: m['exported'] == true,
-      taskAffinity:
-          m['task_affinity'] is String ? m['task_affinity'] as String : null,
+      taskAffinity: m['task_affinity'] is String
+          ? m['task_affinity'] as String
+          : null,
       intentFilters: _mapList(m['intent_filters'], _intentFilterFromYaml),
     );
   }
@@ -291,7 +298,7 @@ AndroidIntentData _intentDataFromYaml(YamlMap m) {
 }
 
 /// Gradle plugins + dependencies block (lives under `native.android.gradle`).
-class GradleConfig {
+final class GradleConfig {
   /// Gradle plugins (id + optional version).
   final List<GradlePluginSpec> plugins;
 
@@ -311,7 +318,7 @@ class GradleConfig {
 }
 
 /// One Gradle plugin entry: `{id, version?}`.
-class GradlePluginSpec {
+final class GradlePluginSpec {
   /// Gradle plugin id (e.g. `com.google.gms.google-services`).
   final String id;
 
@@ -335,7 +342,7 @@ class GradlePluginSpec {
 }
 
 /// One Gradle dependency entry: `{scope, notation}`.
-class GradleDepSpec {
+final class GradleDepSpec {
   /// Gradle scope (`implementation`, `classpath`, ...).
   final String scope;
 
@@ -363,7 +370,7 @@ class GradleDepSpec {
 /// The plist `value` field stays typed as [Object] because Info.plist allows
 /// String, bool, num, and List values. The downstream dispatcher branches on
 /// runtime type.
-class IosConfig {
+final class IosConfig {
   /// Info.plist key → value map. Values may be String / bool / num / List.
   final Map<String, Object> infoPlist;
 
@@ -390,14 +397,15 @@ class IosConfig {
       infoPlist: _objectMap(m['info_plist']),
       urlSchemes: _stringList(m['url_schemes']),
       entitlements: _objectMap(m['entitlements']),
-      podfile:
-          m['podfile'] is YamlMap ? PodfileConfig.fromYaml(m['podfile']) : null,
+      podfile: m['podfile'] is YamlMap
+          ? PodfileConfig.fromYaml(m['podfile'])
+          : null,
     );
   }
 }
 
 /// macOS native configuration sub-section. Shape mirrors [IosConfig].
-class MacosConfig {
+final class MacosConfig {
   /// Info.plist key → value map.
   final Map<String, Object> infoPlist;
 
@@ -424,14 +432,15 @@ class MacosConfig {
       infoPlist: _objectMap(m['info_plist']),
       urlSchemes: _stringList(m['url_schemes']),
       entitlements: _objectMap(m['entitlements']),
-      podfile:
-          m['podfile'] is YamlMap ? PodfileConfig.fromYaml(m['podfile']) : null,
+      podfile: m['podfile'] is YamlMap
+          ? PodfileConfig.fromYaml(m['podfile'])
+          : null,
     );
   }
 }
 
 /// Podfile sub-block (under `native.ios.podfile` or `native.macos.podfile`).
-class PodfileConfig {
+final class PodfileConfig {
   /// Optional `platform :ios` (or `:osx`) minimum version. Informational in
   /// v1: no chain method consumes it yet.
   final String? platformVersion;
@@ -454,7 +463,7 @@ class PodfileConfig {
 }
 
 /// Web native configuration sub-section.
-class WebConfig {
+final class WebConfig {
   /// HTML snippets to inject before `</head>`.
   final List<String> headScripts;
 
@@ -483,7 +492,7 @@ class WebConfig {
 }
 
 /// One env var spec: `{default, comment?}`.
-class EnvVarSpec {
+final class EnvVarSpec {
   /// Default value to write into `.env`.
   final String defaultValue;
 
@@ -508,7 +517,7 @@ class EnvVarSpec {
 }
 
 /// One prompt spec: `{key, type, default?, options?, question}`.
-class PromptSpec {
+final class PromptSpec {
   /// Unique key used to store the answer in the prompt-result map.
   final String key;
 
@@ -567,7 +576,7 @@ class PromptSpec {
 }
 
 /// Post-install shell + message block.
-class PostInstallSpec {
+final class PostInstallSpec {
   /// Shell commands run unconditionally at commit phase.
   final List<ShellSpec> run;
 
@@ -600,7 +609,7 @@ class PostInstallSpec {
 }
 
 /// One unconditional shell command spec.
-class ShellSpec {
+final class ShellSpec {
   /// Executable name (no shell quoting applied by the dispatcher).
   final String cmd;
 
@@ -621,7 +630,7 @@ class ShellSpec {
 }
 
 /// One ask-to-run shell command spec.
-class AskToRunSpec {
+final class AskToRunSpec {
   /// Confirmation question shown to the user.
   final String prompt;
 

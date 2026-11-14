@@ -20,18 +20,14 @@ library;
 /// Base exception for all errors raised by the PluginInstaller DSL.
 ///
 /// [message] is a human-readable description of the failure. [offendingOp]
-/// holds an optional reference to the install operation that triggered the
-/// error; the type is [Object?] so the field compiles before the sealed
-/// [InstallOperation] hierarchy is introduced in a later step.
-class InstallException implements Exception {
+/// holds an optional reference to whatever triggered the error: an install
+/// operation, or a label such as a manifest step.
+final class InstallException implements Exception {
   /// Human-readable description of the failure.
   final String message;
 
   /// The install operation that caused this exception, or `null` when the
   /// failure is not tied to a specific operation.
-  ///
-  /// Typed as [Object?] to allow gradual tightening to the sealed
-  /// `InstallOperation` hierarchy once that class is defined.
   final Object? offendingOp;
 
   /// Creates an [InstallException] with a [message] and an optional
@@ -60,7 +56,7 @@ class InstallException implements Exception {
 ///   offendingOp: 'validate_manifest',
 /// );
 /// ```
-class ManifestValidationException extends InstallException {
+final class ManifestValidationException extends InstallException {
   /// Creates a [ManifestValidationException] with a [message] describing the
   /// validation failure and an optional [offendingOp] reference.
   const ManifestValidationException(super.message, {super.offendingOp});

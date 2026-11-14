@@ -1,6 +1,7 @@
 import 'dart:io';
 
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/helpers/xml_editor.dart';
+import 'package:dowel/src/installer/android_intent_filter.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
@@ -110,8 +111,7 @@ const String _callbackBlock = '''        <activity
 /// The `<activity>` elements named [name] under `<application>` of the
 /// manifest at [path], parsed with package `xml` so a comment never counts.
 List<XmlElement> _activitiesNamed(String path, String name) {
-  return XmlDocument.parse(File(path).readAsStringSync())
-      .rootElement
+  return XmlDocument.parse(File(path).readAsStringSync()).rootElement
       .findElements('application')
       .single
       .findElements('activity')
@@ -190,8 +190,9 @@ void main() {
       );
 
       final content = File(filePath).readAsStringSync();
-      final occurrences =
-          'android.permission.POST_NOTIFICATIONS'.allMatches(content).length;
+      final occurrences = 'android.permission.POST_NOTIFICATIONS'
+          .allMatches(content)
+          .length;
       expect(occurrences, 1);
     });
 
@@ -221,8 +222,9 @@ void main() {
       );
 
       final content = File(filePath).readAsStringSync();
-      final occurrences =
-          'io.flutter.embedding.android.NormalTheme'.allMatches(content).length;
+      final occurrences = 'io.flutter.embedding.android.NormalTheme'
+          .allMatches(content)
+          .length;
       expect(occurrences, 1);
     });
 
@@ -335,19 +337,21 @@ void main() {
         expect(_activitiesNamed(manifest, _callbackName), hasLength(1));
       });
 
-      test('an existing activity with no filter is a conflict, not a rewrite',
-          () {
-        final bare = _appManifestXml.replaceFirst(
-          '    </application>',
-          '        <activity android:name="$_callbackName"/>\n'
-              '    </application>',
-        );
-        File(manifest).writeAsStringSync(bare);
+      test(
+        'an existing activity with no filter is a conflict, not a rewrite',
+        () {
+          final bare = _appManifestXml.replaceFirst(
+            '    </application>',
+            '        <activity android:name="$_callbackName"/>\n'
+                '    </application>',
+          );
+          File(manifest).writeAsStringSync(bare);
 
-        expect(add(), AndroidActivityOutcome.conflict);
+          expect(add(), AndroidActivityOutcome.conflict);
 
-        expect(File(manifest).readAsStringSync(), bare);
-      });
+          expect(File(manifest).readAsStringSync(), bare);
+        },
+      );
 
       test('a name that only appears inside a comment does not count', () {
         final commented = _appManifestXml.replaceFirst(
@@ -366,18 +370,20 @@ void main() {
         expect(_activitiesNamed(manifest, _callbackName), hasLength(1));
       });
 
-      test('a commented </application> is not mistaken for the real anchor',
-          () {
-        final decoy = _appManifestXml.replaceFirst(
-          '</manifest>',
-          '<!-- </application> -->\n</manifest>',
-        );
-        File(manifest).writeAsStringSync(decoy);
+      test(
+        'a commented </application> is not mistaken for the real anchor',
+        () {
+          final decoy = _appManifestXml.replaceFirst(
+            '</manifest>',
+            '<!-- </application> -->\n</manifest>',
+          );
+          File(manifest).writeAsStringSync(decoy);
 
-        expect(add(), AndroidActivityOutcome.added);
+          expect(add(), AndroidActivityOutcome.added);
 
-        expect(_activitiesNamed(manifest, _callbackName), hasLength(1));
-      });
+          expect(_activitiesNamed(manifest, _callbackName), hasLength(1));
+        },
+      );
 
       test('an activity named like another one is a different activity', () {
         add(name: '$_callbackName.Other');
@@ -386,17 +392,20 @@ void main() {
 
         expect(_activitiesNamed(manifest, _callbackName), hasLength(1));
         expect(
-            _activitiesNamed(manifest, '$_callbackName.Other'), hasLength(1));
-      });
-
-      test('throws StateError when the manifest has no <application> block',
-          () {
-        File(manifest).writeAsStringSync(
-          '<manifest xmlns:android="$_androidNs"/>',
+          _activitiesNamed(manifest, '$_callbackName.Other'),
+          hasLength(1),
         );
-
-        expect(add, throwsA(isA<StateError>()));
       });
+
+      test(
+        'throws StateError when the manifest has no <application> block',
+        () {
+          File(manifest)
+              .writeAsStringSync('<manifest xmlns:android="$_androidNs"/>');
+
+          expect(add, throwsA(isA<StateError>()));
+        },
+      );
 
       test('throws StateError for a self-closing <application/>', () {
         File(manifest).writeAsStringSync(
@@ -434,26 +443,29 @@ void main() {
     android:exported="false"/>''');
       });
 
-      test('renders pathPrefix, a plain filter and escaped attribute values',
-          () {
-        final block = XmlEditor.renderAndroidActivity(
-          name: '.Foo',
-          exported: true,
-          intentFilters: const [
-            AndroidIntentFilter(
-              actions: ['android.intent.action.VIEW'],
-              data: [AndroidIntentData(scheme: 'app', pathPrefix: '/a&b')],
-            ),
-          ],
-        );
+      test(
+        'renders pathPrefix, a plain filter and escaped attribute values',
+        () {
+          final block = XmlEditor.renderAndroidActivity(
+            name: '.Foo',
+            exported: true,
+            intentFilters: const [
+              AndroidIntentFilter(
+                actions: ['android.intent.action.VIEW'],
+                data: [AndroidIntentData(scheme: 'app', pathPrefix: '/a&b')],
+              ),
+            ],
+          );
 
-        expect(block, contains('<intent-filter>'));
-        expect(
-          block,
-          contains(
-              '<data android:scheme="app" android:pathPrefix="/a&amp;b"/>'),
-        );
-      });
+          expect(block, contains('<intent-filter>'));
+          expect(
+            block,
+            contains(
+              '<data android:scheme="app" android:pathPrefix="/a&amp;b"/>',
+            ),
+          );
+        },
+      );
     });
 
     test('readPlist extracts <key>/<string> pairs', () {

@@ -31,8 +31,7 @@ List<DiscoveredCommand> discoverCommandsInDir(Directory commandsDir) {
     if (!base.endsWith('.dart')) return false;
     if (base.startsWith('_')) return false; // _index.g.dart + any private file
     return true;
-  }).toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  }).toList()..sort((a, b) => a.path.compareTo(b.path));
 
   final out = <DiscoveredCommand>[];
   for (final file in entries) {
@@ -76,9 +75,7 @@ String renderCommandsIndex(List<DiscoveredCommand> commands) {
   if (commands.isEmpty) {
     buf
       ..writeln()
-      ..writeln(
-        'List<DowelCommand> get commands => const <DowelCommand>[];',
-      );
+      ..writeln('List<DowelCommand> get commands => const <DowelCommand>[];');
     return buf.toString();
   }
 

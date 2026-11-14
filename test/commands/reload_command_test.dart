@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/reload_command.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -89,9 +90,7 @@ void main() {
         'cat $fifoPath > /dev/null',
       ]);
 
-      await StateFile.write(<String, dynamic>{
-        'stdinPipe': fifoPath,
-      });
+      await StateFile.write(<String, dynamic>{'stdinPipe': fifoPath});
 
       final command = ReloadCommand();
       final output = BufferedOutput();
@@ -110,8 +109,9 @@ void main() {
       // The legacy pointer describes whichever app started last, so without
       // this a reload run from here writes `r` into a sibling project's FIFO
       // and reports success while nothing in this project moved.
-      final Directory sibling =
-          Directory.systemTemp.createTempSync('dowel_sibling_');
+      final Directory sibling = Directory.systemTemp.createTempSync(
+        'dowel_sibling_',
+      );
       addTearDown(() => sibling.deleteSync(recursive: true));
 
       final Directory stateDir = Directory('${tempHome.path}/.dowel');

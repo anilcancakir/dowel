@@ -9,7 +9,7 @@ import 'dart:io';
 /// Use these helpers inside [DowelCommand.handle] to gather missing
 /// inputs from the user. Tests inject a [Prompt.testOverride] to bypass
 /// the real stdin.
-class Prompt {
+final class Prompt {
   Prompt._();
 
   /// Test injection seam. When non-null, every Prompt method consumes

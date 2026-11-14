@@ -37,7 +37,9 @@ void main() {
 
     test('rejects uppercase letters in name', () {
       expect(
-          () => CommandSignature.parse('SyncMonitors'), throwsFormatException);
+        () => CommandSignature.parse('SyncMonitors'),
+        throwsFormatException,
+      );
     });
 
     test('accepts underscore in name (snake_case plugins)', () {
@@ -94,9 +96,7 @@ void main() {
     });
 
     test('mixed required + optional + default', () {
-      final s = CommandSignature.parse(
-        'sync {team} {scope?} {limit=10}',
-      );
+      final s = CommandSignature.parse('sync {team} {scope?} {limit=10}');
       expect(s.arguments[0].isOptional, isFalse);
       expect(s.arguments[1].isOptional, isTrue);
       expect(s.arguments[1].defaultValue, isNull);
@@ -110,9 +110,7 @@ void main() {
     });
 
     test('description with embedded colon survives', () {
-      final s = CommandSignature.parse(
-        'sync {team : Format like "ns:slug"}',
-      );
+      final s = CommandSignature.parse('sync {team : Format like "ns:slug"}');
       expect(s.arguments.first.description, 'Format like "ns:slug"');
     });
   });

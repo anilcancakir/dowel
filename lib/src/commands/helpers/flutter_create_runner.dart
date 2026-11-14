@@ -62,7 +62,7 @@ class FlutterCreateRunner {
   /// [processStarter] defaults to [Process.start] from `dart:io`, which
   /// resolves the `flutter` executable through `$PATH`. Inject a fake in tests.
   FlutterCreateRunner({ProcessStarter? processStarter})
-      : _starter = processStarter ?? _defaultStarter;
+    : _starter = processStarter ?? _defaultStarter;
 
   final ProcessStarter _starter;
 

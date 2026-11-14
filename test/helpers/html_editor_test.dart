@@ -87,10 +87,10 @@ void main() {
       File(brokenPath).writeAsStringSync('<html><body></body></html>');
 
       expect(
-        () => HtmlEditor.addMetaTag(
-          brokenPath,
-          <String, String>{'name': 'x', 'content': 'y'},
-        ),
+        () => HtmlEditor.addMetaTag(brokenPath, <String, String>{
+          'name': 'x',
+          'content': 'y',
+        }),
         throwsA(isA<StateError>()),
       );
     });

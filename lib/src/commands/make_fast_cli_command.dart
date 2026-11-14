@@ -22,7 +22,8 @@ import '../stubs/stub_loader.dart';
 /// POSIX-only V1 (macOS + Linux); Windows support is deferred.
 final class MakeFastCliCommand extends DowelCommand {
   @override
-  String get signature => 'make:fast-cli '
+  String get signature =>
+      'make:fast-cli '
       '{--force : Overwrite bin/dowel even when it already exists}';
 
   @override
@@ -51,7 +52,8 @@ final class MakeFastCliCommand extends DowelCommand {
     String,
     List<String>, {
     String? workingDirectory,
-  }) processRunner = Process.run;
+  })
+  processRunner = Process.run;
 
   /// Testable entry point. Writes `bin/dowel`, sets executable bit, patches
   /// `.gitignore`, compiles the AOT bundle, and writes the build stamp.
@@ -130,8 +132,9 @@ final class MakeFastCliCommand extends DowelCommand {
 
     // 6. Compute pubspec.lock SHA256 for the build stamp.
     final lockFile = File(p.join(root, 'pubspec.lock'));
-    final lockBytes =
-        lockFile.existsSync() ? lockFile.readAsBytesSync() : <int>[];
+    final lockBytes = lockFile.existsSync()
+        ? lockFile.readAsBytesSync()
+        : <int>[];
     final pubspecLockSha = sha256.convert(lockBytes).toString();
 
     // 7. Resolve the Dart SDK version for the build stamp.
@@ -145,17 +148,14 @@ final class MakeFastCliCommand extends DowelCommand {
     // 8. Compile the AOT bundle via dart build cli. Forward stdout + stderr
     //    so the user sees compiler progress. On non-zero exit, report the
     //    error details and surface a non-zero exit code.
-    final buildResult = await processRunner(
-        'dart',
-        [
-          'build',
-          'cli',
-          '-t',
-          'bin/dispatcher.dart',
-          '-o',
-          '.dowel/cli-bundle',
-        ],
-        workingDirectory: root);
+    final buildResult = await processRunner('dart', [
+      'build',
+      'cli',
+      '-t',
+      'bin/dispatcher.dart',
+      '-o',
+      '.dowel/cli-bundle',
+    ], workingDirectory: root);
     if (buildResult.stdout is String &&
         (buildResult.stdout as String).isNotEmpty) {
       ctx.output.writeln(buildResult.stdout as String);
@@ -183,8 +183,9 @@ final class MakeFastCliCommand extends DowelCommand {
     tmp.renameSync(stampPath);
 
     // 10. Signal success to the user.
-    ctx.output
-        .success('dowel: ready. Run ./bin/dowel <cmd> for a ~50ms startup.');
+    ctx.output.success(
+      'dowel: ready. Run ./bin/dowel <cmd> for a ~50ms startup.',
+    );
     return 0;
   }
 
@@ -207,8 +208,9 @@ final class MakeFastCliCommand extends DowelCommand {
   /// empty registry and the next `plugin:install` regenerated the barrel with
   /// that one plugin, dropping every other provider.
   static void _ignoreCache(File gitignore) {
-    final lines =
-        gitignore.existsSync() ? gitignore.readAsLinesSync() : const <String>[];
+    final lines = gitignore.existsSync()
+        ? gitignore.readAsLinesSync()
+        : const <String>[];
     final kept = <String>[];
     for (final line in lines) {
       if (line.trim() != '.dowel/' && line.trim() != '/.dowel/') {

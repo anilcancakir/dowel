@@ -42,7 +42,7 @@ import 'virtual_fs.dart';
 ///   clock: () => DateTime.utc(2025, 1, 1),
 /// );
 /// ```
-class InstallContext {
+final class InstallContext {
   /// Wires the production stack: [RealFs] for filesystem access,
   /// [RealPromptDriver] for stdin prompts, [RealStubDriver] for asset
   /// resolution, and `DateTime.now` as the clock source.
@@ -56,14 +56,14 @@ class InstallContext {
   /// @param projectRoot     Optional explicit override of the project root.
   /// @return A fully wired [InstallContext] ready for production install ops.
   InstallContext.real(DowelContext dowelContext, {String? projectRoot})
-      : this._(
-          dowelContext: dowelContext,
-          fs: const RealFs(),
-          prompt: const RealPromptDriver(),
-          stubs: const RealStubDriver(),
-          clock: DateTime.now,
-          projectRoot: projectRoot ?? FileHelper.findProjectRoot(),
-        );
+    : this._(
+        dowelContext: dowelContext,
+        fs: const RealFs(),
+        prompt: const RealPromptDriver(),
+        stubs: const RealStubDriver(),
+        clock: DateTime.now,
+        projectRoot: projectRoot ?? FileHelper.findProjectRoot(),
+      );
 
   /// Wires a fully injectable [InstallContext] for tests.
   ///

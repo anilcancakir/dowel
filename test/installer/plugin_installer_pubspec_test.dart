@@ -14,8 +14,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      defaultValue ?? '';
+  }) => defaultValue ?? '';
 
   @override
   bool confirm(String question, {bool defaultValue = false}) => defaultValue;
@@ -25,8 +24,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      defaultValue ?? options.first;
+  }) => defaultValue ?? options.first;
 
   @override
   String secret(String question) => '';
@@ -77,8 +75,10 @@ void main() {
       final tempDir = Directory.systemTemp.createTempSync('plinst_pub_');
       addTearDown(() => tempDir.deleteSync(recursive: true));
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addDevDependency('build_runner', '^2.4.0');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).addDevDependency('build_runner', '^2.4.0');
 
       final op = installer.pendingOps.single as AddDependency;
       expect(op.isDev, isTrue);
@@ -90,8 +90,10 @@ void main() {
       final tempDir = Directory.systemTemp.createTempSync('plinst_pub_');
       addTearDown(() => tempDir.deleteSync(recursive: true));
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addPathDependency('local_pkg', '../local_pkg');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).addPathDependency('local_pkg', '../local_pkg');
 
       final op = installer.pendingOps.single as AddPathDependency;
       expect(op.name, 'local_pkg');
@@ -102,8 +104,10 @@ void main() {
       final tempDir = Directory.systemTemp.createTempSync('plinst_pub_');
       addTearDown(() => tempDir.deleteSync(recursive: true));
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .removeDependency('legacy_pkg');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).removeDependency('legacy_pkg');
 
       final op = installer.pendingOps.single as RemoveDependency;
       expect(op.name, 'legacy_pkg');
@@ -113,8 +117,10 @@ void main() {
       final tempDir = Directory.systemTemp.createTempSync('plinst_pub_');
       addTearDown(() => tempDir.deleteSync(recursive: true));
 
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addPubspecAsset('assets/config.json');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).addPubspecAsset('assets/config.json');
 
       final op = installer.pendingOps.single as AddPubspecAsset;
       expect(op.assetPath, 'assets/config.json');
@@ -162,21 +168,28 @@ void main() {
     });
 
     test('commit applies AddDependency through ConfigEditor', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addDependency('intl', '^0.20.0');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).addDependency('intl', '^0.20.0');
 
       final result = await installer.commit();
 
       expect(result, isA<InstallSuccess>());
       final pubspec = File(pubspecPath).readAsStringSync();
       expect(pubspec, contains('intl: ^0.20.0'));
-      expect(pubspec, contains('meta: ^1.0.0'),
-          reason: 'existing dependency must be preserved');
+      expect(
+        pubspec,
+        contains('meta: ^1.0.0'),
+        reason: 'existing dependency must be preserved',
+      );
     });
 
     test('commit applies addDevDependency under dev_dependencies', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addDevDependency('build_runner', '^2.4.0');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).addDevDependency('build_runner', '^2.4.0');
 
       final result = await installer.commit();
 
@@ -187,8 +200,10 @@ void main() {
     });
 
     test('commit applies addPathDependency in path-style', () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addPathDependency('local', '../local');
+      final installer = PluginInstaller(
+        _ctxFor(tempDir),
+        pluginName: 'demo',
+      ).addPathDependency('local', '../local');
 
       final result = await installer.commit();
 
@@ -198,48 +213,63 @@ void main() {
       expect(pubspec, contains('path: ../local'));
     });
 
-    test('commit applies removeDependency without touching other entries',
-        () async {
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .removeDependency('meta');
+    test(
+      'commit applies removeDependency without touching other entries',
+      () async {
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).removeDependency('meta');
 
-      final result = await installer.commit();
+        final result = await installer.commit();
 
-      expect(result, isA<InstallSuccess>());
-      final pubspec = File(pubspecPath).readAsStringSync();
-      expect(pubspec, isNot(contains('meta: ^1.0.0')));
-      expect(pubspec, contains('flutter:'));
-    });
+        expect(result, isA<InstallSuccess>());
+        final pubspec = File(pubspecPath).readAsStringSync();
+        expect(pubspec, isNot(contains('meta: ^1.0.0')));
+        expect(pubspec, contains('flutter:'));
+      },
+    );
 
-    test('commit applies addPubspecAsset by APPENDING — not replacing',
-        () async {
-      // Regression: ensures the dispatcher uses appendPubspecListEntry, NOT
-      // updatePubspecValue (which would wipe the existing entry).
-      final installer = PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addPubspecAsset('assets/new.json');
+    test(
+      'commit applies addPubspecAsset by APPENDING — not replacing',
+      () async {
+        // Regression: ensures the dispatcher uses appendPubspecListEntry, NOT
+        // updatePubspecValue (which would wipe the existing entry).
+        final installer = PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).addPubspecAsset('assets/new.json');
 
-      final result = await installer.commit();
+        final result = await installer.commit();
 
-      expect(result, isA<InstallSuccess>());
-      final pubspec = File(pubspecPath).readAsStringSync();
-      expect(pubspec, contains('assets/existing.json'),
-          reason: 'the original asset must survive the append');
-      expect(pubspec, contains('assets/new.json'));
-    });
+        expect(result, isA<InstallSuccess>());
+        final pubspec = File(pubspecPath).readAsStringSync();
+        expect(
+          pubspec,
+          contains('assets/existing.json'),
+          reason: 'the original asset must survive the append',
+        );
+        expect(pubspec, contains('assets/new.json'));
+      },
+    );
 
-    test('addPubspecAsset is idempotent across two commits on duplicate path',
-        () async {
-      // Two separate installers (one-shot semantics) writing the same asset.
-      await PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addPubspecAsset('assets/dup.json')
-          .commit();
-      await PluginInstaller(_ctxFor(tempDir), pluginName: 'demo')
-          .addPubspecAsset('assets/dup.json')
-          .commit();
+    test(
+      'addPubspecAsset is idempotent across two commits on duplicate path',
+      () async {
+        // Two separate installers (one-shot semantics) writing the same asset.
+        await PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).addPubspecAsset('assets/dup.json').commit();
+        await PluginInstaller(
+          _ctxFor(tempDir),
+          pluginName: 'demo',
+        ).addPubspecAsset('assets/dup.json').commit();
 
-      final pubspec = File(pubspecPath).readAsStringSync();
-      final occurrences = 'assets/dup.json'.allMatches(pubspec).length;
-      expect(occurrences, 1);
-    });
+        final pubspec = File(pubspecPath).readAsStringSync();
+        final occurrences = 'assets/dup.json'.allMatches(pubspec).length;
+        expect(occurrences, 1);
+      },
+    );
   });
 }

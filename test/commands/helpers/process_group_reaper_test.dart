@@ -5,8 +5,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('ProcessGroupReaper', () {
-    test('signals the process group, so a child of the tool dies with it',
-        () async {
+    test('signals the process group, so a child of the tool dies with it', () async {
       // The tool (200) and its frontend_server (201) share group 190, which is
       // what a detached spawn produces. Signalling 200 alone orphaned 201.
       final _FakeProcessTable table = _FakeProcessTable(<int, int>{
@@ -25,32 +24,28 @@ void main() {
       expect(table.live, isEmpty);
     });
 
-    test('waits until the last member of the group is gone, not only the pid',
-        () async {
-      // The tool exits on SIGTERM at once; frontend_server takes three more
-      // polls. Returning when the pid is gone is the race `restart` lost.
-      final _FakeProcessTable table = _FakeProcessTable(
-        <int, int>{
-          200: 190,
-          201: 190,
-        },
-        lingerPolls: <int, int>{201: 3},
-      );
+    test(
+      'waits until the last member of the group is gone, not only the pid',
+      () async {
+        // The tool exits on SIGTERM at once; frontend_server takes three more
+        // polls. Returning when the pid is gone is the race `restart` lost.
+        final _FakeProcessTable table = _FakeProcessTable(
+          <int, int>{200: 190, 201: 190},
+          lingerPolls: <int, int>{201: 3},
+        );
 
-      final ReapResult result = await _reaperFor(table).reap(200);
+        final ReapResult result = await _reaperFor(table).reap(200);
 
-      expect(result.outcome, ReapOutcome.exited);
-      expect(table.live, isEmpty);
-    });
+        expect(result.outcome, ReapOutcome.exited);
+        expect(table.live, isEmpty);
+      },
+    );
 
     test('escalates to SIGKILL on the group when SIGTERM is ignored', () async {
-      final _FakeProcessTable table = _FakeProcessTable(
-        <int, int>{
-          200: 190,
-          201: 190,
-        },
-        diesOn: ProcessSignal.sigkill,
-      );
+      final _FakeProcessTable table = _FakeProcessTable(<int, int>{
+        200: 190,
+        201: 190,
+      }, diesOn: ProcessSignal.sigkill);
 
       final ReapResult result = await _reaperFor(table).reap(200);
 
@@ -61,27 +56,25 @@ void main() {
       expect(result.outcome, ReapOutcome.killed);
     });
 
-    test('reports survived when the group outlives SIGKILL and the budget',
-        () async {
-      final _FakeProcessTable table = _FakeProcessTable(
-        <int, int>{200: 190},
-        diesOn: null,
-      );
+    test(
+      'reports survived when the group outlives SIGKILL and the budget',
+      () async {
+        final _FakeProcessTable table = _FakeProcessTable(<int, int>{
+          200: 190,
+        }, diesOn: null);
 
-      final ReapResult result = await _reaperFor(table).reap(200);
+        final ReapResult result = await _reaperFor(table).reap(200);
 
-      expect(result.outcome, ReapOutcome.survived);
-    });
+        expect(result.outcome, ReapOutcome.survived);
+      },
+    );
 
     test('does not count a zombie as a live member', () async {
       // Under a pid 1 that reaps nothing (a container entrypoint), a dead
       // member stays in `ps -A` as a zombie for good; counting it wedged
       // every later `stop` on "survived".
       final _FakeProcessTable table = _FakeProcessTable(
-        <int, int>{
-          200: 190,
-          201: 190,
-        },
+        <int, int>{200: 190, 201: 190},
         zombies: <int>{201},
       );
 
@@ -96,10 +89,9 @@ void main() {
     test('reads a failing process listing as alive, never as gone', () async {
       // Empty output from a failed `ps -A` used to read as "group gone", and
       // `stop` then deleted the session of a live app.
-      final _FakeProcessTable table = _FakeProcessTable(
-        <int, int>{200: 190},
-        listingFails: true,
-      );
+      final _FakeProcessTable table = _FakeProcessTable(<int, int>{
+        200: 190,
+      }, listingFails: true);
 
       final ReapResult result = await _reaperFor(table).reap(200);
 
@@ -119,29 +111,31 @@ void main() {
       expect(result.boundPorts, isEmpty);
     });
 
-    test('reports a port still bound when the budget runs out, without SIGKILL',
-        () async {
-      // Nothing of ours is left to kill; the holder is someone else.
-      final _FakeProcessTable table = _FakeProcessTable(<int, int>{200: 190});
+    test(
+      'reports a port still bound when the budget runs out, without SIGKILL',
+      () async {
+        // Nothing of ours is left to kill; the holder is someone else.
+        final _FakeProcessTable table = _FakeProcessTable(<int, int>{200: 190});
 
-      final ReapResult result = await _reaperFor(
-        table,
-        isPortFree: (int port) async => port != 3100,
-      ).reap(200, ports: <int>[3100, 9223]);
+        final ReapResult result = await _reaperFor(
+          table,
+          isPortFree: (int port) async => port != 3100,
+        ).reap(200, ports: <int>[3100, 9223]);
 
-      expect(result.outcome, ReapOutcome.exited);
-      expect(result.boundPorts, <int>[3100]);
-      expect(table.signals, <(int, ProcessSignal)>[
-        (-190, ProcessSignal.sigterm),
-      ]);
-    });
+        expect(result.outcome, ReapOutcome.exited);
+        expect(result.boundPorts, <int>[3100]);
+        expect(table.signals, <(int, ProcessSignal)>[
+          (-190, ProcessSignal.sigterm),
+        ]);
+      },
+    );
 
     test('never signals its own process group', () async {
       // A tool that shares the caller's group (a non-detached spawn) would
       // take the caller down with it; only the pid is signalled.
-      final _FakeProcessTable table = _FakeProcessTable(
-        <int, int>{200: _FakeProcessTable.ownPgid},
-      );
+      final _FakeProcessTable table = _FakeProcessTable(<int, int>{
+        200: _FakeProcessTable.ownPgid,
+      });
 
       final ReapResult result = await _reaperFor(table).reap(200);
 
@@ -176,32 +170,30 @@ void main() {
       expect(table.signals, isEmpty);
     });
 
-    test('signals nothing when the pid now belongs to a newer process',
-        () async {
-      // A stale session's pid can be reused by anything, an editor, a
-      // terminal job. Its group was SIGKILLed along with it.
-      final _FakeProcessTable table = _FakeProcessTable(
-        <int, int>{
-          200: 190,
-          201: 190,
-        },
-        ageSeconds: <int, int>{200: 5},
-      );
-
-      final ReapResult result = await _reaperFor(table).reap(
-        200,
-        startedBy: DateTime.now().subtract(const Duration(hours: 1)),
-      );
-
-      expect(table.signals, isEmpty);
-      expect(result.pidReused, isTrue);
-      expect(result.pgid, isNull);
-      expect(result.outcome, ReapOutcome.exited);
-      expect(table.live, <int>{200, 201});
-    });
-
     test(
-        'signals the group of a pid that started before the session was '
+      'signals nothing when the pid now belongs to a newer process',
+      () async {
+        // A stale session's pid can be reused by anything, an editor, a
+        // terminal job. Its group was SIGKILLed along with it.
+        final _FakeProcessTable table = _FakeProcessTable(
+          <int, int>{200: 190, 201: 190},
+          ageSeconds: <int, int>{200: 5},
+        );
+
+        final ReapResult result = await _reaperFor(table).reap(
+          200,
+          startedBy: DateTime.now().subtract(const Duration(hours: 1)),
+        );
+
+        expect(table.signals, isEmpty);
+        expect(result.pidReused, isTrue);
+        expect(result.pgid, isNull);
+        expect(result.outcome, ReapOutcome.exited);
+        expect(table.live, <int>{200, 201});
+      },
+    );
+
+    test('signals the group of a pid that started before the session was '
         'recorded', () async {
       final _FakeProcessTable table = _FakeProcessTable(
         <int, int>{200: 190},
@@ -209,10 +201,9 @@ void main() {
         ageSeconds: <int, int>{200: 2 * 86400 + 3661},
       );
 
-      final ReapResult result = await _reaperFor(table).reap(
-        200,
-        startedBy: DateTime.now().subtract(const Duration(days: 1)),
-      );
+      final ReapResult result = await _reaperFor(
+        table,
+      ).reap(200, startedBy: DateTime.now().subtract(const Duration(days: 1)));
 
       expect(result.pidReused, isFalse);
       expect(table.signals, <(int, ProcessSignal)>[
@@ -274,30 +265,32 @@ void main() {
       expect(result.listingError, isA<ProcessException>());
     });
 
-    test('falls back to a pid-only SIGTERM when ps prints an unreadable etime',
-        () async {
-      final _FakeProcessTable table = _FakeProcessTable(<int, int>{200: 190});
-      final ProcessGroupReaper reaper = ProcessGroupReaper(
-        kill: table.kill,
-        run: (String executable, List<String> arguments) async =>
-            arguments.contains('etime=')
-                ? ProcessResult(0, 0, 'n/a\n', '')
-                : table.run(executable, arguments),
-        grace: Duration.zero,
-        selfPid: _FakeProcessTable.selfPid,
-      );
+    test(
+      'falls back to a pid-only SIGTERM when ps prints an unreadable etime',
+      () async {
+        final _FakeProcessTable table = _FakeProcessTable(<int, int>{200: 190});
+        final ProcessGroupReaper reaper = ProcessGroupReaper(
+          kill: table.kill,
+          run: (String executable, List<String> arguments) async =>
+              arguments.contains('etime=')
+              ? ProcessResult(0, 0, 'n/a\n', '')
+              : table.run(executable, arguments),
+          grace: Duration.zero,
+          selfPid: _FakeProcessTable.selfPid,
+        );
 
-      final ReapResult result = await reaper.reap(
-        200,
-        startedBy: DateTime.now(),
-      );
+        final ReapResult result = await reaper.reap(
+          200,
+          startedBy: DateTime.now(),
+        );
 
-      expect(table.signals, <(int, ProcessSignal)>[
-        (200, ProcessSignal.sigterm),
-      ]);
-      expect(result.outcome, ReapOutcome.unverified);
-      expect(result.listingError, isA<FormatException>());
-    });
+        expect(table.signals, <(int, ProcessSignal)>[
+          (200, ProcessSignal.sigterm),
+        ]);
+        expect(result.outcome, ReapOutcome.unverified);
+        expect(result.listingError, isA<FormatException>());
+      },
+    );
   });
 }
 
@@ -327,10 +320,10 @@ final class _FakeProcessTable {
     Set<int> zombies = const <int>{},
     Map<int, int> lingerPolls = const <int, int>{},
     Map<int, int> ageSeconds = const <int, int>{},
-  })  : _groups = Map<int, int>.of(groups),
-        _zombies = Set<int>.of(zombies),
-        _lingerPolls = Map<int, int>.of(lingerPolls),
-        _ageSeconds = Map<int, int>.of(ageSeconds);
+  }) : _groups = Map<int, int>.of(groups),
+       _zombies = Set<int>.of(zombies),
+       _lingerPolls = Map<int, int>.of(lingerPolls),
+       _ageSeconds = Map<int, int>.of(ageSeconds);
 
   static const int selfPid = 7;
   static const int ownPgid = 50;
@@ -355,9 +348,9 @@ final class _FakeProcessTable {
     signals.add((target, signal));
     final List<int> victims = target < 0
         ? _groups.entries
-            .where((MapEntry<int, int> e) => e.value == -target)
-            .map((MapEntry<int, int> e) => e.key)
-            .toList()
+              .where((MapEntry<int, int> e) => e.value == -target)
+              .map((MapEntry<int, int> e) => e.key)
+              .toList()
         : _groups.keys.where((int pid) => pid == target).toList();
     if (victims.isEmpty) return false;
     final bool fatal =
@@ -402,8 +395,12 @@ final class _FakeProcessTable {
       return switch (arguments[1]) {
         'pgid=' => ProcessResult(0, 0, '  $pgid\n', ''),
         'stat=' => ProcessResult(0, 0, '${_stat(pid)}\n', ''),
-        'etime=' =>
-          ProcessResult(0, 0, '${_etime(_ageSeconds[pid] ?? 0)}\n', ''),
+        'etime=' => ProcessResult(
+          0,
+          0,
+          '${_etime(_ageSeconds[pid] ?? 0)}\n',
+          '',
+        ),
         _ => throw StateError('unexpected ps $argv'),
       };
     }

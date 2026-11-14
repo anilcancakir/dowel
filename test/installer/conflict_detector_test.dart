@@ -10,8 +10,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     String? defaultValue,
     String? Function(String)? validator,
-  }) =>
-      defaultValue ?? '';
+  }) => defaultValue ?? '';
 
   @override
   bool confirm(String question, {bool defaultValue = false}) => defaultValue;
@@ -21,8 +20,7 @@ class _SilentPromptDriver implements PromptDriver {
     String question, {
     required List<String> options,
     String? defaultValue,
-  }) =>
-      defaultValue ?? options.first;
+  }) => defaultValue ?? options.first;
 
   @override
   String secret(String question) => '';
@@ -71,23 +69,23 @@ void _writeRecord(
 
 void main() {
   group('ConflictDetector.detect()', () {
-    test('returns empty list when target file does not exist (clean install)',
-        () {
-      final fs = InMemoryFs();
-      // No pre-existing file at /proj/lib/a.dart.
-      final ctx = _makeCtx(fs: fs);
-      final detector = ConflictDetector(ctx);
-
-      final conflicts = detector.detect(
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'hello')],
-        pluginName: 'demo',
-      );
-
-      expect(conflicts, isEmpty);
-    });
-
     test(
-        'returns unmanaged-file conflict when file exists but no record file '
+      'returns empty list when target file does not exist (clean install)',
+      () {
+        final fs = InMemoryFs();
+        // No pre-existing file at /proj/lib/a.dart.
+        final ctx = _makeCtx(fs: fs);
+        final detector = ConflictDetector(ctx);
+
+        final conflicts = detector.detect(const [
+          WriteFile(targetPath: 'lib/a.dart', content: 'hello'),
+        ], pluginName: 'demo');
+
+        expect(conflicts, isEmpty);
+      },
+    );
+
+    test('returns unmanaged-file conflict when file exists but no record file '
         'is present', () {
       final fs = InMemoryFs();
       fs.writeAsString('/proj/lib/a.dart', 'existing content');
@@ -95,18 +93,16 @@ void main() {
       final ctx = _makeCtx(fs: fs);
       final detector = ConflictDetector(ctx);
 
-      final conflicts = detector.detect(
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'new')],
-        pluginName: 'demo',
-      );
+      final conflicts = detector.detect(const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+      ], pluginName: 'demo');
 
       expect(conflicts, hasLength(1));
       expect(conflicts.first.absPath, '/proj/lib/a.dart');
       expect(conflicts.first.reason, 'unmanaged-file');
     });
 
-    test(
-        'returns no conflict when file exists and recorded hash matches '
+    test('returns no conflict when file exists and recorded hash matches '
         'current file content', () {
       final fs = InMemoryFs();
       const fileContent = 'unchanged content';
@@ -117,16 +113,14 @@ void main() {
       final ctx = _makeCtx(fs: fs);
       final detector = ConflictDetector(ctx);
 
-      final conflicts = detector.detect(
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'new')],
-        pluginName: 'demo',
-      );
+      final conflicts = detector.detect(const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+      ], pluginName: 'demo');
 
       expect(conflicts, isEmpty);
     });
 
-    test(
-        'returns modified-since-last-known-stub conflict when file exists and '
+    test('returns modified-since-last-known-stub conflict when file exists and '
         'recorded hash diverges from current content', () {
       final fs = InMemoryFs();
       fs.writeAsString('/proj/lib/a.dart', 'original content');
@@ -138,10 +132,9 @@ void main() {
       final ctx = _makeCtx(fs: fs);
       final detector = ConflictDetector(ctx);
 
-      final conflicts = detector.detect(
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'new')],
-        pluginName: 'demo',
-      );
+      final conflicts = detector.detect(const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+      ], pluginName: 'demo');
 
       expect(conflicts, hasLength(1));
       expect(conflicts.first.absPath, '/proj/lib/a.dart');
@@ -151,61 +144,54 @@ void main() {
     });
 
     test(
-        'handles mixed ops: some clean, some conflicting, across multiple files',
-        () {
-      final fs = InMemoryFs();
-      // File A: unmodified (matching hash).
-      const contentA = 'content a';
-      fs.writeAsString('/proj/lib/a.dart', contentA);
-      final hashA = fs.md5('/proj/lib/a.dart');
-      // File B: user-modified (diverging hash).
-      fs.writeAsString('/proj/lib/b.dart', 'original b');
-      final originalHashB = fs.md5('/proj/lib/b.dart');
-      fs.writeAsString('/proj/lib/b.dart', 'user changed b');
-      // File C: does not exist yet (clean install).
-      _writeRecord(fs, 'demo', {
-        'lib/a.dart': hashA,
-        'lib/b.dart': originalHashB,
-      });
-      final ctx = _makeCtx(fs: fs);
-      final detector = ConflictDetector(ctx);
+      'handles mixed ops: some clean, some conflicting, across multiple files',
+      () {
+        final fs = InMemoryFs();
+        // File A: unmodified (matching hash).
+        const contentA = 'content a';
+        fs.writeAsString('/proj/lib/a.dart', contentA);
+        final hashA = fs.md5('/proj/lib/a.dart');
+        // File B: user-modified (diverging hash).
+        fs.writeAsString('/proj/lib/b.dart', 'original b');
+        final originalHashB = fs.md5('/proj/lib/b.dart');
+        fs.writeAsString('/proj/lib/b.dart', 'user changed b');
+        // File C: does not exist yet (clean install).
+        _writeRecord(fs, 'demo', {
+          'lib/a.dart': hashA,
+          'lib/b.dart': originalHashB,
+        });
+        final ctx = _makeCtx(fs: fs);
+        final detector = ConflictDetector(ctx);
 
-      final conflicts = detector.detect(
-        const [
+        final conflicts = detector.detect(const [
           WriteFile(targetPath: 'lib/a.dart', content: 'new a'),
           WriteFile(targetPath: 'lib/b.dart', content: 'new b'),
           WriteFile(targetPath: 'lib/c.dart', content: 'new c'),
-        ],
-        pluginName: 'demo',
-      );
+        ], pluginName: 'demo');
 
-      expect(conflicts, hasLength(1));
-      expect(conflicts.first.absPath, '/proj/lib/b.dart');
-      expect(conflicts.first.reason, 'modified-since-last-known-stub');
-    });
+        expect(conflicts, hasLength(1));
+        expect(conflicts.first.absPath, '/proj/lib/b.dart');
+        expect(conflicts.first.reason, 'modified-since-last-known-stub');
+      },
+    );
 
-    test(
-        'RunShell and AddDependency ops never produce conflicts against an '
+    test('RunShell and AddDependency ops never produce conflicts against an '
         'unrecorded pubspec on disk', () {
       final fs = InMemoryFs();
       fs.writeAsString('/proj/pubspec.yaml', 'name: consumer\n');
       final ctx = _makeCtx(fs: fs);
       final detector = ConflictDetector(ctx);
 
-      final conflicts = detector.detect(
-        const [
-          RunShell(command: 'dart', args: ['format', '.']),
-          AddDependency(name: 'foo', version: '^1.0.0'),
-          RemoveDependency(name: 'bar'),
-        ],
-        pluginName: 'demo',
-      );
+      final conflicts = detector.detect(const [
+        RunShell(command: 'dart', args: ['format', '.']),
+        AddDependency(name: 'foo', version: '^1.0.0'),
+        RemoveDependency(name: 'bar'),
+      ], pluginName: 'demo');
 
       expect(conflicts, isEmpty);
     });
 
-    test(
-        'a helper-edited file changed since the recorded hash is not a '
+    test('a helper-edited file changed since the recorded hash is not a '
         'conflict', () {
       // The user ran `dart pub add` after the install, so the pubspec no
       // longer matches the hash the record kept. A reinstall edits it in
@@ -219,10 +205,9 @@ void main() {
       );
       final detector = ConflictDetector(_makeCtx(fs: fs));
 
-      final conflicts = detector.detect(
-        const [AddDependency(name: 'foo', version: '^1.0.0')],
-        pluginName: 'demo',
-      );
+      final conflicts = detector.detect(const [
+        AddDependency(name: 'foo', version: '^1.0.0'),
+      ], pluginName: 'demo');
 
       expect(conflicts, isEmpty);
     });
@@ -241,53 +226,52 @@ void main() {
       );
       final detector = ConflictDetector(_makeCtx(fs: fs));
 
-      final conflicts = detector.detect(
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'new')],
-        pluginName: 'demo',
-      );
+      final conflicts = detector.detect(const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+      ], pluginName: 'demo');
 
       expect(conflicts, hasLength(1));
       expect(conflicts.single.absPath, '/proj/.dowel/installed/demo.json');
       expect(conflicts.single.reason, 'unsupported-install-record');
     });
 
-    test('a record with absolute stubHashes keys is reported as unsupported',
-        () {
-      final fs = InMemoryFs();
-      fs.writeAsString('/proj/lib/a.dart', 'content');
-      fs.writeAsString(
-        '/proj/.dowel/installed/demo.json',
-        jsonEncode(<String, dynamic>{
-          'version': 1,
-          'plugin': 'demo',
-          'ops': <dynamic>[],
-          'stubHashes': <String, String>{
-            '/proj/lib/a.dart': fs.md5('/proj/lib/a.dart'),
-          },
-        }),
-      );
-      final detector = ConflictDetector(_makeCtx(fs: fs));
+    test(
+      'a record with absolute stubHashes keys is reported as unsupported',
+      () {
+        final fs = InMemoryFs();
+        fs.writeAsString('/proj/lib/a.dart', 'content');
+        fs.writeAsString(
+          '/proj/.dowel/installed/demo.json',
+          jsonEncode(<String, dynamic>{
+            'version': 1,
+            'plugin': 'demo',
+            'ops': <dynamic>[],
+            'stubHashes': <String, String>{
+              '/proj/lib/a.dart': fs.md5('/proj/lib/a.dart'),
+            },
+          }),
+        );
+        final detector = ConflictDetector(_makeCtx(fs: fs));
 
-      final conflicts = detector.detect(
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'new')],
-        pluginName: 'demo',
-      );
+        final conflicts = detector.detect(const [
+          WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+        ], pluginName: 'demo');
 
-      expect(
-        conflicts.map((conflict) => conflict.reason),
-        containsAll(<String>['unsupported-install-record', 'unmanaged-file']),
-      );
-    });
+        expect(
+          conflicts.map((conflict) => conflict.reason),
+          containsAll(<String>['unsupported-install-record', 'unmanaged-file']),
+        );
+      },
+    );
 
     test('a record that is not JSON is reported instead of thrown', () {
       final fs = InMemoryFs();
       fs.writeAsString('/proj/.dowel/installed/demo.json', '{not json');
       final detector = ConflictDetector(_makeCtx(fs: fs));
 
-      final conflicts = detector.detect(
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'new')],
-        pluginName: 'demo',
-      );
+      final conflicts = detector.detect(const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+      ], pluginName: 'demo');
 
       expect(conflicts.single.reason, 'unsupported-install-record');
     });
@@ -312,10 +296,9 @@ void main() {
         ),
       );
 
-      final conflicts = detector.detect(
-        const [WriteFile(targetPath: 'lib/a.dart', content: 'new')],
-        pluginName: 'demo',
-      );
+      final conflicts = detector.detect(const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+      ], pluginName: 'demo');
 
       expect(conflicts, isEmpty);
     });

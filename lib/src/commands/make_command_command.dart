@@ -128,8 +128,9 @@ class MakeCommandCommand extends DowelGeneratorCommand {
   static String _normalizeName(String input) {
     final parts = input.split('/');
     final last = parts.last;
-    parts[parts.length - 1] =
-        last.endsWith('Command') ? last : '${last}Command';
+    parts[parts.length - 1] = last.endsWith('Command')
+        ? last
+        : '${last}Command';
     return parts.join('/');
   }
 
@@ -165,8 +166,8 @@ class MakeCommandCommand extends DowelGeneratorCommand {
     final libSrc = Directory(p.join(root, 'lib', 'src'));
     if (!libSrc.existsSync()) return false;
     return libSrc.listSync().whereType<File>().any(
-          (f) => f.path.endsWith('_dowel_provider.dart'),
-        );
+      (f) => f.path.endsWith('_dowel_provider.dart'),
+    );
   }
 
   /// Locates the nearest `lib/src/*_dowel_provider.dart` and injects an
@@ -179,9 +180,9 @@ class MakeCommandCommand extends DowelGeneratorCommand {
   }) {
     final libSrc = Directory(p.join(root, 'lib', 'src'));
     final providerFile = libSrc.listSync().whereType<File>().firstWhere(
-          (f) => f.path.endsWith('_dowel_provider.dart'),
-          orElse: () => File(''),
-        );
+      (f) => f.path.endsWith('_dowel_provider.dart'),
+      orElse: () => File(''),
+    );
     if (providerFile.path.isEmpty) {
       ctx.output.warning(
         'No <name>_dowel_provider.dart found in lib/src/. '

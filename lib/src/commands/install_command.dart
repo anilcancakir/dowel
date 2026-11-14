@@ -15,7 +15,7 @@ import 'helpers/artisan_leftovers.dart';
 import 'make_fast_cli_command.dart';
 import 'plugins_refresh_command.dart';
 
-/// `install` — scaffold the canonical native Flutter consumer
+/// `install`: scaffold the canonical native Flutter consumer
 /// (`bin/dispatcher.dart` + `lib/app/_plugins.g.dart` + initial
 /// `lib/app/commands/_index.g.dart`) into the current project AND
 /// auto-chain `make:fast-cli` so `bin/dowel` lands in the same invocation.
@@ -26,9 +26,13 @@ import 'plugins_refresh_command.dart';
 /// Magic-installed consumers reach the same canonical state by routing
 /// `magic:install` through this command in-process. Vanilla Flutter
 /// consumers use `dart run dowel install` directly.
+///
+/// This is the built-in `install` command that sets dowel itself up in a
+/// project; a plugin's own install command extends [DowelInstallCommand].
 final class InstallDowelCommand extends DowelCommand {
   @override
-  String get signature => 'install '
+  String get signature =>
+      'install '
       '{--force : Overwrite files even when they already exist}';
 
   @override
@@ -143,8 +147,8 @@ final class InstallDowelCommand extends DowelCommand {
     //     `dart run dowel plugins:refresh` invocation.
     final pluginsJsonPath = p.join(root, '.dowel', 'plugins.json');
     if (File(pluginsJsonPath).existsSync()) {
-      final exitCode =
-          await PluginsRefreshCommand(projectRoot: root).handle(ctx);
+      final exitCode = await PluginsRefreshCommand(projectRoot: root)
+          .handle(ctx);
       if (exitCode != 0) {
         ctx.output.error(
           'install: auto-chained plugins:refresh failed (exit $exitCode). '
@@ -210,7 +214,8 @@ final class InstallDowelCommand extends DowelCommand {
   /// Adds `dowel` to the pubspec at [pubspecPath] unless either dependency
   /// section already declares it, in which case the user's constraint stays.
   static void _addDowelDependency(String pubspecPath, {required String root}) {
-    final declared = pubspecDeclaresDependency(pubspecPath, 'dowel') ||
+    final declared =
+        pubspecDeclaresDependency(pubspecPath, 'dowel') ||
         pubspecDeclaresDependency(
           pubspecPath,
           'dowel',

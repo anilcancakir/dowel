@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dowel/dowel.dart';
+import 'package:dowel/src/helpers/env_editor.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -39,29 +39,36 @@ void main() {
       expect(content, contains('LOG_LEVEL=info'));
     });
 
-    test('setKey updates existing key value, preserves position and other keys',
-        () {
-      File(envPath).writeAsStringSync('DEBUG=true\nAPP_ENV=local\nLOG=info\n');
+    test(
+      'setKey updates existing key value, preserves position and other keys',
+      () {
+        File(envPath)
+            .writeAsStringSync('DEBUG=true\nAPP_ENV=local\nLOG=info\n');
 
-      EnvEditor.setKey(envPath, 'APP_ENV', 'production');
+        EnvEditor.setKey(envPath, 'APP_ENV', 'production');
 
-      final content = File(envPath).readAsStringSync();
-      expect(content, contains('APP_ENV=production'));
-      expect(content, isNot(contains('APP_ENV=local')));
-      // Other keys preserved.
-      expect(content, contains('DEBUG=true'));
-      expect(content, contains('LOG=info'));
-      // Position: APP_ENV should still be between DEBUG and LOG.
-      final debugIdx = content.indexOf('DEBUG=true');
-      final appEnvIdx = content.indexOf('APP_ENV=production');
-      final logIdx = content.indexOf('LOG=info');
-      expect(appEnvIdx, greaterThan(debugIdx));
-      expect(logIdx, greaterThan(appEnvIdx));
-    });
+        final content = File(envPath).readAsStringSync();
+        expect(content, contains('APP_ENV=production'));
+        expect(content, isNot(contains('APP_ENV=local')));
+        // Other keys preserved.
+        expect(content, contains('DEBUG=true'));
+        expect(content, contains('LOG=info'));
+        // Position: APP_ENV should still be between DEBUG and LOG.
+        final debugIdx = content.indexOf('DEBUG=true');
+        final appEnvIdx = content.indexOf('APP_ENV=production');
+        final logIdx = content.indexOf('LOG=info');
+        expect(appEnvIdx, greaterThan(debugIdx));
+        expect(logIdx, greaterThan(appEnvIdx));
+      },
+    );
 
     test('setKey with comment prepends # comment line above the KEY= line', () {
-      EnvEditor.setKey(envPath, 'DB_HOST', 'localhost',
-          comment: 'Database connection');
+      EnvEditor.setKey(
+        envPath,
+        'DB_HOST',
+        'localhost',
+        comment: 'Database connection',
+      );
 
       final content = File(envPath).readAsStringSync();
       expect(content, contains('# Database connection\n'));
@@ -97,18 +104,14 @@ void main() {
       expect(content, contains(r'SECRET="pa$$word"'));
     });
 
-    test(
-        'setKey wraps value with single quote in double quotes, escaping inner double quotes',
-        () {
+    test('setKey wraps value with single quote in double quotes, escaping inner double quotes', () {
       EnvEditor.setKey(envPath, 'GREETING', "it's alive");
 
       final content = File(envPath).readAsStringSync();
       expect(content, contains("GREETING=\"it's alive\""));
     });
 
-    test(
-        'setKey wraps value containing double quote and escapes inner double quotes',
-        () {
+    test('setKey wraps value containing double quote and escapes inner double quotes', () {
       EnvEditor.setKey(envPath, 'LABEL', 'say "hi"');
 
       final content = File(envPath).readAsStringSync();
@@ -156,17 +159,19 @@ void main() {
       expect(content, contains('BAZ=qux'));
     });
 
-    test('removeKey also deletes the comment line immediately above the key',
-        () {
-      File(envPath).writeAsStringSync('# My comment\nFOO=bar\nBAZ=qux\n');
+    test(
+      'removeKey also deletes the comment line immediately above the key',
+      () {
+        File(envPath).writeAsStringSync('# My comment\nFOO=bar\nBAZ=qux\n');
 
-      EnvEditor.removeKey(envPath, 'FOO');
+        EnvEditor.removeKey(envPath, 'FOO');
 
-      final content = File(envPath).readAsStringSync();
-      expect(content, isNot(contains('# My comment')));
-      expect(content, isNot(contains('FOO=')));
-      expect(content, contains('BAZ=qux'));
-    });
+        final content = File(envPath).readAsStringSync();
+        expect(content, isNot(contains('# My comment')));
+        expect(content, isNot(contains('FOO=')));
+        expect(content, contains('BAZ=qux'));
+      },
+    );
 
     test('removeKey preserves unrelated comments above other keys', () {
       File(envPath)

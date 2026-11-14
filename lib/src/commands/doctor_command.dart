@@ -57,10 +57,10 @@ const _cdpUpgradeWarning =
 class DoctorCommand extends DowelCommand {
   /// Creates a [DoctorCommand].
   ///
-  /// [workingDir] pins the directory used for `.mcp.json` detection. Defaults
+  /// [_workingDir] pins the directory used for `.mcp.json` detection. Defaults
   /// to [Directory.current.path] when omitted. Inject a temp directory in
   /// tests to avoid depending on the real working directory.
-  DoctorCommand({String? workingDir}) : _workingDir = workingDir;
+  DoctorCommand({this._workingDir});
 
   /// Pinned working directory for `.mcp.json` lookup.
   ///
@@ -86,7 +86,7 @@ class DoctorCommand extends DowelCommand {
   /// real process.
   @visibleForTesting
   static Future<ProcessResult> Function(String, List<String>)
-      doctorFlutterRunner = Process.run;
+  doctorFlutterRunner = Process.run;
 
   /// Exposes [_cdpUpgradeWarning] for assertion in unit tests.
   @visibleForTesting

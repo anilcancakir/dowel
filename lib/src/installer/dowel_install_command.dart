@@ -5,6 +5,10 @@ import 'install_context.dart';
 
 /// Base class for every install command in the PluginInstaller DSL ecosystem.
 ///
+/// This is the base a plugin's `<plugin>:install` command extends; the
+/// built-in `install` command that sets dowel itself up is
+/// `InstallDowelCommand`.
+///
 /// Centralises the standard install-command surface so concrete commands
 /// (e.g. `plugin:install`, `plugin:uninstall`, `logger:install`, future
 /// `<plugin>:install` commands authored by third parties) inherit a uniform
@@ -68,7 +72,8 @@ abstract class DowelInstallCommand extends DowelCommand {
   /// site.
   ///
   /// @return The 4-flag signature fragment with a trailing space.
-  String get baseFlags => '{--force : Bypass conflict detection} '
+  String get baseFlags =>
+      '{--force : Bypass conflict detection} '
       '{--dry-run : Print staged ops without writing} '
       '{--non-interactive : Skip prompts, use defaults} '
       '{--no-bootstrap : Skip auto-running the plugin bootstrap command} ';

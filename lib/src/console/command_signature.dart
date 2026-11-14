@@ -36,7 +36,7 @@ import 'package:args/args.dart';
 /// 'sync:monitors {--limit=10}'
 /// 'sync:monitors {team : Team slug} {--force : Skip prompts}'
 /// ```
-class CommandSignature {
+final class CommandSignature {
   CommandSignature({
     required this.name,
     required this.arguments,
@@ -215,7 +215,7 @@ class CommandSignature {
 }
 
 /// Positional argument specification parsed out of a signature.
-class ArgumentSpec {
+final class ArgumentSpec {
   const ArgumentSpec({
     required this.name,
     this.isOptional = false,
@@ -236,7 +236,7 @@ class ArgumentSpec {
 }
 
 /// Option / flag specification parsed out of a signature.
-class OptionSpec {
+final class OptionSpec {
   const OptionSpec({
     required this.name,
     this.isFlag = false,

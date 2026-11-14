@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/console/run_dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -138,28 +139,25 @@ void main() {
       expect(delegateCalled, isTrue);
     });
 
-    test(
-      '_defaultDelegate args prepend :dispatcher, not :dowel',
-      () async {
-        // Regression guard: the consumer wrapper is bin/dispatcher.dart. The
-        // delegate seam must forward the :dispatcher token so dart resolves
-        // to that file, not to this package's own bin/dowel.dart.
-        List<String>? captured;
+    test('_defaultDelegate args prepend :dispatcher, not :dowel', () async {
+      // Regression guard: the consumer wrapper is bin/dispatcher.dart. The
+      // delegate seam must forward the :dispatcher token so dart resolves
+      // to that file, not to this package's own bin/dowel.dart.
+      List<String>? captured;
 
-        await runDowel(
-          <String>['list'],
-          wrapperExists: () => true,
-          delegateToConsumer: true,
-          delegate: (args) async {
-            captured = args;
-            return 0;
-          },
-        );
+      await runDowel(
+        <String>['list'],
+        wrapperExists: () => true,
+        delegateToConsumer: true,
+        delegate: (args) async {
+          captured = args;
+          return 0;
+        },
+      );
 
-        expect(captured, isNotNull);
-        expect(captured!.first, ':dispatcher');
-      },
-    );
+      expect(captured, isNotNull);
+      expect(captured!.first, ':dispatcher');
+    });
 
     test(
       'a package that only ships its own bin/dowel.dart does not delegate',
@@ -172,9 +170,8 @@ void main() {
           if (tempRoot.existsSync()) tempRoot.deleteSync(recursive: true);
         });
         Directory(p.join(tempRoot.path, 'bin')).createSync(recursive: true);
-        File(
-          p.join(tempRoot.path, 'bin', 'dowel.dart'),
-        ).writeAsStringSync('void main() {}\n');
+        File(p.join(tempRoot.path, 'bin', 'dowel.dart'))
+            .writeAsStringSync('void main() {}\n');
 
         var delegateCalled = false;
 
@@ -193,33 +190,30 @@ void main() {
       },
     );
 
-    test(
-      'no wrapper present skips delegation cleanly',
-      () async {
-        // When bin/dispatcher.dart does not exist, the wrapper-name resolver
-        // returns null and auto-delegation falls through to the standalone
-        // path (no delegate invocation).
-        final tempRoot = Directory.systemTemp.createTempSync('no_wrapper_');
-        addTearDown(() {
-          if (tempRoot.existsSync()) tempRoot.deleteSync(recursive: true);
-        });
+    test('no wrapper present skips delegation cleanly', () async {
+      // When bin/dispatcher.dart does not exist, the wrapper-name resolver
+      // returns null and auto-delegation falls through to the standalone
+      // path (no delegate invocation).
+      final tempRoot = Directory.systemTemp.createTempSync('no_wrapper_');
+      addTearDown(() {
+        if (tempRoot.existsSync()) tempRoot.deleteSync(recursive: true);
+      });
 
-        var delegateCalled = false;
+      var delegateCalled = false;
 
-        final code = await runDowel(
-          <String>['list'],
-          wrapperName: () => defaultConsumerWrapperName(cwd: tempRoot.path),
-          delegateToConsumer: true,
-          delegate: (args) async {
-            delegateCalled = true;
-            return 0;
-          },
-        );
+      final code = await runDowel(
+        <String>['list'],
+        wrapperName: () => defaultConsumerWrapperName(cwd: tempRoot.path),
+        delegateToConsumer: true,
+        delegate: (args) async {
+          delegateCalled = true;
+          return 0;
+        },
+      );
 
-        expect(delegateCalled, isFalse);
-        expect(code, 0);
-      },
-    );
+      expect(delegateCalled, isFalse);
+      expect(code, 0);
+    });
   });
 
   group('runDowel standalone', () {
@@ -254,10 +248,7 @@ void main() {
 
     test('builtins always include list + refresh commands', () async {
       // `list` is a builtin — without it, this would exit 1 (unknown command).
-      final code = await runDowel(
-        <String>['list'],
-        wrapperExists: () => false,
-      );
+      final code = await runDowel(<String>['list'], wrapperExists: () => false);
 
       expect(code, 0);
     });
@@ -301,10 +292,9 @@ void main() {
     test('DowelCommandCollisionException returns exit 2', () async {
       // Same command name from two providers; registry throws on the
       // second `register()`.
-      final collidingProvider = _StubProvider(
-        <DowelCommand>[_NoopCommand('list')],
-        providerName: 'colliding',
-      );
+      final collidingProvider = _StubProvider(<DowelCommand>[
+        _NoopCommand('list'),
+      ], providerName: 'colliding');
 
       final code = await runDowel(
         <String>['list'],
@@ -402,7 +392,7 @@ void main() {
 
 class _StubProvider extends DowelServiceProvider {
   _StubProvider(this._commands, {String? providerName})
-      : _providerName = providerName ?? 'stub';
+    : _providerName = providerName ?? 'stub';
 
   final List<DowelCommand> _commands;
   final String _providerName;

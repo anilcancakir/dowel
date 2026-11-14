@@ -64,9 +64,9 @@ class PluginsRefreshCommand extends DowelCommand {
     VirtualFs? fs,
     String? projectRoot,
     bool Function(String absDir)? directoryExists,
-  })  : _fs = fs ?? const RealFs(),
-        _projectRootOverride = projectRoot,
-        _directoryExists = directoryExists ?? _defaultDirectoryExists;
+  }) : _fs = fs ?? const RealFs(),
+       _projectRootOverride = projectRoot,
+       _directoryExists = directoryExists ?? _defaultDirectoryExists;
 
   final VirtualFs _fs;
   final String? _projectRootOverride;

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/logs_command.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -56,64 +57,66 @@ void main() {
       File('${stateDir.path}/flutter-dev.log').writeAsStringSync('hello');
 
       final output = BufferedOutput();
-      final ctx = DowelContext.bare(
-        MapInput(const {'follow': false}),
-        output,
-      );
+      final ctx = DowelContext.bare(MapInput(const {'follow': false}), output);
 
       final code = await command.handle(ctx);
 
       expect(code, 0);
     });
 
-    test('non-follow path writes the log through ctx.output, not stdout',
-        () async {
-      final stateDir = Directory('${tempHome.path}/.dowel')
-        ..createSync(recursive: true);
-      File('${stateDir.path}/flutter-dev.log')
-          .writeAsStringSync('line one\nline two\n');
-      final output = BufferedOutput();
-      final out = _CapturingStdout();
+    test(
+      'non-follow path writes the log through ctx.output, not stdout',
+      () async {
+        final stateDir = Directory('${tempHome.path}/.dowel')
+          ..createSync(recursive: true);
+        File('${stateDir.path}/flutter-dev.log')
+            .writeAsStringSync('line one\nline two\n');
+        final output = BufferedOutput();
+        final out = _CapturingStdout();
 
-      final code = await IOOverrides.runZoned(
-        () =>
-            LogsCommand().handle(DowelContext.bare(MapInput(const {}), output)),
-        stdout: () => out,
-      );
-
-      expect(code, 0);
-      expect(output.content, 'line one\nline two\n');
-      expect(out.buffer.toString(), isEmpty);
-    });
-
-    test('follow path writes whole lines through ctx.output, not stdout',
-        () async {
-      final stateDir = Directory('${tempHome.path}/.dowel')
-        ..createSync(recursive: true);
-      final log = File('${stateDir.path}/flutter-dev.log')
-        ..writeAsStringSync('line one\npartial');
-      final output = BufferedOutput();
-      final out = _CapturingStdout();
-
-      // Follow never returns; tearDown deletes the log, which ends the loop
-      // with an error this zone absorbs.
-      runZonedGuarded(
-        () => IOOverrides.runZoned(
+        final code = await IOOverrides.runZoned(
           () => LogsCommand().handle(
-            DowelContext.bare(MapInput(const {'follow': true}), output),
+            DowelContext.bare(MapInput(const {}), output),
           ),
           stdout: () => out,
-        ),
-        (_, __) {},
-      );
-      await _waitFor(() => output.content.isNotEmpty);
-      log.writeAsStringSync(' line\n', mode: FileMode.append);
-      await _waitFor(() => output.content.contains('partial'));
+        );
 
-      // A line split across two reads arrives once, unbroken.
-      expect(output.content, 'line one\npartial line\n');
-      expect(out.buffer.toString(), isEmpty);
-    });
+        expect(code, 0);
+        expect(output.content, 'line one\nline two\n');
+        expect(out.buffer.toString(), isEmpty);
+      },
+    );
+
+    test(
+      'follow path writes whole lines through ctx.output, not stdout',
+      () async {
+        final stateDir = Directory('${tempHome.path}/.dowel')
+          ..createSync(recursive: true);
+        final log = File('${stateDir.path}/flutter-dev.log')
+          ..writeAsStringSync('line one\npartial');
+        final output = BufferedOutput();
+        final out = _CapturingStdout();
+
+        // Follow never returns; tearDown deletes the log, which ends the loop
+        // with an error this zone absorbs.
+        runZonedGuarded(
+          () => IOOverrides.runZoned(
+            () => LogsCommand().handle(
+              DowelContext.bare(MapInput(const {'follow': true}), output),
+            ),
+            stdout: () => out,
+          ),
+          (_, _) {},
+        );
+        await _waitFor(() => output.content.isNotEmpty);
+        log.writeAsStringSync(' line\n', mode: FileMode.append);
+        await _waitFor(() => output.content.contains('partial'));
+
+        // A line split across two reads arrives once, unbroken.
+        expect(output.content, 'line one\npartial line\n');
+        expect(out.buffer.toString(), isEmpty);
+      },
+    );
   });
 }
 

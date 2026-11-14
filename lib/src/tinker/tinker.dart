@@ -8,7 +8,7 @@
 /// Populated values are scoped to a single isolate's lifetime — no cross-
 /// isolate sharing. Hot-restart clears them; integrations re-populate on
 /// next install().
-class Tinker {
+final class Tinker {
   Tinker._();
 
   /// Autocomplete corpus seeded by integrations. The CLI-side TinkerCommand
