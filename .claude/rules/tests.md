@@ -15,8 +15,8 @@ There is no mocking library. Hand-write file-private fakes prefixed `_Silent`, `
 
 Pick by what the production code touches, not by preference.
 
-- `InMemoryFs` with `InstallContext.test(fs: InMemoryFs(), ...)` for assertions on staged operations (`stageForTest`, `pendingOps`). Code that hardcodes `RealFs()` cannot be tested this way.
-- A real `Directory.systemTemp.createTempSync('<prefix>_')` project for content assertions: seed fixtures, commit, read the files back. Needed for `_registerDowelProvider` in `plugin_install_command.dart`.
+- `InMemoryFs` with `InstallContext.test(fs: InMemoryFs(), ...)` for file operations that go through `InstallContext.fs` (`stageForTest`, `pendingOps`). Code that hardcodes `RealFs()` cannot be tested this way.
+- A real `Directory.systemTemp.createTempSync('<prefix>_')` project, with `InstallContext.test(fs: const RealFs(), ...)`, for operations that read or edit a consumer file through an editor (injections, pubspec edits) and for content assertions: seed fixtures, commit or read `pendingOps`, read the files back. Needed for `_registerDowelProvider` in `plugin_install_command.dart`.
 
 ## Seeding a consumer project
 

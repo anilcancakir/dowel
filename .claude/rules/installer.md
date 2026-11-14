@@ -31,7 +31,7 @@ paths:
 
 ## Sealed hierarchies
 
-`InstallOperation` and `TransactionResult` (`Success`, `DryRun`, `Conflict`, `Error`) are sealed. Consumers use an exhaustive `switch` with no default branch, so the analyzer flags a missing case; a new variant means updating every dispatcher (the Change guide in ARCHITECTURE.md lists them).
+`InstallOperation` and `TransactionResult` (`Success`, `DryRun`, `Conflict`, `Error`) are sealed. Consumers use an exhaustive `switch` with no default branch, so the analyzer flags a missing case; the string-keyed `_opFromRecord` switches are not sealed switches and are not checked. A new variant means updating every dispatcher (the Change guide in ARCHITECTURE.md lists them).
 
 ## Indentation contract
 

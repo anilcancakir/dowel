@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(example/lib/app/_plugins.g.dart)",
+      "Edit(example/lib/app/commands/_index.g.dart)"
+    ]
+  }
+}
