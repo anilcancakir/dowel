@@ -43,7 +43,7 @@ dart pub add dowel
 dart run dowel install
 ```
 
-`install` writes `bin/dispatcher.dart` (the entry that calls `runDowel`), the codegen barrels `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, and builds the fast wrapper `bin/dowel` (about 100 ms to start, against about 3 s for `dart run`). Run it again and it skips every file that already exists (`--force` overwrites them) and keeps the `dowel` constraint your pubspec already has: `install` adds `dowel: ^<running version>` only when the pubspec declares none. It adds only the machine-local cache to `.gitignore` (`.dowel/cli-bundle/`, `.dowel/build.stamp` and `.dowel/.dowel.lock/`), so commit `.dowel/plugins.json` and `.dowel/installed/`.
+`install` writes `bin/dispatcher.dart` (the entry that calls `runDowel`), the codegen barrels `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, and builds the fast wrapper `bin/dowel` (tens of milliseconds to start, against about 3 s for `dart run`). Run it again and it skips every file that already exists (`--force` overwrites them) and keeps the `dowel` constraint your pubspec already has: `install` adds `dowel: ^<running version>` only when the pubspec declares none. It adds only the machine-local cache to `.gitignore` (`.dowel/cli-bundle/`, `.dowel/build.stamp` and `.dowel/.dowel.lock/`), so commit `.dowel/plugins.json` and `.dowel/installed/`.
 
 Moving an app from `fluttersdk_artisan`? `install` stops on the files that package generated and prints what to delete and the commands to run; `doctor` warns about the same leftovers. The steps are in [Migrating from fluttersdk_artisan](https://anilcancakir.com/dowel/docs/getting-started/migrating-from-fluttersdk-artisan).
 
@@ -157,7 +157,7 @@ Rules for an agent working with this package. Each one is a mistake the maintain
 | Do | Because |
 |---|---|
 | Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml` | The command registers into `lib/app/_plugins.g.dart` and stops without it |
-| Preview with `plugin:install <name> --dry-run` before the real run | File writes swap in through `.tmp` files after staging, but dependency and injection edits write directly and are not rolled back (a failed install then reports `rolledBack: false` and leaves a partial record), and a conflict with a user-edited file needs a decision |
+| Preview with `plugin:install <name> --dry-run` before the real run | File writes swap in through `.tmp` files after staging, but dependency and injection edits write directly and are not rolled back (a failed install then reports `rolledBack: false` and leaves a partial record), and a conflict with a user-edited file needs a decision (a dry run returns before the conflict check, so it does not detect conflicts) |
 | Commit `.dowel/plugins.json` and `.dowel/installed/`; ignore only `.dowel/cli-bundle/`, `.dowel/build.stamp` and `.dowel/.dowel.lock/` | The registry regenerates `lib/app/_plugins.g.dart`; without it on a fresh clone `plugin:install` refuses to run |
 | Leave `*.g.dart` barrels alone; regenerate with `commands:refresh` and `plugins:refresh` | They are generated, a hand edit is overwritten |
 | Start the app with `dowel start`, not `flutter run` | Reload, restart, logs and tinker find the app through the recorded session |

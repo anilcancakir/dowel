@@ -12,14 +12,15 @@ String _staleMcpWarning(String key) =>
     '.mcp.json, then run: ./bin/dowel mcp:install (or: '
     'dart run dowel mcp:install).';
 
-/// Advisory warning emitted when `.mcp.json` still uses the pre-Bug-B
-/// `fluttersdk_artisan:mcp` args shape. Mirrors the production constant in
+/// Advisory warning emitted when `.mcp.json` still starts the old
+/// `fluttersdk_artisan:mcp` server. Mirrors the production constant in
 /// `lib/src/commands/doctor_command.dart`; kept in sync manually.
-String _preFixMcpWarning(String key) =>
-    'WARN: Pre-fix MCP entry detected. Your .mcp.json still uses the '
-    'fluttersdk_artisan:mcp args shape from before Bug B was fixed. '
-    'Delete the "$key" entry from .mcp.json, then run: '
-    './bin/dowel mcp:install (or: dart run dowel mcp:install).';
+String _outdatedMcpWarning(String key) =>
+    'WARN: Outdated MCP entry detected. The "$key" server in .mcp.json starts '
+    'fluttersdk_artisan:mcp, the MCP server of a package that no longer '
+    'exists, and it never loads your plugins. Delete the "$key" entry from '
+    '.mcp.json, then run: ./bin/dowel mcp:install (or: dart run dowel '
+    'mcp:install).';
 
 /// Advisory warning emitted when `.mcp.json` still has the `fluttersdk` server
 /// key that fluttersdk_artisan's `mcp:install` wrote, whatever its args.
@@ -118,9 +119,9 @@ void main() {
         expect(output.content, contains(_staleMcpWarning('fluttersdk')));
       });
 
-      test('.mcp.json with pre-fix fluttersdk_artisan:mcp entry emits pre-fix advisory', () async {
-        // Seed a .mcp.json with the pre-Bug-B fluttersdk_artisan:mcp args shape.
-        // Post-Step-8 this DOES emit _preFixMcpWarning; _staleMcpWarning still
+      test('.mcp.json with a fluttersdk_artisan:mcp entry emits the outdated-entry advisory', () async {
+        // Seed a .mcp.json with the fluttersdk_artisan:mcp args shape.
+        // This emits _outdatedMcpWarning; _staleMcpWarning still
         // must NOT appear because that is the legacy fluttersdk_mcp:server shape.
         final mcpJson = File('${tempDir.path}/.mcp.json');
         await mcpJson.writeAsString('''
@@ -141,7 +142,7 @@ void main() {
         await command.handle(ctx);
 
         expect(output.content, isNot(contains(_staleMcpWarning('fluttersdk'))));
-        expect(output.content, contains(_preFixMcpWarning('fluttersdk')));
+        expect(output.content, contains(_outdatedMcpWarning('fluttersdk')));
       });
 
       test(
@@ -175,7 +176,7 @@ void main() {
           );
           expect(
             output.content,
-            isNot(contains(_preFixMcpWarning('fluttersdk'))),
+            isNot(contains(_outdatedMcpWarning('fluttersdk'))),
           );
         },
       );
@@ -272,8 +273,8 @@ void main() {
         expect(codeWithStale, equals(codeWithoutStale));
       });
 
-      test('pre-fix fluttersdk_artisan:mcp .mcp.json does not change doctor exit code', () async {
-        // The pre-fix advisory (_preFixMcpWarning) must be advisory-only and
+      test('fluttersdk_artisan:mcp .mcp.json does not change doctor exit code', () async {
+        // The outdated-entry advisory (_outdatedMcpWarning) must be advisory-only and
         // must NOT affect the doctor exit code. Mirror the stale-entry
         // exit-code-stability pattern above but seed the fluttersdk_artisan:mcp
         // args shape instead of the legacy fluttersdk_mcp:server shape.

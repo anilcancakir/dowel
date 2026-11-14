@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
@@ -464,6 +465,112 @@ void main() {
         reason: 'magic/provider.dart.stub mcpTools() must return an empty const list',
       );
     });
+  });
+
+  group('make_plugin stub bundle, install result names', () {
+    test('no rendered stub names a TransactionResult by a bare pre-1.0 class', () {
+      // 1.0.0 renamed Success/DryRun/Conflict/Error to Install*; a bare `Error()`
+      // silently resolves to dart:core, so the stub compiled against nothing.
+      final bareResult = RegExp(r'(?<![\w.])(Success|DryRun|Conflict|Error)\(');
+      final stubs = Directory(p.dirname(stubsDir))
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.stub'));
+
+      expect(stubs, isNotEmpty);
+      for (final stub in stubs) {
+        final rendered = StubLoader.replace(
+          stub.readAsStringSync(),
+          _sampleReplacements(),
+        );
+
+        expect(
+          bareResult.hasMatch(rendered),
+          isFalse,
+          reason:
+              '${p.relative(stub.path, from: stubsDir)} switches on a result '
+              'class that no longer exists; use InstallSuccess, InstallDryRun, '
+              'InstallConflict or InstallError',
+        );
+      }
+    });
+
+    test(
+      'the rendered magic plugin analyzes clean against this checkout',
+      () async {
+        final packageRoot = p.dirname(p.dirname(p.dirname(stubsDir)));
+        final plugin = Directory.systemTemp.createTempSync('mkplugin_analyze_');
+        addTearDown(() => plugin.deleteSync(recursive: true));
+
+        void render(String stub, String target) {
+          final raw = StubLoader.load(stub, searchPaths: <String>[magicDir]);
+          final file = File(p.join(plugin.path, target))
+            ..createSync(recursive: true);
+          file.writeAsStringSync(
+            StubLoader.replace(raw, _sampleReplacements()),
+          );
+        }
+
+        render('cli.dart', 'lib/cli.dart');
+        render('provider.dart', 'lib/src/magic_logger_dowel_provider.dart');
+        render('install_command.dart', 'lib/src/commands/install_command.dart');
+        render(
+          'uninstall_command.dart',
+          'lib/src/commands/uninstall_command.dart',
+        );
+        render('install_command_test.dart', 'test/install_command_test.dart');
+        File(p.join(plugin.path, 'pubspec.yaml')).writeAsStringSync(
+          'name: magic_logger\nenvironment:\n  sdk: ^3.13.0\n',
+        );
+
+        // Resolve the plugin against this checkout's packages without a network
+        // `pub get`: reuse its package_config with absolute roots, plus the plugin.
+        final config = jsonDecode(
+          File(p.join(packageRoot, '.dart_tool', 'package_config.json'))
+              .readAsStringSync(),
+        ) as Map<String, Object?>;
+        final packages = <Object?>[
+          for (final entry
+              in (config['packages']! as List<Object?>)
+                  .cast<Map<String, Object?>>())
+            <String, Object?>{
+              ...entry,
+              'rootUri': p
+                  .toUri(
+                    p.normalize(
+                      p.join(
+                        p.join(packageRoot, '.dart_tool'),
+                        Uri.parse(entry['rootUri']! as String).toFilePath(),
+                      ),
+                    ),
+                  )
+                  .toString(),
+            },
+          <String, Object?>{
+            'name': 'magic_logger',
+            'rootUri': '../',
+            'packageUri': 'lib/',
+            'languageVersion': '3.13',
+          },
+        ];
+        File(p.join(plugin.path, '.dart_tool', 'package_config.json'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(
+            jsonEncode(<String, Object?>{
+              'configVersion': 2,
+              'packages': packages,
+            }),
+          );
+
+        final result = await Process.run(Platform.resolvedExecutable, <String>[
+          'analyze',
+          '--fatal-infos',
+          plugin.path,
+        ]);
+
+        expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
+      },
+    );
   });
 
   group('make_plugin stub bundle — generic mcpTools hint', () {

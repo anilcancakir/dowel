@@ -75,7 +75,7 @@ final class MakeFastCliCommand extends DowelCommand {
     required bool force,
     required DowelContext ctx,
   }) async {
-    // 1. Validate pubspec.yaml — confirms we are inside a Dart/Flutter project.
+    // 1. Validate pubspec.yaml: confirms we are inside a Dart/Flutter project.
     final pubspecPath = p.join(root, 'pubspec.yaml');
     if (!File(pubspecPath).existsSync()) {
       ctx.output.error(
@@ -85,7 +85,7 @@ final class MakeFastCliCommand extends DowelCommand {
       return 1;
     }
 
-    // 2. Validate bin/dispatcher.dart — the consumer wrapper must exist before
+    // 2. Validate bin/dispatcher.dart: the consumer wrapper must exist before
     //    we scaffold the fast-CLI layer on top of it.
     final dowelBinPath = p.join(root, 'bin', 'dispatcher.dart');
     if (!File(dowelBinPath).existsSync()) {

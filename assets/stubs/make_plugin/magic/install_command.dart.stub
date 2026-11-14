@@ -35,10 +35,10 @@ class InstallCommand extends DowelInstallCommand {
     );
 
     return switch (result) {
-      Success() => 0,
-      DryRun() => 0,
-      Conflict() => 1,
-      Error() => 2,
+      InstallSuccess() => 0,
+      InstallDryRun() => 0,
+      InstallConflict() => 1,
+      InstallError() => 2,
     };
   }
 }

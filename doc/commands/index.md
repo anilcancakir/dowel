@@ -64,13 +64,13 @@ Commands that write source files into the consumer project. They are deliberatel
 |:---|:---|:---|:---|
 | `make:plugin` | Scaffold a new dowel plugin skeleton. | none | no |
 | `make:command` | Scaffold a new DowelCommand subclass under `lib/app/commands/` (or `lib/src/commands/` when run inside a plugin). | none | no |
-| `make:fast-cli` | Scaffold the POSIX `bin/dowel` wrapper and pre-compile the AOT cache under `.dowel/cli-bundle/` for about 100 ms startup; `.gitignore` gets only the cache entries. | none | no |
+| `make:fast-cli` | Scaffold the POSIX `bin/dowel` wrapper and pre-compile the AOT cache under `.dowel/cli-bundle/` for a startup of tens of milliseconds; `.gitignore` gets only the cache entries. | none | no |
 | `install` | Scaffold the canonical native Flutter consumer wrapper (`bin/dispatcher.dart` plus `lib/app/_plugins.g.dart` plus `lib/app/commands/_index.g.dart`) and chain `make:fast-cli` in-process. It stops and lists what to delete when a generated file still comes from `fluttersdk_artisan`; see [Migrating from fluttersdk_artisan](../getting-started/migrating-from-fluttersdk-artisan.md). | none | no |
 
 <a name="plugin-management"></a>
 ## Plugin management
 
-Commands that maintain the `.dowel/plugins.json` registry and its generated barrel `lib/app/_plugins.g.dart`. Commit `.dowel/plugins.json` and `.dowel/installed/`: a fresh clone without the registry makes `plugin:install` refuse to run rather than regenerate the barrel with one plugin. Atomic writes (`.tmp` plus rename) across every mutation, so concurrent readers (editors, lint daemons) never observe partial state. `plugin:install` routes through two modes (manifest, direct registration) depending on whether the plugin ships an `install.yaml`.
+Commands that maintain the `.dowel/plugins.json` registry and its generated barrel `lib/app/_plugins.g.dart`. Commit `.dowel/plugins.json` and `.dowel/installed/`: a fresh clone without the registry makes `plugin:install` refuse to run rather than regenerate the barrel with one plugin. The registry and the generated barrels are written atomically (`.tmp` plus rename), so concurrent readers (editors, lint daemons) never observe partial state; an install's editor-backed edits (dependencies, injections, native files) write directly and are not rolled back. `plugin:install` routes through two modes (manifest, direct registration) depending on whether the plugin ships an `install.yaml`.
 
 | Command | Description | Boot Mode | MCP Tool |
 |:---|:---|:---|:---|

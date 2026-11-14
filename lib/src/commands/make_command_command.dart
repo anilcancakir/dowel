@@ -73,7 +73,7 @@ class MakeCommandCommand extends DowelGeneratorCommand {
 
   /// Reads `name:` from the project root's `pubspec.yaml`. Used to derive the
   /// command namespace prefix in plugin context. Falls back to an empty
-  /// string when pubspec is missing or malformed (defensive — the caller
+  /// string when pubspec is missing or malformed (defensive: the caller
   /// guards via `_isPluginContext()` first).
   static String _pluginName() {
     final pubspecPath = p.join(FileHelper.findProjectRoot(), 'pubspec.yaml');

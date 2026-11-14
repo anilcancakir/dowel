@@ -201,7 +201,7 @@ class MakeFooCommand extends DowelGeneratorCommand {}
 
     test('emits the AUTO-GENERATED header', () {
       final out = renderCommandsIndex(const []);
-      expect(out, contains('AUTO-GENERATED'));
+      expect(out, contains('// AUTO-GENERATED: DO NOT EDIT.'));
       expect(out, contains('commands:refresh'));
       expect(out, contains('make:command'));
     });

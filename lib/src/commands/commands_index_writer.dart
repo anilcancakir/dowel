@@ -66,7 +66,7 @@ List<DiscoveredCommand> discoverCommandsInDir(Directory commandsDir) {
 /// on the generated file.
 String renderCommandsIndex(List<DiscoveredCommand> commands) {
   final buf = StringBuffer()
-    ..writeln('// AUTO-GENERATED — DO NOT EDIT.')
+    ..writeln('// AUTO-GENERATED: DO NOT EDIT.')
     ..writeln('// Regenerate via: dowel commands:refresh')
     ..writeln('// (Also auto-updated by: dowel make:command <Name>)')
     ..writeln()
@@ -115,7 +115,7 @@ List<DiscoveredCommand> writeCommandsIndex(Directory commandsDir) {
 /// Matches `class XxxCommand extends YyyCommand` declarations. The base
 /// class must itself end in `Command` (covers `DowelCommand`,
 /// `DowelGeneratorCommand`, and any user-defined intermediate base).
-/// Comments and string literals are NOT excluded — the convention says
+/// Comments and string literals are NOT excluded: the convention says
 /// command class declarations live at the top level of their file.
 final RegExp _classPattern = RegExp(
   r'class\s+(\w+Command)\s+extends\s+\w*Command\b',

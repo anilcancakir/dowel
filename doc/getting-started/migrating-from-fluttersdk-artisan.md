@@ -97,6 +97,12 @@ It also warns about a `fluttersdk` entry in `.mcp.json`, in any shape, and says 
 WARN: Old MCP entry detected. Your .mcp.json still has the "fluttersdk" server that fluttersdk_artisan wrote, and that package no longer exists. Delete the "fluttersdk" entry from .mcp.json, then run: ./bin/dowel mcp:install (or: dart run dowel mcp:install).
 ```
 
+An entry that starts `fluttersdk_artisan:mcp` gets its own warning, under whatever key it sits:
+
+```text
+WARN: Outdated MCP entry detected. The "fluttersdk" server in .mcp.json starts fluttersdk_artisan:mcp, the MCP server of a package that no longer exists, and it never loads your plugins. Delete the "fluttersdk" entry from .mcp.json, then run: ./bin/dowel mcp:install (or: dart run dowel mcp:install).
+```
+
 `doctor` runs from dowel itself, like `install`, so it reaches these checks even while the old `bin/dispatcher.dart` is still there; it lists what remains to delete.
 
 <a name="earlier-dowel"></a>

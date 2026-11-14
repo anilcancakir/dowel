@@ -68,12 +68,12 @@ import 'helpers/workspace_enroller.dart';
 ///
 /// Three seams support deterministic tests:
 ///
-/// - [resolveDowelRoot] / [resolveMagicRoot] / [resolveStubDir] —
+/// - [resolveDowelRoot] / [resolveMagicRoot] / [resolveStubDir]:
 ///   override in test subclasses to pin the package roots without touching
 ///   `Isolate.resolvePackageUri`.
-/// - [FlutterCreateRunner] — pass a stub via the constructor to skip the
+/// - [FlutterCreateRunner]: pass a stub via the constructor to skip the
 ///   real subprocess spawn.
-/// - [WorkspaceEnroller] — pass an in-memory variant via the constructor
+/// - [WorkspaceEnroller]: pass an in-memory variant via the constructor
 ///   to assert workspace enrollment without touching real pubspec files.
 class MakePluginCommand extends DowelCommand {
   /// Public default constructor. Optional injection seams default to real

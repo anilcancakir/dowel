@@ -274,7 +274,7 @@ final class StartCommand extends DowelCommand {
             'Extra argument forwarded verbatim to flutter run, repeatable. '
             'Use it for anything this command has no flag of its own for: '
             '--flutter-arg=--dart-define=KEY=VALUE, --flutter-arg=--flavor=dev, '
-            '--flutter-arg=--web-renderer=html. Forwarded after the arguments '
+            '--flutter-arg=--dart-define-from-file=config.json. Forwarded after the arguments '
             'this command builds, so a repeated flag overrides the default it '
             'chose. Carried across a restart.',
       );

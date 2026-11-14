@@ -1,9 +1,10 @@
 /// dowel: a composable CLI framework and stdio MCP server for Dart and Flutter.
 ///
-/// Single barrel entry. Every export names its symbols with `show`, so the
-/// public surface is a deliberate list: what plugins extend or call, plus the
-/// types those signatures expose. Anything else under `src/` is internal and
-/// may change in a minor release.
+/// Single barrel entry. Every export names its symbols with `show`, except the
+/// install manifest model and the install operations, which are exported whole.
+/// The public surface is a deliberate list: what plugins extend or call, plus
+/// the types those signatures expose. Anything else under `src/` is internal
+/// and may change in a minor release.
 ///
 /// dowel is framework-agnostic: framework generators (Magic's `make:*`) live
 /// in the framework's own package as a `DowelServiceProvider`.
