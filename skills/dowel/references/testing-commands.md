@@ -44,4 +44,4 @@ void main() {
 }
 ```
 
-An installer is tested the same way against `InstallContext.test` with an `InMemoryFs`: stage the operations, assert on `pendingOps`, and commit only when the test is about the written content. Helper-backed operations (`AddDependency` and the other file helpers) write through `dart:io` while staging and bypass `InMemoryFs`, so assert their output against a real temporary project (`Directory.systemTemp.createTempSync`).
+An installer is tested the same way against `InstallContext.test` with an `InMemoryFs`: stage the operations, assert on `pendingOps`, and commit only when the test is about the written content. Helper-backed operations (`AddDependency` and the other file helpers) write through `dart:io` inside `commit` and bypass `InMemoryFs`, so assert their output against a real temporary project (`Directory.systemTemp.createTempSync`).

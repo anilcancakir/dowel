@@ -30,7 +30,7 @@ Reconnect the MCP client afterwards (Claude Code: `/mcp reconnect dowel`); stdio
 2. **The session is per project.** `dowel_start` writes `~/.dowel/sessions/<hash>/state.json` (pid, `vmServiceUri`, FIFO path, device, ports) keyed by the project root, so two projects run side by side. `~/.dowel/state.json` only points at whichever session started last. CLI commands and the substrate tools refuse another project's session; plugin tools and `dowel_tinker` run no such check, so read `projectRoot` and `ownedByThisProject` from `dowel_status` when two apps are up.
 3. **In a git worktree, start the app there.** Run `dowel start` in the worktree (or pass `--state=<path>`) before any command that uses the session. The ownership check passes when the worktree sits inside the project root the main app recorded (an app at the repo root, the worktree under it) and for state with no recorded `projectRoot`; then `dowel_stop`, `dowel_restart` and plugin tools act on the main app and report success. A sibling checkout, or an app in a subdirectory the worktree is not inside, is refused.
 4. **The VM connection is cached.** The first connected call after `dowel_start` opens the VM Service, and the MCP server keeps that client until it shuts down. `dowel_reload` (`r`) keeps Dart state; `dowel_hot_restart` (`R`) drops it and mints a new isolate id, which `dowel_tinker` re-reads on each call. After a stop and start or a device change, reconnect the MCP client if connected calls fail.
-5. **`dowel_tinker` takes one expression.** The VM compiles a single expression in the root library: a trailing `;`, several statements, `import` or a declaration fail with code 113 (`[ERROR] evaluate: (113) ...`). A bare `await` works because dowel wraps the source in `(() async => <expr>)()`. End a non-primitive result with `.toString()` inside the expression, or it prints as `<ClassName#id>`. A runtime exception comes back as `Error: <message>` with exit 0, so read the text rather than `isError`. Recipes: `${CLAUDE_SKILL_DIR}/references/tinker-eval.md`.
+5. **`dowel_tinker` takes one expression.** The VM compiles a single expression in the root library: a trailing `;`, several statements, `import` or a declaration fail with code 113 (`[ERROR] evaluate: (113) ...`). A bare `await` compiles because dowel wraps the source in `(() async => <expr>)()`, but the result is the Future (`<_Future#...>`), not the awaited value: start the work with `await`, then read the outcome with a second expression. End a non-primitive result with `.toString()` inside the expression, or it prints as `<ClassName#id>`. A runtime exception comes back as `Error: <message>` with exit 0, so read the text rather than `isError`. Recipes: `${CLAUDE_SKILL_DIR}/references/tinker-eval.md`.
 6. **Only the lifecycle and inspect commands are MCP tools.** `help`, `install`, `make:*`, `commands:refresh`, `plugins:refresh`, `plugin:install`, `plugin:uninstall` and `mcp:*` are CLI-only: run them from Bash as `./bin/dowel <cmd>` (native) or `dart run dowel <cmd>` (slower startup). Flags and exit codes: `${CLAUDE_SKILL_DIR}/references/cli-commands.md`.
 7. **Reload and hot restart are POSIX only.** `start` creates a FIFO (`~/.dowel/sessions/<hash>/flutter-dev.fifo`) and `dowel_reload` or `dowel_hot_restart` write `r` or `R` into it. Windows has no `mkfifo`; stop and tell the user.
 8. **`./bin/dowel` is an AOT cache.** It rebuilds when the bundle or `.dowel/build.stamp` is missing or empty, the stamp's lockfile hash or Dart version differs, or `pubspec.yaml` or `lib/app/_plugins.g.dart` is newer than the stamp. A build holds `.dowel/.dowel.lock`; a dead owner's lock is reclaimed and a live one is waited on for `DOWEL_LOCK_TIMEOUT` seconds (default 600). Force a rebuild with `make:fast-cli --force`; if a command you just generated is missing, delete `.dowel/cli-bundle` and `.dowel/build.stamp`.
@@ -79,7 +79,8 @@ Boot, inspect, evaluate:
 dowel_start { device: "chrome" }
 dowel_status                                        vmServiceUri present, alive: true
 dowel_tinker { eval: "WidgetsBinding.instance.lifecycleState.toString()" }
-dowel_tinker { eval: "await SharedPreferences.getInstance().then((p) => p.getKeys().toList().toString())" }
+dowel_tinker { eval: "await MyService.instance.refresh()" }              returns <_Future#...>; the work still runs
+dowel_tinker { eval: "MyService.instance.state.toString()" }                read the outcome
 ```
 
 `device` defaults to `chrome` (web, port 3100); pass `macos` for desktop or an adb serial for Android.
@@ -106,7 +107,7 @@ Connected tools soft-fail with text. Branch on the substring:
 | `The session has no stdinPipe entry` | The session predates the FIFO or was hand-written | `dowel_restart` |
 | `evaluate: (113)` | `eval` is not a single expression | Drop the `;`, collapse to one expression |
 | `Isolate sentinel encountered` (from `tapir_evaluate`) | Stale isolate id | Retry; if it persists, `dowel_hot_restart` |
-| ``# `dowel start` exit 75`` | The build is still running | `dowel_status`, then retry |
+| ``# `dowel start` exit 75`` | The build is still running | `dowel_status` until `vmServiceUri` appears; do not call `dowel_start` again |
 | `Chrome binary not found`, `CDP port <N> is already in use`, `Port <N> is already in use` | `start --cdp-port` preflight (CLI only) | Install Chrome, or free the port or pass another |
 | `mkfifo failed` | `dowel_start` on Windows | Stop and tell the user |
 

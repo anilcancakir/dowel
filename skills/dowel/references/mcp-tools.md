@@ -13,7 +13,7 @@ The substrate tools are the builtin commands in `_safeDowelCommandNames` (`lib/s
 
 - A substrate tool returns text that starts with `` # `dowel <cmd>` exit N ``, then the command's captured output: errors as `[ERROR] <message>`, warnings after the data. `isError` is true when `N` is not 0, so exit 75 ("not ready, retry") arrives as an error: retry it.
 - Only the captured output reaches the result. Anything a command writes straight to the process stdout never does (see `dowel_logs`).
-- Failures on the MCP side (no session, a failed connect, an uncaught exception) return `### Error`, then the message, with `isError: true`; an uncaught exception adds a stack trace. Application failures never become JSON-RPC protocol errors; those arise only for a malformed call.
+- Failures on the MCP side (no session, a failed connect for a plugin tool, an uncaught exception inside a command) return `### Error`, then the message, with `isError: true`; an uncaught exception inside a command adds a stack trace. A failed VM Service connect for `dowel_tinker` is not caught by that handler, so its error result can omit the `### Error` prefix. Application failures never become JSON-RPC protocol errors; those arise only for a malformed call.
 - Plugin tools and `dowel_tinker` with no usable session answer with the `### Error` texts in the Recovery table of `SKILL.md`.
 
 ## Tools

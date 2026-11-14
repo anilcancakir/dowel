@@ -50,7 +50,7 @@ Wires `bin/dowel` and compiles the AOT bundle. It stops before compiling when `b
 
 - `--dry-run` prints `DRY RUN -- would execute N operations` and writes nothing.
 - `--force` bypasses the conflict check (a user-edited file the plan would overwrite). Without it a conflict exits 2.
-- Exit 1 on an error or an invalid manifest; success prints `Success: applied N ops; record at <path>`.
+- Exit 1 on an error or an invalid manifest; success prints `Success: applied N ops; record at <path>`. On the manifest route a failed provider registration or bootstrap command only warns and the exit stays 0: read the output and run the missed step by hand (`plugins:refresh` for the barrel).
 - File operations swap in through `.tmp` files after every one was staged. Editor-backed operations (dependency additions, the `Inject*` operations) write directly while staging and are not rolled back, so after a failed install inspect `git status` and recover by hand.
 
 ## plugin:uninstall
