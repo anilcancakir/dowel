@@ -111,15 +111,20 @@ InstallRecordRead readInstallRecord(VirtualFs fs, String recordPath) {
 }
 
 /// Whether [path], resolved against the project root, names something inside
-/// it: not absolute on any platform and not climbing out through `..`.
+/// it: not absolute on any platform and without any `..` segment.
+///
+/// A `..` is refused even when the path would stay inside after collapsing it:
+/// on POSIX the filesystem resolves a symbolic link before a following `..`,
+/// so `link/../x` can name a file outside the project although its lexical form
+/// stays inside. A path dowel records is project-relative and never needs one.
 /// Backslashes count as separators so a record written on Windows is judged
 /// the way Windows would resolve it.
 bool isInsideProject(String path) {
   if (_isAbsoluteKey(path)) return false;
+  final segments = path.replaceAll(r'\', '/').split('/');
+  if (segments.contains('..')) return false;
   const root = '/project';
-  final resolved = p.posix.normalize(
-    p.posix.join(root, path.replaceAll(r'\', '/')),
-  );
+  final resolved = p.posix.normalize(p.posix.join(root, segments.join('/')));
   return p.posix.isWithin(root, resolved);
 }
 

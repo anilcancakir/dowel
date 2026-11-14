@@ -1028,6 +1028,28 @@ void main() {
             );
           });
 
+          test('is refused when a ".." follows the link', () async {
+            Directory(p.join(outside.path, 'sub')).createSync();
+            Link(p.join(root.path, 'deep'))
+                .createSync(p.join(outside.path, 'sub'));
+
+            final result = await uninstallWith(
+              ops: <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'WriteFile',
+                  'targetPath': 'deep/../victim.txt',
+                  'content': 'x',
+                },
+              ],
+            );
+
+            expect(result, isA<InstallError>());
+            expect(
+              File(p.join(outside.path, 'victim.txt')).existsSync(),
+              isTrue,
+            );
+          });
+
           test('is refused before install writes through it', () async {
             final ctx = InstallContext.test(
               fs: const RealFs(),
