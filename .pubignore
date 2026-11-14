@@ -98,6 +98,7 @@ migrate_working_dir/
 .claude/
 .mcp.json
 CLAUDE.md
+ARCHITECTURE.md
 CLAUDE.local.md
 .sync-agents-cache.json
 pubspec_overrides.yaml

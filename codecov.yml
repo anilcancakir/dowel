@@ -1,7 +1,7 @@
 # Codecov judges this repo against the floor the repo already enforces.
 #
 # `.github/workflows/ci.yml` fails the build below 80% line coverage and
-# CLAUDE.md states the same number as a Golden Rule. Codecov's default is
+# CLAUDE.md states the same number in its Commands table. Codecov's default is
 # `auto`, which targets whatever the base commit happened to measure, so the
 # bar moves on its own and a green run says nothing durable. Naming the
 # number here makes the two verdicts the same verdict.
