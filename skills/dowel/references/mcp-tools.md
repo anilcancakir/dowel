@@ -22,13 +22,13 @@ Boot mode is `none` for every tool except `dowel_tinker` (`connected`).
 
 | Tool | Behaviour the description omits |
 |---|---|
-| `dowel_start` | Spawns `flutter run` and records the session; it never checks for an existing one. Schema keys: `device` (default `chrome`), `port`, `vm-service-port`, `dds`, `profile-static`; `--cdp-port`, `--timeout` and `--flutter-arg` are CLI-only. Success lines: `flutter run pid=<n>`, `vmServiceUri=<ws>`, `state=<path>`, `log=<path>`. Exit 75 while the build is still running. |
+| `dowel_start` | Spawns `flutter run` and records the session; it never checks for an existing one. `--cdp-port`, `--timeout` and `--flutter-arg` are CLI-only: pass a define with `./bin/dowel start --flutter-arg=--dart-define=K=V`, and `restart` carries it. Success lines: `flutter run pid=<n>`, `vmServiceUri=<ws>`, `state=<path>`, `log=<path>`. Exit 75 while the build is still running. |
 | `dowel_stop` | Stops the app and deletes the session. On an Android serial it also runs `adb shell am force-stop`. If it cannot kill the app it keeps the session and exits 1. Refuses a session owned by another project. |
 | `dowel_restart` | Takes no arguments over MCP. It stops, then starts with the prior session's device, ports, `flutterArgs` and build mode; to change device use `dowel_stop`, then `dowel_start { device }`. |
 | `dowel_reload`, `dowel_hot_restart` | Write `r` or `R` into the FIFO and exit 0 once the keystroke is written, before Flutter finishes: read the log for the effect. Exit 2 when the pipe is missing or the session has no `stdinPipe`. |
 | `dowel_status` | JSON with `running`, `pid`, `alive`, `vmServiceUri`, `device`, `webPort`, `startedAt`, `projectRoot`, `ownedByThisProject` and, while booting, `booting`. `{"running": false}` means no session and no pointer. A pointer to another project's app gives `running: true, ownedByThisProject: false`, with a warning after the JSON. |
-| `dowel_logs` | Writes the log to the server's own stdout, which is the MCP transport, so the result carries only the header and the bytes can corrupt the stream (0.0.21, from the code). `follow: true` never returns. Read the log with the Read tool at `~/.dowel/sessions/<hash>/flutter-dev.log`, or run `./bin/dowel logs` from a shell. |
-| `dowel_doctor` | Four hard checks (`flutter --version`, `dart --version`, port 3100 free, Flutter SDK 3.30.0 or newer for `--cdp-port`); exit 1 if one fails. Advisory `WARN:` lines, such as an old MCP entry, do not change the exit code. |
+| `dowel_logs` | Writes the log to the server's own stdout, which is the MCP transport, so the result carries only the header and the bytes can corrupt the stream. `follow: true` never returns. Read the log with the Read tool at `~/.dowel/sessions/<hash>/flutter-dev.log`, or run `./bin/dowel logs` from a shell. |
+| `dowel_doctor` | The hard checks (`flutter --version`, `dart --version`, port 3100 free, Flutter SDK 3.30.0 or newer for `--cdp-port`); exit 1 if one fails. Advisory `WARN:` lines, such as an old MCP entry, do not change the exit code. |
 | `dowel_list` | The command catalogue; plugin namespaces appear only through the dispatcher entry. |
 | `dowel_tinker` | The only `connected` tool; see `tinker-eval.md`. It runs no session ownership check. |
 

@@ -1,6 +1,6 @@
 # dowel_tinker reference
 
-`dowel_tinker { eval: "<expr>" }` evaluates one Dart expression in the running app's root library through the VM Service `evaluate` RPC; the CLI form is `./bin/dowel tinker --eval=<expr>`. The handler is `lib/src/commands/tinker_command.dart`, the VM client `lib/src/vm/vm_service_client.dart`. It needs a session with a `vmServiceUri`.
+`dowel_tinker { eval: "<expr>" }` evaluates one Dart expression in the running app's root library through the VM Service `evaluate` RPC; the CLI form is `./bin/dowel tinker --eval=<expr>`. It needs a session with a `vmServiceUri`.
 
 ## Contents
 
