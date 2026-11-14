@@ -9,7 +9,7 @@ environment:
 dependencies:
   dowel:
     path: ../../..
-    version: 0.0.21
+    version: 1.0.0
 
 dev_dependencies:
   lints: ^6.0.0

@@ -8,6 +8,8 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-14
+
 ### Breaking
 
 - **`package:dowel/dowel.dart` exports a fixed list of symbols.** Every export now names what it shows, so dowel can add internals in a minor release without changing what a plugin sees. Gone from the barrel: the builtin commands `CommandsRefreshCommand`, `DoctorCommand`, `HelpCommand`, `ListCommand`, `LogsCommand`, `MakeCommandCommand`, `MakePluginCommand`, `McpInstallCommand`, `McpServeCommand`, `McpUninstallCommand`, `PluginInstallCommand`, `PluginUninstallCommand`, `PluginsRefreshCommand`, `ReloadCommand`, `StatusCommand`; `McpServer`, `McpFilterConfig`, `VmServiceClientFactory`, `StateReader`, `ServeStrategy`; `DryRunRenderer`, `InstallTransaction`, `RealPromptDriver`, `PluginsRegistryFile`, `PluginsRegistry`, `PluginEntry`, `AndroidActivityOutcome`; `CliBundleCache`, `EnvEditor`, `GradleEditor`, `PodfileEditor`, `RouteRegistryEditor`, `XmlEditor`; `StdioOutput`, `NullOutput`, `WorkspaceEnroller`, `DiscoveredCommand`, `discoverCommandsInDir`, `renderCommandsIndex`, `writeCommandsIndex`; `parsePidLines`, `shellQuoteTokens`, `defaultConsumerWrapperExists`, `defaultConsumerWrapperName`, `vmServiceUriPattern`, `normalizeVmServiceUriString`, `vmServiceUriFromLog`, `formatTinkerResult`, `formatInstanceRef`. A plugin that declares its own `DoctorCommand` no longer needs `hide DoctorCommand`. `MakeFastCliCommand` is exported now, so it needs no `src/` import. `package:args` is re-exported only for `ArgParser`, `ArgParserException` and `ArgResults`; import `package:args` for anything else. (`lib/dowel.dart`)

@@ -3,4 +3,4 @@
 ///
 /// Edit it with `pubspec.yaml` on each release cut:
 /// `test/console/dowel_version_test.dart` fails the build when they differ.
-const String dowelVersion = '0.0.21';
+const String dowelVersion = '1.0.0';
