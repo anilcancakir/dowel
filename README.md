@@ -158,6 +158,7 @@ Rules for an agent working with this package. Each one is a mistake the maintain
 | Preview with `plugin:install <name> --dry-run` before the real run | Writes swap in through `.tmp` files only after every staging write succeeded, and a conflict with a user-edited file needs a decision |
 | Leave `*.g.dart` barrels alone; regenerate with `commands:refresh` and `plugins:refresh` | They are generated, a hand edit is overwritten |
 | Start the app with `dowel start`, not `flutter run` | Reload, restart, logs and tinker find the app through the recorded session |
+| In a git worktree, run `dowel start` there (or pass `--state=<path>`) before any command that uses the session (`reload`, `stop`, `tinker`, a plugin's `<package>:*`) | When the main checkout's app sits at the repo root, a worktree nested under it passes the ownership check and the command acts on the main app while reporting success; a sibling checkout or an app in a subdirectory is refused. MCP plugin tools and `dowel_tinker` run no such check |
 | Reconnect the MCP client after `mcp:install` or a change to `.dowel/mcp.json` | Clients do not reload a server entry on their own |
 | Use `./bin/dowel mcp:serve` (or `dart run :dispatcher mcp:serve`) for plugin tools | `dart run dowel:mcp` loads only the substrate tools |
 | Read the exit code: `75` means retry, anything else non-zero is a failure | The app may still be building |
