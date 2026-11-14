@@ -60,7 +60,7 @@ The lifecycle commands (`start`, `stop`, `reload`, `hot-restart`) use a POSIX FI
 ## Rules for agents
 
 - Start the app with `dowel start`, not `flutter run`: reload, restart, logs and tinker find it through the session recorded under `~/.dowel/sessions/<hash>/`.
-- In a git worktree, run `dowel start` there (or pass `--state=<path>`) before any command that uses the session (`reload`, `stop`, `tinker`, a plugin's `<package>:*`). When the main checkout's app sits at the repo root, a worktree nested under it passes the ownership check and the command acts on the main app while reporting success; a sibling checkout or an app in a subdirectory is refused. MCP plugin tools and `dowel_tinker` run no such check.
+- In a git worktree, run `dowel start` there (or pass `--state=<path>`) before any command that uses the session (`reload`, `stop`, `tinker`, a plugin's `<package>:*`). The ownership check passes when the worktree sits inside the project root the main app recorded (an app at the repo root, the worktree under it) and for state with no recorded `projectRoot`; the command then acts on the main app and reports success. A sibling checkout, or an app in a subdirectory the worktree is not inside, is refused. MCP plugin tools and `dowel_tinker` run no such check.
 - Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml`; it creates the scaffold the plugin is registered into (`lib/app/_plugins.g.dart`).
 - Preview with `plugin:install <name> --dry-run`; it writes nothing. A real run can leave helper edits behind if it fails, so check `git status` after a failure.
 - Do not edit `*.g.dart` barrels; regenerate them with `commands:refresh` and `plugins:refresh`.
