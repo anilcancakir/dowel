@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -40,23 +41,48 @@ class LogsCommand extends DowelCommand {
       );
       return 1;
     }
+    // Every write goes through ctx.output: under `mcp:serve` stdout is the
+    // JSON-RPC channel, and a raw write there corrupts the protocol stream
+    // while the tool result comes back empty.
     final follow = (ctx.input.option('follow') as bool?) ?? false;
     if (!follow) {
-      stdout.write(await logFile.readAsString());
+      _writeLines(ctx, await logFile.readAsString());
       return 0;
     }
     int pos = 0;
+    // Bytes after the last newline read so far. Output is line-based, so a
+    // line split across two reads is held back until it is complete. A
+    // newline byte never occurs inside a UTF-8 sequence, so splitting there
+    // cannot cut a character in half.
+    final pending = <int>[];
     while (true) {
       final size = logFile.lengthSync();
       if (size > pos) {
         final raf = await logFile.open();
         await raf.setPosition(pos);
-        final bytes = await raf.read(size - pos);
+        pending.addAll(await raf.read(size - pos));
         await raf.close();
-        stdout.add(bytes);
         pos = size;
+        final lastNewline = pending.lastIndexOf(0x0A);
+        if (lastNewline >= 0) {
+          _writeLines(
+            ctx,
+            utf8.decode(pending.sublist(0, lastNewline + 1),
+                allowMalformed: true),
+          );
+          pending.removeRange(0, lastNewline + 1);
+        }
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
+  }
+
+  // Writes `text` as-is: `writeln` adds the final newline, so the one the
+  // log already ends with is dropped first.
+  void _writeLines(DowelContext ctx, String text) {
+    if (text.isEmpty) return;
+    ctx.output.writeln(
+      text.endsWith('\n') ? text.substring(0, text.length - 1) : text,
+    );
   }
 }
