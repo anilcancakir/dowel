@@ -108,7 +108,7 @@ Connected tools soft-fail with text. Branch on the substring:
 | `The session has no stdinPipe entry` | The session predates the FIFO or was hand-written | `dowel_restart` |
 | `evaluate: (113)` | `eval` is not a single expression | Drop the `;`, collapse to one expression |
 | `Isolate sentinel encountered` (from `tapir_evaluate`) | Stale isolate id after a hot restart | Call any other plugin tool once (its retry refreshes the cached id), or reconnect the MCP client, then retry |
-| ``# `dowel start` exit 75`` | The build is still running and the session is `booting` | Follow the `booting: true` row below once the build had time to finish; do not call `dowel_start` again |
+| ``# `dowel start` exit 75`` | The build is still running and the session is `booting` | Follow the `session shows booting: true` row above once the build had time to finish; do not call `dowel_start` again |
 | `Chrome binary not found`, `CDP port <N> is already in use`, `Port <N> is already in use` | `start --cdp-port` preflight (CLI only) | Install Chrome, or free the port or pass another |
 | `mkfifo failed` | `dowel_start` on Windows | Stop and tell the user |
 
