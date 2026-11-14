@@ -969,8 +969,9 @@ void main() {
     );
 
     for (final code in <int>[-32010, -32000]) {
-      test('retries once on a fresh connection when an in-flight call finds '
-          'the connection disposed (code $code)', () async {
+      test('reports an unknown outcome when an in-flight call finds the '
+          'connection disposed, and the next call reconnects '
+          '(code $code)', () async {
         final clients = <_StubVmServiceClient>[];
         final harness = await _TestHarness.build(
           registry: snapRegistry(),
@@ -982,23 +983,36 @@ void main() {
         // Disposed before onDone lands, so only the call's error tells.
         clients.single.dispose(code: code, notifyDone: false);
 
-        final result = await harness.connection.callTool(
+        final lost = await harness.connection.callTool(
           CallToolRequest(name: 'tapir_snap', arguments: const {}),
         );
 
-        expect(result.isError, isNot(isTrue));
+        // The call ran once and was not replayed on a fresh connection.
+        expect(lost.isError, isTrue);
+        expect(
+          (lost.content.single as TextContent).text,
+          contains('outcome of this call is unknown'),
+        );
+        expect(clients, hasLength(1));
+        expect(clients.single.calls, hasLength(1));
+
+        final next = await harness.connection.callTool(
+          CallToolRequest(name: 'tapir_snap', arguments: const {}),
+        );
+
+        expect(next.isError, isNot(isTrue));
         expect(clients, hasLength(2));
         expect(clients.first.calls, hasLength(1));
         expect(clients.last.calls, hasLength(1));
       });
     }
 
-    test('reconnects only once per call', () async {
+    test('dials once per call when every connection is dead', () async {
       final clients = <_StubVmServiceClient>[];
       final harness = await _TestHarness.build(
         registry: snapRegistry(),
         filter: McpFilterConfig.empty(),
-        // Every client is dead on arrival: the reconnect must not loop.
+        // Every client is dead on arrival: no call may loop on it.
         vmClientFactory: restartableFactory(
           clients,
           onCreate: (client) => client.dispose(notifyDone: false),
@@ -1006,55 +1020,66 @@ void main() {
       );
       addTearDown(harness.dispose);
 
-      final result = await harness.connection.callTool(
+      final first = await harness.connection.callTool(
+        CallToolRequest(name: 'tapir_snap', arguments: const {}),
+      );
+      final second = await harness.connection.callTool(
         CallToolRequest(name: 'tapir_snap', arguments: const {}),
       );
 
-      expect(result.isError, isTrue);
-      expect(
-        (result.content.single as TextContent).text,
-        contains('Service connection disposed'),
-      );
+      expect(first.isError, isTrue);
+      expect(second.isError, isTrue);
       expect(clients, hasLength(2));
+      expect(clients.map((client) => client.calls.length), <int>[1, 1]);
     });
 
-    test(
-      'tapir_evaluate retries on a fresh connection after disposal',
-      () async {
-        final clients = <_StubVmServiceClient>[];
-        final registry = DowelRegistry()
-          ..registerMcpToolsFor(
-            _FakeMcpProvider(
-              providerName: 'tapir',
-              tools: [
-                _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
-              ],
-            ),
-          );
-        final harness = await _TestHarness.build(
-          registry: registry,
-          filter: McpFilterConfig.empty(),
-          vmClientFactory: restartableFactory(
-            clients,
-            onCreate: (client) => client._evaluateScript = (_, _) =>
-                InstanceRef(kind: 'Int', valueAsString: '3', id: 'objects/3'),
+    test('tapir_evaluate interrupted by a disposal runs once and reports an '
+        'unknown outcome', () async {
+      final clients = <_StubVmServiceClient>[];
+      final registry = DowelRegistry()
+        ..registerMcpToolsFor(
+          _FakeMcpProvider(
+            providerName: 'tapir',
+            tools: [
+              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
+            ],
           ),
         );
-        addTearDown(harness.dispose);
-        clients.single.dispose(notifyDone: false);
+      final harness = await _TestHarness.build(
+        registry: registry,
+        filter: McpFilterConfig.empty(),
+        vmClientFactory: restartableFactory(
+          clients,
+          onCreate: (client) =>
+              client._evaluateScript = (_, _) =>
+                  InstanceRef(kind: 'Int', valueAsString: '3', id: 'objects/3'),
+        ),
+      );
+      addTearDown(harness.dispose);
+      clients.single.dispose(notifyDone: false);
+      Future<CallToolResult> increment() => harness.connection.callTool(
+        CallToolRequest(
+          name: 'tapir_evaluate',
+          arguments: const {'expression': 'counter++'},
+        ),
+      );
 
-        final result = await harness.connection.callTool(
-          CallToolRequest(
-            name: 'tapir_evaluate',
-            arguments: const {'expression': '1 + 2'},
-          ),
-        );
+      final lost = await increment();
 
-        expect(result.isError, isNot(isTrue));
-        expect(clients, hasLength(2));
-        expect(clients.last.evaluateCalls, hasLength(1));
-      },
-    );
+      expect(lost.isError, isTrue);
+      expect(
+        (lost.content.single as TextContent).text,
+        contains('outcome of this call is unknown'),
+      );
+      expect(clients, hasLength(1));
+      expect(clients.single.evaluateCalls, hasLength(1));
+
+      final next = await increment();
+
+      expect(next.isError, isNot(isTrue));
+      expect(clients, hasLength(2));
+      expect(clients.last.evaluateCalls, hasLength(1));
+    });
   });
 
   group('McpServer substrate commands under stdio', () {
@@ -1189,6 +1214,39 @@ void main() {
 
       expect(result.isError, isFalse);
       expect(received, ['--flavor=dev', '--dart-define=TAGS=a,b']);
+    });
+
+    test('an empty array stays given, an omitted option does not', () async {
+      final given = <bool>[];
+      final registry = DowelRegistry()
+        ..registerAll(<DowelCommand>[
+          _FakeSubstrateCommand(
+            'restart',
+            'Restart the app.',
+            onHandle: (ctx) async {
+              given.add(ctx.input.hasOption('flutter-arg'));
+              return 0;
+            },
+          ),
+        ], providerName: 'dowel');
+      final harness = await _TestHarness.build(
+        registry: registry,
+        filter: McpFilterConfig.empty(),
+      );
+      addTearDown(harness.dispose);
+
+      await harness.connection.callTool(
+        CallToolRequest(
+          name: 'dowel_restart',
+          arguments: const {'flutter-arg': <String>[]},
+        ),
+      );
+      await harness.connection.callTool(
+        CallToolRequest(name: 'dowel_restart', arguments: const {}),
+      );
+
+      // RestartCommand clears the carried arguments only for the first.
+      expect(given, <bool>[true, false]);
     });
   });
 

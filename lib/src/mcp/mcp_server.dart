@@ -292,7 +292,7 @@ final class McpServer extends MCPServer with ToolsSupport {
       final args =
           request.arguments?.cast<String, dynamic>() ??
           const <String, dynamic>{};
-      final result = await _withVmReconnect(
+      final result = await _callOnConnection(
         vmClient,
         isolateId,
         (client, id) => client.callServiceExtension<Object?>(
@@ -302,6 +302,8 @@ final class McpServer extends MCPServer with ToolsSupport {
         ),
       );
       return CallToolResult(content: [TextContent(text: jsonEncode(result))]);
+    } on _ConnectionLost {
+      return _connectionLostResult();
     } catch (e) {
       return CallToolResult(
         isError: true,
@@ -339,7 +341,7 @@ final class McpServer extends MCPServer with ToolsSupport {
       );
     }
     try {
-      final result = await _withVmReconnect(
+      final result = await _callOnConnection(
         vmClient,
         isolateId,
         (client, id) => client.evaluate(id, expression),
@@ -372,6 +374,8 @@ final class McpServer extends MCPServer with ToolsSupport {
           ),
         ],
       );
+    } on _ConnectionLost {
+      return _connectionLostResult();
     } on SentinelException catch (e) {
       // 3. Stale isolate: the cached isolate id was collected
       //    (hot-restart minted a new isolate); the wrapper throws.
@@ -493,11 +497,12 @@ final class McpServer extends MCPServer with ToolsSupport {
   }
 
   // Runs [call] on [client]. When the call finds the connection disposed
-  // (the app stopped or restarted after the last call, and the done signal
-  // has not landed yet), drops the client, dials the URI the session file
-  // records now and runs [call] once more. One retry only: a second
-  // disposed connection is reported, not chased.
-  Future<T> _withVmReconnect<T>(
+  // (the app stopped or restarted, and the done signal has not landed yet),
+  // drops the client so the next call dials the app the session file records
+  // then, and throws [_ConnectionLost]. The call is never replayed: the
+  // socket may have closed after the app ran it, and a second run of
+  // `counter++` is not the same call.
+  Future<T> _callOnConnection<T>(
     VmServiceClient client,
     String isolateId,
     Future<T> Function(VmServiceClient client, String isolateId) call,
@@ -507,12 +512,23 @@ final class McpServer extends MCPServer with ToolsSupport {
     } on RPCError catch (e) {
       if (!_isConnectionDisposed(e)) rethrow;
       _dropVmClient(client);
-      await _ensureVmClient();
-      final fresh = _vmClient;
-      final freshIsolateId = _isolateId;
-      if (fresh == null || freshIsolateId == null) rethrow;
-      return await call(fresh, freshIsolateId);
+      throw const _ConnectionLost();
     }
+  }
+
+  static CallToolResult _connectionLostResult() {
+    return CallToolResult(
+      isError: true,
+      content: [
+        TextContent(
+          text:
+              '### Error\nThe connection to the Flutter app was lost before '
+              'this call answered, so the outcome of this call is unknown: '
+              'the app may or may not have run it. The next call reconnects; '
+              'check the app state before repeating a call that changes it.',
+        ),
+      ],
+    );
   }
 
   // vm_service lists -32010 for a disposed connection, but 15.4.0 throws
@@ -885,7 +901,7 @@ final class McpServer extends MCPServer with ToolsSupport {
                   'Extra arguments forwarded verbatim to '
                   '`flutter run`, one per item. Omit to keep the prior '
                   'session\'s arguments; passing any replaces the whole '
-                  'carried set.',
+                  'carried set, and `[]` clears it.',
             },
           },
         };
@@ -1025,6 +1041,13 @@ final class McpServer extends MCPServer with ToolsSupport {
     final server = McpServer.stdio(registry: registry, filter: filter);
     await server.done;
   }
+}
+
+/// Thrown by [McpServer._callOnConnection] when the connection closed under a
+/// call, so the caller answers with an unknown outcome instead of an error
+/// that reads as a refusal.
+final class _ConnectionLost implements Exception {
+  const _ConnectionLost();
 }
 
 /// Prefix that marks a substrate command in an [McpToolDescriptor]

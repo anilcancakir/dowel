@@ -1,3 +1,4 @@
+// dart format width=80
 // AUTO-GENERATED: DO NOT EDIT.
 // Regenerate via: dowel commands:refresh
 // (Also auto-updated by: dowel make:command <Name>)

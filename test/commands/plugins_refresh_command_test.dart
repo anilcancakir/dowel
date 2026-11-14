@@ -420,6 +420,7 @@ void main() {
     }
 
     const header =
+        '// dart format width=80\n'
         '// GENERATED: do not edit by hand.\n'
         '// Regenerate via: dart run dowel plugins:refresh\n'
         '//\n'

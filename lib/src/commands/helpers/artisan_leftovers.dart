@@ -2,10 +2,16 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-/// Source that still uses the package dowel replaced in 0.0.21: its import,
-/// one of its `Artisan*` classes, or its `runArtisan` entry point.
+/// Source that still uses the package dowel replaced in 0.0.21: an import of
+/// it, or a name it exported that 0.0.21 renamed. A class of the project's
+/// own that only starts with `Artisan` is not one.
 final RegExp _artisanReference = RegExp(
-  r'fluttersdk_artisan|\bArtisan[A-Z]\w*|\brunArtisan\b',
+  r'package:fluttersdk_artisan/|\b(?:'
+  r'ArtisanApplication|ArtisanCommand|ArtisanCommandCollisionException|'
+  r'ArtisanContext|ArtisanGeneratorCommand|ArtisanInput|'
+  r'ArtisanInstallCommand|ArtisanMcpToolCollisionException|ArtisanOutput|'
+  r'ArtisanRegistry|ArtisanServiceProvider|InstallArtisanCommand|runArtisan'
+  r')\b',
 );
 
 /// The files `dowel install` generates. A copy fluttersdk_artisan wrote
@@ -29,11 +35,14 @@ List<String> staleGeneratedFiles(String root) {
 /// Everything under [root] left by fluttersdk_artisan, as project-relative
 /// paths (a directory ends in `/`): the stale generated files, the old
 /// wrappers, the old state directory, the consumer commands still written
-/// against `Artisan*`, and a registry or install record naming a
+/// against the old package, and a registry or install record naming a
 /// `fluttersdk_*` package.
 ///
 /// The `.mcp.json` entry is left to the doctor's own MCP checks, which
 /// already say how to replace it.
+///
+/// @throws FileSystemException When a file or directory it inspects cannot
+///         be read.
 List<String> artisanLeftovers(String root) {
   final commandsDir = Directory(p.join(root, 'lib', 'app', 'commands'));
   final installedDir = Directory(p.join(root, '.dowel', 'installed'));

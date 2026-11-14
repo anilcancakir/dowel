@@ -178,6 +178,7 @@ class PluginsRefreshCommand extends DowelCommand {
   /// output is fully determined by the inputs (idempotence guarantee).
   String _renderSource(List<PluginEntry> entries) {
     final buf = StringBuffer()
+      ..writeln(formatWidthDirective)
       ..writeln('// GENERATED: do not edit by hand.')
       ..writeln('// Regenerate via: dart run dowel plugins:refresh')
       ..writeln('//')

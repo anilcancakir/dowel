@@ -423,11 +423,13 @@ final class StartCommand extends DowelCommand {
     final resolvedProfileStatic =
         (ctx.input.option('profile-static') as bool?) ?? profileStatic ?? false;
     // Flag wins over the value a restart carried, same as every setting above.
-    // An empty flag list means "not given" rather than "given as empty": the
-    // multi-option always parses to a list, so there is no null to test.
+    // The multi-option always parses to a list, so whether it was given is
+    // `hasOption`: on the CLI that is `wasParsed`, false when the flag never
+    // appears, and an MCP call that sends `"flutter-arg": []` has the key,
+    // which is how it clears the carried arguments.
     final List<String> flagFlutterArgs =
         (ctx.input.option('flutter-arg') as List<String>?) ?? const <String>[];
-    final List<String> resolvedFlutterArgs = flagFlutterArgs.isNotEmpty
+    final List<String> resolvedFlutterArgs = ctx.input.hasOption('flutter-arg')
         ? flagFlutterArgs
         : (flutterArgs ?? const <String>[]);
 

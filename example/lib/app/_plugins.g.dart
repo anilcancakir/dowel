@@ -1,3 +1,4 @@
+// dart format width=80
 // GENERATED: do not edit by hand.
 // Regenerate via: dart run dowel plugins:refresh
 //

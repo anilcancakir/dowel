@@ -61,7 +61,7 @@ Run them in this order. `dart run dowel install` stops and prints the same list 
 
 `dowel install` and `dowel doctor` both look for what the old package left behind, so a half-finished migration is reported instead of failing inside a compiler error.
 
-**`install`** stops, with exit code `1`, when `bin/dispatcher.dart`, `lib/app/_plugins.g.dart` or `lib/app/commands/_index.g.dart` still mentions `fluttersdk_artisan`, an `Artisan*` class or `runArtisan`. Each of them would otherwise be skipped as an existing file, and the build that follows would fail on its imports. It prints every leftover it found, then the steps:
+**`install`** stops, with exit code `1`, when `bin/dispatcher.dart`, `lib/app/_plugins.g.dart` or `lib/app/commands/_index.g.dart` still imports `package:fluttersdk_artisan/`, or names a class the old package exported or `runArtisan`. Each of them would otherwise be skipped as an existing file, and the build that follows would fail on its imports. It prints every leftover it found, then the steps:
 
 ```text
 This project still has files from fluttersdk_artisan, which dowel replaced in 0.0.21:
@@ -84,10 +84,10 @@ To migrate:
 
 | It reports | When |
 |:---|:---|
-| `bin/dispatcher.dart`, `lib/app/_plugins.g.dart`, `lib/app/commands/_index.g.dart` | The file mentions `fluttersdk_artisan`, an `Artisan*` class or `runArtisan`. |
+| `bin/dispatcher.dart`, `lib/app/_plugins.g.dart`, `lib/app/commands/_index.g.dart` | The file imports `package:fluttersdk_artisan/` or names a class the old package exported (`ArtisanCommand`, `ArtisanContext`, `ArtisanServiceProvider` and the rest dowel renamed) or `runArtisan`. |
 | `bin/fsa`, `bin/artisan.dart` | The file exists. |
 | `.artisan/` | The directory exists. |
-| A file under `lib/app/commands/` | It still mentions the old package or an `Artisan*` class. |
+| A file under `lib/app/commands/` | It still imports the old package or names one of those classes. A class of your own that only starts with `Artisan`, such as `ArtisanBreadCommand`, does not count. |
 | `.dowel/plugins.json` | It names a `fluttersdk` package or an `ArtisanProvider` class. |
 | `.dowel/installed/fluttersdk_*.json` | The record belongs to a package that no longer exists. |
 

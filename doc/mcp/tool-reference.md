@@ -149,7 +149,7 @@ next call that needs the VM Service.
 | `vm-service-port` | string | Host VM Service port (numeric string). Omit to keep the prior port. |
 | `cdp-port` | string | Chrome DevTools Protocol port (numeric string). Omit to keep the prior port. |
 | `profile-static` | boolean | Profile build on a device. Omit to keep the prior build mode; `false` forces a debug build. |
-| `flutter-arg` | array of strings | Extra arguments forwarded verbatim to `flutter run`. Omit to keep the prior session's arguments; passing any replaces the whole carried set. |
+| `flutter-arg` | array of strings | Extra arguments forwarded verbatim to `flutter run`. Omit to keep the prior session's arguments; passing any replaces the whole carried set, and `[]` clears it. |
 
 ### dowel_reload
 

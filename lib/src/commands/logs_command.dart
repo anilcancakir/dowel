@@ -66,18 +66,51 @@ class LogsCommand extends DowelCommand {
         pos = size;
         final lastNewline = pending.lastIndexOf(0x0A);
         if (lastNewline >= 0) {
-          _writeLines(
-            ctx,
-            utf8.decode(
-              pending.sublist(0, lastNewline + 1),
-              allowMalformed: true,
-            ),
-          );
-          pending.removeRange(0, lastNewline + 1);
+          _flush(ctx, pending, lastNewline + 1);
+        } else if (pending.length > _maxPendingBytes) {
+          // Carriage-return progress never ends a line, and holding it back
+          // grew this buffer for as long as the app ran.
+          _flush(ctx, pending, _characterBoundary(pending));
         }
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
+  }
+
+  /// The most bytes a line without a newline is held back for.
+  static const int _maxPendingBytes = 64 * 1024;
+
+  /// Writes the first [end] bytes of [pending] and removes them.
+  void _flush(DowelContext ctx, List<int> pending, int end) {
+    _writeLines(
+      ctx,
+      utf8.decode(pending.sublist(0, end), allowMalformed: true),
+    );
+    pending.removeRange(0, end);
+  }
+
+  /// The length of [bytes] without a UTF-8 sequence its last read cut short,
+  /// so a flush never splits a character in two.
+  static int _characterBoundary(List<int> bytes) {
+    // 1. Find the lead byte of the last sequence: continuation bytes are
+    //    `10xxxxxx`, and a sequence holds at most three of them.
+    var lead = bytes.length - 1;
+    while (lead > 0 && bytes.length - lead < 4 && bytes[lead] & 0xC0 == 0x80) {
+      lead--;
+    }
+
+    // 2. Its high bits give the sequence length; keep it only when complete.
+    final first = bytes[lead];
+    final length = first & 0x80 == 0
+        ? 1
+        : first & 0xE0 == 0xC0
+        ? 2
+        : first & 0xF0 == 0xE0
+        ? 3
+        : first & 0xF8 == 0xF0
+        ? 4
+        : 1;
+    return lead + length > bytes.length ? lead : bytes.length;
   }
 
   // Writes `text` as-is: `writeln` adds the final newline, so the one the

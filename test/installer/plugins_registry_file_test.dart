@@ -37,6 +37,10 @@ class _RecordingFs implements VirtualFs {
 
   @override
   String md5(String absPath) => _fs.md5(absPath);
+
+  @override
+  String resolveSymbolicLinks(String absPath) =>
+      _fs.resolveSymbolicLinks(absPath);
 }
 
 void main() {

@@ -73,18 +73,26 @@ InstallRecordRead readInstallRecord(VirtualFs fs, String recordPath) {
       ),
     );
   }
+  if (hashes.values.any((hash) => hash is! String)) {
+    return (
+      record: null,
+      problem: _refusal(
+        recordPath,
+        'stores a "stubHashes" value that is not a string',
+      ),
+    );
+  }
 
   // Uninstall deletes the paths a record names, and the record is committed,
   // so a pull request can point it anywhere: refuse one that leaves the
-  // project rather than reverse it.
+  // project rather than reverse it. Only the paths uninstall deletes count: a
+  // `CopyFile` source is read at install time and never touched again, and a
+  // plugin copies from its own package, outside the project.
   final ops = decoded['ops'];
   final paths = <Object?>[
     ...hashes.keys,
     if (ops is List)
-      for (final op in ops.whereType<Map>()) ...<Object?>[
-        op['targetPath'],
-        op['sourcePath'],
-      ],
+      for (final op in ops.whereType<Map>()) op['targetPath'],
   ];
   final escaping = paths.whereType<String>().where(
     (path) => !isInsideProject(path),

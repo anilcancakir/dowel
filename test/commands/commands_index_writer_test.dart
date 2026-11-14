@@ -199,6 +199,15 @@ class MakeFooCommand extends DowelGeneratorCommand {}
       expect(alphaIdx, lessThan(zebraIdx));
     });
 
+    test('pins the formatter page width on the first line', () {
+      // A project with `formatter: page_width: 50` re-split the lines laid
+      // out for 80 columns, so its format check failed after every refresh.
+      expect(
+        renderCommandsIndex(const []),
+        startsWith('// dart format width=80\n'),
+      );
+    });
+
     test('emits the AUTO-GENERATED header', () {
       final out = renderCommandsIndex(const []);
       expect(out, contains('// AUTO-GENERATED: DO NOT EDIT.'));

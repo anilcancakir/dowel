@@ -114,6 +114,10 @@ class _FailingFs implements VirtualFs {
 
   @override
   String md5(String absPath) => inner.md5(absPath);
+
+  @override
+  String resolveSymbolicLinks(String absPath) =>
+      inner.resolveSymbolicLinks(absPath);
 }
 
 /// Delegates to [inner] and throws on any `writeAsString` whose path contains
@@ -152,6 +156,10 @@ class _FailingPathFs implements VirtualFs {
 
   @override
   String md5(String absPath) => inner.md5(absPath);
+
+  @override
+  String resolveSymbolicLinks(String absPath) =>
+      inner.resolveSymbolicLinks(absPath);
 }
 
 /// Delegates to [inner] and throws on any `rename` onto a path that contains
@@ -191,6 +199,10 @@ class _FailingRenameFs implements VirtualFs {
 
   @override
   String md5(String absPath) => inner.md5(absPath);
+
+  @override
+  String resolveSymbolicLinks(String absPath) =>
+      inner.resolveSymbolicLinks(absPath);
 }
 
 /// Delegates to [inner] and records the path of every `writeAsString`.
@@ -226,6 +238,10 @@ class _RecordingFs implements VirtualFs {
 
   @override
   String md5(String absPath) => inner.md5(absPath);
+
+  @override
+  String resolveSymbolicLinks(String absPath) =>
+      inner.resolveSymbolicLinks(absPath);
 }
 
 /// A temp project directory removed after the test.
@@ -1392,6 +1408,68 @@ class RouteServiceProvider {
       final ops = (record['ops'] as List).cast<Map<String, dynamic>>();
       expect(ops.map((op) => op['type']), <String>['AddDependency']);
     });
+
+    test('records the files renamed before the failure', () async {
+      final root = _tempProject('dowel_tx_rename_fail_files_');
+      final fs = _FailingRenameFs(const RealFs(), failingPath: 'b.dart');
+      final tx = InstallTransaction(_realCtx(root, fs: fs), pluginName: 'demo')
+        ..stage(const WriteFile(targetPath: 'lib/a.dart', content: 'a'))
+        ..stage(const WriteFile(targetPath: 'lib/b.dart', content: 'b'))
+        ..stage(const WriteFile(targetPath: 'lib/c.dart', content: 'c'));
+
+      final result = await tx.commit();
+
+      expect(result, isA<InstallError>());
+      expect((result as InstallError).rolledBack, isFalse);
+      final record = _readRecord(root, 'demo');
+      expect(record['partial'], isTrue);
+      final ops = (record['ops'] as List).cast<Map<String, dynamic>>();
+      expect(ops.map((op) => op['targetPath']), <String>['lib/a.dart']);
+      expect((record['stubHashes'] as Map).keys, <String>['lib/a.dart']);
+    });
+
+    test(
+      'records the renamed files beside the helper edits and the prior record',
+      () async {
+        final root = _tempProject('dowel_tx_rename_fail_merge_');
+        File(p.join(root.path, 'pubspec.yaml'))
+            .writeAsStringSync('name: app\ndependencies:\n  http: ^1.0.0\n');
+        final first = InstallTransaction(_realCtx(root), pluginName: 'demo')
+          ..stage(const WriteFile(targetPath: 'lib/old.dart', content: 'o'));
+        expect(await first.commit(), isA<InstallSuccess>());
+
+        final fs = _FailingRenameFs(const RealFs(), failingPath: 'b.dart');
+        final second =
+            InstallTransaction(_realCtx(root, fs: fs), pluginName: 'demo')
+              ..stage(const AddDependency(name: 'intl', version: '^0.20.0'))
+              ..stage(const WriteFile(targetPath: 'lib/a.dart', content: 'a'))
+              ..stage(const WriteFile(targetPath: 'lib/b.dart', content: 'b'))
+              ..stage(const WriteFile(targetPath: 'lib/c.dart', content: 'c'));
+        final result = await second.commit(force: true);
+
+        expect(result, isA<InstallError>());
+        final record = _readRecord(root, 'demo');
+        final ops = (record['ops'] as List).cast<Map<String, dynamic>>();
+        expect(ops.map((op) => op['type']), <String>[
+          'WriteFile',
+          'AddDependency',
+          'WriteFile',
+        ]);
+        expect(ops.map((op) => op['targetPath']), <String?>[
+          'lib/old.dart',
+          null,
+          'lib/a.dart',
+        ]);
+        expect(
+          (record['stubHashes'] as Map).keys,
+          unorderedEquals(<String>[
+            'lib/old.dart',
+            'pubspec.yaml',
+            'lib/a.dart',
+          ]),
+        );
+      },
+    );
   });
 
   group('a dependency the previous install added', () {
@@ -1439,6 +1517,29 @@ class RouteServiceProvider {
               .where((entry) => entry.path.endsWith('.tmp')),
           isEmpty,
         );
+      },
+    );
+
+    test(
+      'a failed record write says a dependency it added needs removing by hand',
+      () async {
+        final root = _tempProject('dowel_tx_record_fail_dep_');
+        File(p.join(root.path, 'pubspec.yaml'))
+            .writeAsStringSync('name: app\ndependencies:\n  http: ^1.0.0\n');
+        Directory(p.join(root.path, '.dowel', 'installed', 'demo.json'))
+            .createSync(recursive: true);
+        final tx = InstallTransaction(_realCtx(root), pluginName: 'demo')
+          ..stage(const AddDependency(name: 'intl', version: '^0.20.0'))
+          ..stage(const AddDependency(name: 'http', version: '^1.0.0'));
+
+        final result = await tx.commit();
+
+        expect(result, isA<InstallError>());
+        final error = (result as InstallError).error;
+        expect(error, isNot(contains('until it is re-run')));
+        expect(error, contains('intl'));
+        expect(error, isNot(contains('http')));
+        expect(error, contains('pubspec.yaml by hand'));
       },
     );
 

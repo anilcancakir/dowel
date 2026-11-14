@@ -379,6 +379,70 @@ void main() {
       });
     });
 
+    group('carried flutter arguments', () {
+      /// Restarts a session started with `--flavor=dev` through [input] and
+      /// returns the `flutter run` arguments the relaunch used.
+      Future<List<String>> relaunchArgs(DowelInput input) async {
+        await _writeFakeState(
+          tempHome,
+          cdpPort: null,
+          flutterArgs: <String>['--flavor=dev'],
+        );
+        final launched = <String>[];
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              launched.addAll(args);
+              return _FakeFlutterProcess(holderPid: 30, flutterPid: 31);
+            };
+        StartCommand.cdpVmServiceScraper = (_) async =>
+            'ws://127.0.0.1:8181/abc/ws';
+        StartCommand.cdpFifoMaker = (path) async {
+          File(path).writeAsStringSync('');
+        };
+
+        final output = BufferedOutput();
+        final code = await RestartCommand().handle(
+          DowelContext.bare(input, output),
+        );
+        expect(code, 0, reason: output.content);
+        return launched;
+      }
+
+      test('an omitted flutter-arg keeps the carried arguments', () async {
+        final args = await relaunchArgs(MapInput(<String, dynamic>{}));
+
+        expect(args.join(' '), contains('--flavor=dev'));
+        expect((await StateFile.read())!['flutterArgs'], <String>[
+          '--flavor=dev',
+        ]);
+      });
+
+      // `dowel_restart` with `{"flutter-arg": []}` relaunched with
+      // `--flavor=dev`, the one way an MCP client has to drop it.
+      test('an explicitly empty flutter-arg clears them', () async {
+        final args = await relaunchArgs(
+          MapInput(<String, dynamic>{'flutter-arg': <String>[]}),
+        );
+
+        expect(args.join(' '), isNot(contains('--flavor=dev')));
+        expect((await StateFile.read())!.containsKey('flutterArgs'), isFalse);
+      });
+
+      test('a CLI restart without --flutter-arg keeps them', () async {
+        final parser = ArgParser();
+        RestartCommand().configure(parser);
+
+        final args = await relaunchArgs(ArgvInput.parse(parser, <String>[]));
+
+        expect(args.join(' '), contains('--flavor=dev'));
+      });
+    });
+
     test(
       'does not relaunch until the old app and its web port are gone',
       () async {
@@ -716,6 +780,7 @@ Future<void> _writeFakeState(
   Directory tempHome, {
   required int? cdpPort,
   String profile = 'debug',
+  List<String>? flutterArgs,
 }) async {
   final dowelDir = Directory('${tempHome.path}/.dowel');
   await dowelDir.create(recursive: true);
@@ -738,6 +803,7 @@ Future<void> _writeFakeState(
       'chromePid': null,
       'tmpProfileDir': null,
       'cdpPort': cdpPort,
+      'flutterArgs': ?flutterArgs,
     }),
   );
 }

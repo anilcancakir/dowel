@@ -339,8 +339,9 @@ mutations independently.
    lists each file with its reason. `force: true` bypasses it, and with it every other conflict
    check. Files an editor changes (the pubspec, native manifests, `main.dart`, `.env`) are never a
    conflict; whole-file writes still are.
-3. **Pattern preflight**: every pattern injection must resolve against its target file, or the
-   install returns `InstallError` before anything is staged.
+3. **Pattern and path preflight**: every pattern injection must resolve against its target file,
+   and every whole-file target must stay inside the project once symbolic links resolve, or the
+   install returns `InstallError` before anything is staged (`force: true` skips neither).
 4. **In-memory staging**: ops are reduced into `Map<String, String?>` where `null` marks a delete.
    Editor-backed ops (dependencies, injections, native files) write to disk here, through
    `dart:io`, outside the `.tmp` rollback.
@@ -352,10 +353,14 @@ mutations independently.
    whose files are still on disk.
 6. **Rename into place**: `.tmp` files are renamed over their targets; deletes are applied. POSIX
    `rename(2)` is atomic, so readers never see partial state. Failures past this point surface as
-   `InstallError(rolledBack: false)`, with the same partial record as phase 5.
+   `InstallError(rolledBack: false)`, with the same partial record as phase 5, which also lists
+   each file renamed in before the failure.
 7. **Install record**: `.dowel/installed/<plugin>.json` is written, through a temp file and a
    rename, BEFORE shell ops so the install is reversible even when a shell step fails later. A
    failure to write it returns `InstallError` naming the record, with every file already in place.
+   A re-run writes the record, but it finds the dependencies this install added already declared
+   and records them as the project's own, so the error names them: remove them from
+   `pubspec.yaml` by hand if you uninstall the plugin.
 8. **Shell ops**: `RunShell` ops execute last. A non-zero exit returns `InstallError`; the record
    from phase 7 stays intact.
 
@@ -366,11 +371,17 @@ project-relative, forward-slash keys (`stubHashes`), and every operation with it
 dependency addition also carries `preExisting`, true when the project declared that dependency
 before the install: `addDependency` leaves such an entry as it is, and `plugin:uninstall` never
 removes it. A reinstall keeps `preExisting: false` for a dependency the previous record says the
-plugin added. A record without a version, one with absolute keys, or one whose `targetPath`,
-`sourcePath` or `stubHashes` key leaves the project is not read: the next install reports an
-`unsupported-install-record` conflict, and `plugin:uninstall` refuses it, so a changed record in a
-pull request cannot make uninstall delete a file outside the project. Re-run the install with
-`--force` once to rewrite it.
+plugin added. A record without a version, one with absolute keys or a `stubHashes` value that is
+not a string, or one whose `targetPath` or `stubHashes` key leaves the project is not read: the
+next install reports an `unsupported-install-record` conflict, and `plugin:uninstall` refuses it,
+so a changed record in a pull request cannot make uninstall delete a file outside the project.
+Re-run the install with `--force` once to rewrite it. A `CopyFile` `sourcePath` is not checked:
+uninstall never touches it, and a plugin copies from its own package, outside the project.
+
+That check reads the paths as written. Before it writes or deletes a whole file, the transaction
+also resolves the symbolic links in the target's existing parent directories and the project
+root, and refuses the commit, with nothing changed, when a target resolves outside the root: a
+committed `link` pointing out of the project cannot carry `link/victim.txt` past the check.
 
 ### One-shot guard
 
@@ -381,8 +392,9 @@ install pass.
 ### Reversibility
 
 `plugin:uninstall` reverses the operations that create files (`WriteFile`, `PublishFile`,
-`CopyFile`, hash-verified) and the dependency additions (`AddDependency`, `AddPathDependency`) the
-project did not already declare. Every other operation (each `Inject*`, `AddPubspecAsset`,
+`CopyFile`) and the dependency additions (`AddDependency`, `AddPathDependency`) the project did not
+already declare. It deletes the recorded targets without comparing them with `stubHashes`, so a
+file you edited after the install is deleted with your edits: commit or copy it first. Every other operation (each `Inject*`, `AddPubspecAsset`,
 `MergeJson`, `RemoveDependency`, `DeleteFile`, `RunShell`) is logged as skipped: reverse those edits
 by hand. It then removes the plugin from `.dowel/plugins.json` and regenerates
 `lib/app/_plugins.g.dart`.

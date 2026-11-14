@@ -205,9 +205,11 @@ a rename:
 | `partial` | Present and `true` only for the record of an install that failed after its editor-backed edits landed. |
 
 Reversibility is partial: `plugin:uninstall` reverses the files an install
-created (`WriteFile`, `PublishFile`, `CopyFile`, hash-checked) and the
-dependency additions the project did not declare before (a `preExisting` one
-stays in `pubspec.yaml`, and the command says which). Every other operation,
+created (`WriteFile`, `PublishFile`, `CopyFile`) and the dependency additions
+the project did not declare before (a `preExisting` one stays in
+`pubspec.yaml`, and the command says which). It deletes those files without
+comparing them with `stubHashes`, so a file edited after the install goes with
+its edits: commit or copy it first. Every other operation,
 each `Inject*` among them, is logged as skipped: remove those edits by hand.
 `plugin:uninstall` then removes the plugin from `.dowel/plugins.json` and
 regenerates `lib/app/_plugins.g.dart`. Mode 2 installs write no record, so

@@ -66,6 +66,7 @@ List<DiscoveredCommand> discoverCommandsInDir(Directory commandsDir) {
 /// on the generated file.
 String renderCommandsIndex(List<DiscoveredCommand> commands) {
   final buf = StringBuffer()
+    ..writeln(formatWidthDirective)
     ..writeln('// AUTO-GENERATED: DO NOT EDIT.')
     ..writeln('// Regenerate via: dowel commands:refresh')
     ..writeln('// (Also auto-updated by: dowel make:command <Name>)')

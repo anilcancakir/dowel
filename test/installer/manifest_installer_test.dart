@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dowel/dowel.dart';
+import 'package:dowel/src/installer/install_record.dart';
+import 'package:dowel/src/installer/install_transaction.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
@@ -815,7 +817,7 @@ void main() {
 
       Future<TransactionResult> uninstallWith({
         required List<Map<String, dynamic>> ops,
-        Map<String, String> stubHashes = const <String, String>{},
+        Map<String, Object?> stubHashes = const <String, Object?>{},
       }) {
         File(p.join(root.path, '.dowel', 'installed', 'example_plugin.json'))
           ..createSync(recursive: true)
@@ -887,6 +889,171 @@ void main() {
         expect(victim.existsSync(), isTrue);
         expect(File(p.join(root.path, 'lib', 'a.dart')).existsSync(), isTrue);
       });
+
+      test('is refused for a hash that is not a string', () async {
+        final result = await uninstallWith(
+          ops: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'WriteFile',
+              'targetPath': 'lib/a.dart',
+              'content': 'a',
+            },
+          ],
+          stubHashes: <String, Object?>{'lib/a.dart': 42},
+        );
+
+        expect(result, isA<InstallError>());
+        expect((result as InstallError).error, contains('stubHashes'));
+      });
+
+      test(
+        'with a non-string hash is a conflict that --force repairs',
+        () async {
+          File(p.join(root.path, 'lib', 'a.dart'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('a');
+          final recordPath = p.join(
+            root.path,
+            '.dowel',
+            'installed',
+            'example_plugin.json',
+          );
+          File(recordPath)
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              jsonEncode(<String, dynamic>{
+                'version': 1,
+                'plugin': 'example_plugin',
+                'ops': <Object?>[],
+                'stubHashes': <String, Object?>{
+                  'lib/a.dart': 42,
+                  'lib/b': null,
+                },
+              }),
+            );
+          final ctx = InstallContext.test(
+            fs: const RealFs(),
+            prompt: _QueuedPromptDriver(),
+            stubs: _MapStubDriver(const {}),
+            projectRoot: root.path,
+          );
+          const op = WriteFile(targetPath: 'lib/a.dart', content: 'b');
+
+          final conflicts = ConflictDetector(
+            ctx,
+          ).detect(const <InstallOperation>[op], pluginName: 'example_plugin');
+          final forced = await (InstallTransaction(
+            ctx,
+            pluginName: 'example_plugin',
+          )..stage(op)).commit(force: true);
+
+          expect(
+            conflicts.map((conflict) => conflict.reason),
+            contains('unsupported-install-record'),
+          );
+          expect(forced, isA<InstallSuccess>());
+          expect(readInstallRecord(const RealFs(), recordPath).problem, isNull);
+        },
+      );
+
+      test('keeps a CopyFile whose source lies outside the project', () async {
+        final source = File(p.join(sandbox.path, 'template.dart'))
+          ..writeAsStringSync('// template');
+        final ctx = InstallContext.test(
+          fs: const RealFs(),
+          prompt: _QueuedPromptDriver(),
+          stubs: _MapStubDriver(const {}),
+          projectRoot: root.path,
+        );
+        final installed =
+            await (InstallTransaction(ctx, pluginName: 'example_plugin')..stage(
+                  CopyFile(
+                    sourcePath: source.path,
+                    targetPath: 'lib/copied.dart',
+                  ),
+                ))
+                .commit();
+        expect(installed, isA<InstallSuccess>());
+        final recordPath = p.join(
+          root.path,
+          '.dowel',
+          'installed',
+          'example_plugin.json',
+        );
+        expect(readInstallRecord(const RealFs(), recordPath).problem, isNull);
+
+        final result = await ManifestInstaller(
+          ctx,
+          _minimalManifest(),
+        ).uninstall();
+
+        expect(result, isA<InstallSuccess>(), reason: result.describe());
+        expect(
+          File(p.join(root.path, 'lib', 'copied.dart')).existsSync(),
+          isFalse,
+        );
+        expect(source.existsSync(), isTrue);
+      });
+
+      group(
+        'through a directory symlink',
+        () {
+          late Directory outside;
+
+          setUp(() {
+            outside = Directory(p.join(sandbox.path, 'outside'))..createSync();
+            File(p.join(outside.path, 'victim.txt')).writeAsStringSync('keep');
+            Link(p.join(root.path, 'link')).createSync(outside.path);
+          });
+
+          test('is refused before uninstall deletes the file', () async {
+            final result = await uninstallWith(
+              ops: <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'WriteFile',
+                  'targetPath': 'link/victim.txt',
+                  'content': 'x',
+                },
+              ],
+            );
+
+            expect(result, isA<InstallError>());
+            expect(
+              (result as InstallError).error,
+              contains(p.join('link', 'victim.txt')),
+            );
+            expect(
+              File(p.join(outside.path, 'victim.txt')).existsSync(),
+              isTrue,
+            );
+          });
+
+          test('is refused before install writes through it', () async {
+            final ctx = InstallContext.test(
+              fs: const RealFs(),
+              prompt: _QueuedPromptDriver(),
+              stubs: _MapStubDriver(const {}),
+              projectRoot: root.path,
+            );
+
+            final result =
+                await (InstallTransaction(
+                      ctx,
+                      pluginName: 'example_plugin',
+                    )..stage(
+                      const WriteFile(targetPath: 'link/new.txt', content: 'x'),
+                    ))
+                    .commit(force: true);
+
+            expect(result, isA<InstallError>());
+            expect((result as InstallError).rolledBack, isTrue);
+            expect(outside.listSync(), hasLength(1));
+          });
+        },
+        skip: Platform.isWindows
+            ? 'creating a symlink needs a privilege on Windows'
+            : false,
+      );
     });
 
     test(

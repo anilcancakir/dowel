@@ -371,6 +371,32 @@ void main() {
 
         expect(output.content, isNot(contains('fluttersdk_artisan leftovers')));
       });
+
+      test('a file it cannot read warns and the checks after it run', () async {
+        // Bytes that are not UTF-8 make readAsStringSync throw on every
+        // platform, the way an unreadable file does.
+        File('${tempDir.path}/.dowel/plugins.json')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(<int>[0xFF, 0xFE, 0xFD]);
+        DoctorCommand.doctorFlutterRunner = (_, _) async => ProcessResult(
+          0,
+          0,
+          jsonEncode(<String, String>{'frameworkVersion': '3.10.0'}),
+          '',
+        );
+        addTearDown(() => DoctorCommand.doctorFlutterRunner = Process.run);
+        final output = BufferedOutput();
+
+        await DoctorCommand(workingDir: tempDir.path)
+            .handle(DowelContext.bare(MapInput(const {}), output));
+
+        expect(output.content, contains('leftovers check was incomplete'));
+        expect(output.content, contains('plugins.json'));
+        expect(
+          output.content,
+          contains(DoctorCommand.cdpUpgradeWarningForTest),
+        );
+      });
     });
 
     // -------------------------------------------------------------------------

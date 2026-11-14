@@ -117,6 +117,32 @@ void main() {
         expect(out.buffer.toString(), isEmpty);
       },
     );
+
+    test(
+      'follow path flushes a long run without a newline, whole characters only',
+      () async {
+        final stateDir = Directory('${tempHome.path}/.dowel')
+          ..createSync(recursive: true);
+        // Carriage-return progress never ends a line. The read stops after
+        // the first byte of `é`, so the flush must hold that byte back.
+        final progress = 'a' * (70 * 1024);
+        final log = File('${stateDir.path}/flutter-dev.log')
+          ..writeAsBytesSync(<int>[...utf8.encode(progress), 0xC3]);
+        final output = BufferedOutput();
+
+        runZonedGuarded(
+          () => LogsCommand().handle(
+            DowelContext.bare(MapInput(const {'follow': true}), output),
+          ),
+          (_, _) {},
+        );
+        await _waitFor(() => output.content.isNotEmpty);
+        log.writeAsBytesSync(<int>[0xA9, 0x0A], mode: FileMode.append);
+        await _waitFor(() => output.content.contains('é'));
+
+        expect(output.content, '$progress\né\n');
+      },
+    );
   });
 }
 

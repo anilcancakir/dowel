@@ -84,7 +84,9 @@ invocation:
 The same path covers an app that restarts. When the app stops, `dowel_restart` runs or a stop
 is followed by a start, the connection closes and the server drops its client; the next call
 dials the URI the session records at that moment. A plugin tool call that finds the connection
-disposed before the drop lands reconnects once and runs again. No MCP client reconnect is needed.
+disposed before the drop lands is not run again: the app may have run it before the socket
+closed, so it returns `isError: true` saying the outcome of this call is unknown, and the next
+call reconnects. No MCP client reconnect is needed.
 
 **Note:** the server does not reload its filter configuration on its own. After editing
 `.dowel/mcp.json` or any `DOWEL_MCP_*` env var, run `/mcp reconnect dowel`

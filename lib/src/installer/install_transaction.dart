@@ -204,7 +204,16 @@ class InstallTransaction {
       return patternError;
     }
 
-    // 3b. A reinstall reads the record it replaces: a dependency that record
+    // 3b. Refuse a whole-file write or delete that leaves the project once
+    //     symbolic links resolve, before anything is written. The record
+    //     check in [readInstallRecord] is lexical, so `link/victim.txt` passes
+    //     it while `link` points outside, and the delete follows the link.
+    final escapeError = _assertTargetsResolveInsideProject();
+    if (escapeError != null) {
+      return escapeError;
+    }
+
+    // 3c. A reinstall reads the record it replaces: a dependency that record
     //     says the plugin added stays the plugin's, and a failed commit keeps
     //     its operations in the partial record.
     _priorRecord = readInstallRecord(
@@ -249,7 +258,9 @@ class InstallTransaction {
     //    back: the .tmp swap is the atomic boundary on POSIX. Any partial
     //    failure past this point is surfaced as an [InstallError] with
     //    rolledBack false, and helper edits that landed go into a partial
-    //    record like a failure in phase 4.
+    //    record like a failure in phase 4, together with every file applied
+    //    before the failure, so uninstall can find the files they created.
+    final applied = <String, String?>{};
     try {
       for (final entry in stagedWrites.entries) {
         final absPath = entry.key;
@@ -258,11 +269,13 @@ class InstallTransaction {
         } else {
           _ctx.fs.rename(_tmpPathFor(absPath), absPath);
         }
+        applied[absPath] = entry.value;
       }
     } catch (e) {
       return _failAfterHelperEdits(
         InstallError(error: e.toString(), rolledBack: false),
         stagedOps: _ops.length,
+        applied: applied,
       );
     }
 
@@ -277,12 +290,7 @@ class InstallTransaction {
       _buildRecord(stagedWrites, ops: _ops.indexed),
     );
     if (recordError != null) {
-      return InstallError(
-        error:
-            'Every file landed, but $recordError plugin:uninstall cannot '
-            'reverse this install until it is re-run.',
-        rolledBack: false,
-      );
+      return _recordWriteFailed(recordError);
     }
 
     // 7. Run deferred shell ops (RunShell). These execute AFTER every file
@@ -326,10 +334,12 @@ class InstallTransaction {
   /// first [stagedOps] operations were staged.
   ///
   /// Helper-backed operations write through `dart:io` while staging and no
-  /// `.tmp` rollback reaches them. When any of them changed a file, the result
-  /// says nothing was rolled back, and a partial record lists those
-  /// operations so `plugin:uninstall` can reverse what it can. With no helper
-  /// edit on disk, [failure] stands as it is.
+  /// `.tmp` rollback reaches them, and a whole-file write renamed in before a
+  /// later rename failed stays too; [applied] holds those files (absolute
+  /// path to content, `null` for a delete). When anything changed a file, the
+  /// result says nothing was rolled back, and a partial record lists those
+  /// operations so `plugin:uninstall` can reverse what it can. With nothing
+  /// on disk, [failure] stands as it is.
   ///
   /// On a reinstall the partial record replaces a full one, so it keeps that
   /// record's operations and hashes too: the files the earlier install wrote
@@ -338,18 +348,15 @@ class InstallTransaction {
   TransactionResult _failAfterHelperEdits(
     InstallError failure, {
     required int stagedOps,
+    Map<String, String?> applied = const <String, String?>{},
   }) {
-    if (_helperWrittenTargets.isEmpty) return failure;
+    if (_helperWrittenTargets.isEmpty && applied.isEmpty) return failure;
 
     final landed = <(int, InstallOperation)>[
       for (final (index, op) in _ops.indexed.take(stagedOps))
-        if (_isHelperBacked(op)) (index, op),
+        if (_isHelperBacked(op) || _isAppliedFile(op, applied)) (index, op),
     ];
-    final record = _buildRecord(
-      const <String, String?>{},
-      ops: landed,
-      partial: true,
-    );
+    final record = _buildRecord(applied, ops: landed, partial: true);
     final prior = _priorRecord;
     final recordError = _writeRecord(
       prior == null ? record : _mergeRecords(prior, record),
@@ -357,10 +364,48 @@ class InstallTransaction {
 
     return InstallError(
       error:
-          '${failure.error}\nEarlier edits (pubspec, native files, '
-          'main.dart) were already applied and stay on disk. '
+          '${failure.error}\nThe changes applied before the failure (editor '
+          'edits to pubspec, native files and main.dart, and files already '
+          'swapped in) stay on disk. '
           '${recordError == null ? 'A partial install record lists them, so '
                     'plugin:uninstall reverses what it can.' : 'Also, $recordError'}',
+      rolledBack: false,
+    );
+  }
+
+  /// Whether [op] is a whole-file operation whose target is in [applied].
+  bool _isAppliedFile(InstallOperation op, Map<String, String?> applied) {
+    final target = _wholeFileTarget(op);
+    return target != null && applied.containsKey(_abs(target));
+  }
+
+  /// The error for a commit whose files all landed but whose record, carried
+  /// in [recordError], did not.
+  ///
+  /// A re-run writes a record again, but this commit already added its
+  /// dependencies to the pubspec, so the re-run finds them declared and
+  /// records them as the project's own: uninstall then keeps them. The text
+  /// names them rather than promising the re-run restores everything.
+  InstallError _recordWriteFailed(String recordError) {
+    final added = <String>[
+      for (final (index, op) in _ops.indexed)
+        if (!_preExistingDependencies.contains(index))
+          if (op
+              case AddDependency(:final name) || AddPathDependency(:final name))
+            name,
+    ];
+    final dependencies = added.isEmpty
+        ? ''
+        : ' This install added ${added.join(', ')} to pubspec.yaml, and a '
+              're-run records ${added.length == 1 ? 'it' : 'them'} as the '
+              'project\'s own: if you uninstall the plugin, remove '
+              '${added.length == 1 ? 'it' : 'them'} from pubspec.yaml by hand.';
+
+    return InstallError(
+      error:
+          'Every file landed, but $recordError plugin:uninstall cannot '
+          'reverse this install without a record; re-run the install to '
+          'write one.$dependencies',
       rolledBack: false,
     );
   }
@@ -1124,6 +1169,41 @@ class InstallTransaction {
     );
   }
 
+  /// Refuses the commit when a whole-file operation's target resolves outside
+  /// the project once symbolic links in its existing parents are followed.
+  /// Runs before staging, so the refusal leaves the project untouched.
+  TransactionResult? _assertTargetsResolveInsideProject() {
+    final root = _ctx.fs.resolveSymbolicLinks(_ctx.projectRoot);
+    final escaping = <String>[
+      for (final op in _ops)
+        if (_wholeFileTarget(op) case final target?)
+          if (!p.isWithin(root, _ctx.fs.resolveSymbolicLinks(_abs(target))))
+            target,
+    ];
+    if (escaping.isEmpty) return null;
+
+    return InstallError(
+      error:
+          'Refused to write or delete ${escaping.join(', ')}: '
+          '${escaping.length == 1 ? 'it resolves' : 'they resolve'} outside '
+          'the project at ${_ctx.projectRoot}, through a symbolic link or an '
+          'absolute path. Nothing was changed.',
+      rolledBack: true,
+    );
+  }
+
+  /// The target of a whole-file operation, as the operation names it; `null`
+  /// for every other operation.
+  String? _wholeFileTarget(InstallOperation op) {
+    return switch (op) {
+      WriteFile(:final targetPath) ||
+      DeleteFile(:final targetPath) ||
+      CopyFile(:final targetPath) ||
+      PublishFile(:final targetPath) => targetPath,
+      _ => null,
+    };
+  }
+
   /// Whether [pattern] finds anything in [content], for either `Pattern` shape
   /// the ops accept.
   bool _matches(Pattern pattern, String content) {
@@ -1442,8 +1522,10 @@ class InstallTransaction {
 
   /// [path] as the record stores it: an absolute path inside the project
   /// becomes a project-relative [installRecordKey], since [readInstallRecord]
-  /// refuses absolute paths; anything else is kept, so a path outside the
-  /// project still gets the record refused.
+  /// refuses absolute target paths; anything else is kept as it is. A target
+  /// outside the project then gets the record refused, while a `CopyFile`
+  /// source outside it (the plugin's own package) is recorded and never read
+  /// back.
   String _recordedPath(String path) {
     if (!p.isAbsolute(path) || !p.isWithin(_ctx.projectRoot, path)) {
       return path;

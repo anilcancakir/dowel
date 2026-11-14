@@ -134,8 +134,19 @@ class DoctorCommand extends DowelCommand {
   /// fluttersdk_artisan: a project renamed by hand keeps an old dispatcher
   /// that no longer compiles, and every command delegated to it fails with a
   /// compiler error instead of saying why. Advisory only.
+  /// A file or directory it cannot read ends this check with a warning naming
+  /// the path, so the checks after it still run.
   static void _checkArtisanLeftovers(String dir, DowelContext ctx) {
-    final leftovers = artisanLeftovers(dir);
+    final List<String> leftovers;
+    try {
+      leftovers = artisanLeftovers(dir);
+    } on FileSystemException catch (e) {
+      ctx.output.writeln(
+        'WARN: The fluttersdk_artisan leftovers check was incomplete: '
+        '${e.path ?? dir} could not be read (${e.message}).',
+      );
+      return;
+    }
     if (leftovers.isEmpty) return;
 
     ctx.output.writeln(

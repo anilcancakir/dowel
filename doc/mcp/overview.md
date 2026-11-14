@@ -92,8 +92,8 @@ The MCP server lazy-reconnects on each dispatch call, meaning the agent can call
 first and the very next plugin tool call picks up the new app automatically. The same holds after
 the app restarts: the server drops its connection when the socket closes and dials the URI the
 session records now on the next call, so `dowel_restart` or a stop and start needs no MCP client
-reconnect. A plugin tool call that finds the connection disposed before the drop lands reconnects
-and runs once more.
+reconnect. A plugin tool call that finds the connection disposed before the drop lands is not
+replayed: it reports that its outcome is unknown, and the next call reconnects.
 
 **Plugin registration is explicit.** The consumer's `bin/dispatcher.dart` wrapper must list each
 provider in the `baseProviders` list it passes to `runDowel(...)` (auto-discovery via

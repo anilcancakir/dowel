@@ -18,11 +18,11 @@ paths:
 
 ## Commit order
 
-`InstallTransaction.commit` runs the dry-run short-circuit, the conflict check (`_detectConflicts`, skipped by `force`), the pattern preflight (`_assertPatternsResolvable`), staging (`_stageOp`), `<path>.tmp` writes, renames, the install record, then `RunShell` operations.
+`InstallTransaction.commit` runs the dry-run short-circuit, the conflict check (`_detectConflicts`, skipped by `force`), the pattern preflight (`_assertPatternsResolvable`), the resolved-path preflight (`_assertTargetsResolveInsideProject`, which `force` does not skip), staging (`_stageOp`), `<path>.tmp` writes, renames, the install record, then `RunShell` operations.
 
 - Editor-backed operations write through `dart:io` while staging and sit outside the `.tmp` rollback. That is why the preflight runs first: a miss after staging would leave an orphan import and no record to reverse it by.
 - The record lands before the shell operations so a failed shell step stays uninstallable.
-- A failure after an editor-backed edit returns `InstallError(rolledBack: false)` and `_failAfterHelperEdits` writes a partial record (`"partial": true`) of those edits; with no editor edit on disk, a failed `.tmp` write stays `rolledBack: true`.
+- A failure after an editor-backed edit returns `InstallError(rolledBack: false)` and `_failAfterHelperEdits` writes a partial record (`"partial": true`) of those edits and of every file renamed in before a failed rename; with nothing on disk, a failed `.tmp` write stays `rolledBack: true`.
 - Editor-backed operations are never a conflict (`ConflictDetector._isHelperEdit`); only whole-file writes are, and `force` skips every check.
 
 ## Idempotency

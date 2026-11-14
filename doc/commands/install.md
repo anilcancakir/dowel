@@ -68,7 +68,7 @@ Exit code `0` on success, `1` when `pubspec.yaml` has no `name:` or when a gener
 
 ### Stops on files from fluttersdk_artisan
 
-When `bin/dispatcher.dart`, `lib/app/_plugins.g.dart` or `lib/app/commands/_index.g.dart` still mentions `fluttersdk_artisan`, an `Artisan*` class or `runArtisan`, `install` writes nothing and exits `1`. It prints every leftover it found and the migration steps, because each of those files would otherwise be skipped as already present and the build that follows would fail on its imports. `install` runs from the substrate itself, never through the project's `bin/dispatcher.dart`, so the old dispatcher cannot intercept it. The real message is quoted in [Migrating from fluttersdk_artisan](../getting-started/migrating-from-fluttersdk-artisan.md#what-dowel-detects).
+When `bin/dispatcher.dart`, `lib/app/_plugins.g.dart` or `lib/app/commands/_index.g.dart` still imports `package:fluttersdk_artisan/`, or names a class the old package exported (`ArtisanCommand`, `ArtisanServiceProvider` and the rest dowel renamed) or `runArtisan`, `install` writes nothing and exits `1`. It prints every leftover it found and the migration steps, because each of those files would otherwise be skipped as already present and the build that follows would fail on its imports. `install` runs from the substrate itself, never through the project's `bin/dispatcher.dart`, so the old dispatcher cannot intercept it. The real message is quoted in [Migrating from fluttersdk_artisan](../getting-started/migrating-from-fluttersdk-artisan.md#what-dowel-detects).
 
 ---
 

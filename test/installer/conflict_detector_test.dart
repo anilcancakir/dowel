@@ -264,7 +264,33 @@ void main() {
       },
     );
 
-    test('a record with a source path outside the project is unsupported', () {
+    test('a record with a non-string hash is reported instead of thrown', () {
+      final fs = InMemoryFs();
+      fs.writeAsString('/proj/lib/a.dart', 'content');
+      fs.writeAsString(
+        '/proj/.dowel/installed/demo.json',
+        jsonEncode(<String, dynamic>{
+          'version': 1,
+          'plugin': 'demo',
+          'ops': <dynamic>[],
+          'stubHashes': <String, Object?>{'lib/a.dart': 42},
+        }),
+      );
+      final detector = ConflictDetector(_makeCtx(fs: fs));
+
+      final conflicts = detector.detect(const [
+        WriteFile(targetPath: 'lib/a.dart', content: 'new'),
+      ], pluginName: 'demo');
+
+      expect(
+        conflicts.map((conflict) => conflict.reason),
+        containsAll(<String>['unsupported-install-record', 'unmanaged-file']),
+      );
+    });
+
+    // Uninstall never reads a CopyFile source back, and a plugin copies from
+    // its own package, which lies outside the project.
+    test('a record with a source path outside the project is read', () {
       final fs = InMemoryFs();
       fs.writeAsString(
         '/proj/.dowel/installed/demo.json',
@@ -287,7 +313,7 @@ void main() {
         WriteFile(targetPath: 'lib/a.dart', content: 'new'),
       ], pluginName: 'demo');
 
-      expect(conflicts.single.reason, 'unsupported-install-record');
+      expect(conflicts, isEmpty);
     });
 
     test('a record that is not JSON is reported instead of thrown', () {
