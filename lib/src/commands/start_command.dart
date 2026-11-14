@@ -1057,10 +1057,10 @@ final class StartCommand extends DowelCommand {
         .toList(growable: false);
   }
 
-  /// Resolves the Chrome binary path: macOS canonical bundle, then Linux
-  /// PATH lookup. Returns null on Windows or when neither candidate exists.
-  /// [envOverride] carries `DOWEL_CHROME_BIN`; this default resolver ignores
-  /// it, a resolver assigned to [cdpChromeBinaryResolver] may honour it.
+  /// Resolves the Chrome binary path: the `DOWEL_CHROME_BIN` override, then
+  /// the macOS canonical bundle, then Linux PATH lookup. Returns null on
+  /// Windows or when no candidate exists. [envOverride] carries
+  /// `DOWEL_CHROME_BIN`.
   @visibleForTesting
   static String? Function(String? envOverride) get defaultChromeBinary =>
       (envOverride) => resolveChromeBinary(
@@ -1068,18 +1068,22 @@ final class StartCommand extends DowelCommand {
         isLinux: Platform.isLinux,
         macAppExists: (p) => File(p).existsSync(),
         pathLookup: _whichPosix,
+        envOverride: envOverride,
       );
 
-  /// Pure resolver for testability: macOS bundle path, Linux PATH `google-chrome`,
-  /// otherwise null. Injects platform booleans and lookup functions so the
-  /// real Platform / File / which dependencies stay out of unit tests.
+  /// Pure resolver for testability: a non-empty [envOverride] first, then the
+  /// macOS bundle path, then Linux PATH `google-chrome`, otherwise null.
+  /// Injects platform booleans and lookup functions so the real Platform /
+  /// File / which dependencies stay out of unit tests.
   @visibleForTesting
   static String? resolveChromeBinary({
     required bool isMacOs,
     required bool isLinux,
     required bool Function(String) macAppExists,
     required String? Function(String) pathLookup,
+    String? envOverride,
   }) {
+    if (envOverride != null && envOverride.isNotEmpty) return envOverride;
     const macPath =
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     if (isMacOs && macAppExists(macPath)) return macPath;

@@ -648,7 +648,8 @@ final class McpServer extends MCPServer with ToolsSupport {
             'Usage:\n'
             '- Pass `follow: true` to tail until interrupted; default '
             'returns the whole log captured since the app started.\n'
-            '- Returns empty when no app has been started yet.';
+            '- When no log exists yet the command warns and exits 1; run '
+            '`dowel_start` first.';
 
       case 'restart':
         return 'Stop and re-start the running Flutter app preserving the '

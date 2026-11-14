@@ -433,6 +433,27 @@ void main() {
       },
     );
 
+    test('dowel_logs description states the exit 1 with no log', () async {
+      final registry = DowelRegistry();
+      registry.registerAll(<DowelCommand>[
+        _FakeSubstrateCommand('logs', 'Print the log.'),
+      ], providerName: 'dowel');
+
+      final harness = await _TestHarness.build(
+        registry: registry,
+        filter: McpFilterConfig.empty(),
+      );
+      addTearDown(harness.dispose);
+
+      final tools = await harness.connection.listTools();
+      final description = tools.tools
+          .singleWhere((t) => t.name == 'dowel_logs')
+          .description!;
+      expect(description, isNot(contains('Returns empty')));
+      expect(description, contains('exits 1'));
+      expect(description, contains('dowel_start'));
+    });
+
     test(
       'initialize stays online when state.json has no vmServiceUri',
       () async {

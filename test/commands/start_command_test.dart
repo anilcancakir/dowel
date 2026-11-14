@@ -171,6 +171,35 @@ void main() {
       expect(resolved, '/usr/bin/google-chrome');
     });
 
+    test('returns the DOWEL_CHROME_BIN override before any candidate', () {
+      final resolved = StartCommand.resolveChromeBinary(
+        isMacOs: true,
+        isLinux: false,
+        macAppExists: (_) => true,
+        pathLookup: (_) => null,
+        envOverride: '/opt/chromium/chrome',
+      );
+      expect(resolved, '/opt/chromium/chrome');
+    });
+
+    test('ignores an empty override', () {
+      final resolved = StartCommand.resolveChromeBinary(
+        isMacOs: false,
+        isLinux: true,
+        macAppExists: (_) => false,
+        pathLookup: (_) => '/usr/bin/google-chrome',
+        envOverride: '',
+      );
+      expect(resolved, '/usr/bin/google-chrome');
+    });
+
+    test('the default resolver passes the override through', () {
+      expect(
+        StartCommand.defaultChromeBinary('/opt/chromium/chrome'),
+        '/opt/chromium/chrome',
+      );
+    });
+
     test('returns null on Windows', () {
       final resolved = StartCommand.resolveChromeBinary(
         isMacOs: false,

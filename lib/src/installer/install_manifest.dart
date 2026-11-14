@@ -6,7 +6,7 @@
 /// method touches I/O, and every nested class exposes a `fromYaml(YamlMap m)`
 /// factory that returns sensible empty defaults when its section is absent.
 ///
-/// The schema is documented in full at `doc/install_yaml_schema.md`. Sample
+/// The schema is documented in full at `doc/plugins/install-yaml.md`. Sample
 /// manifests live under `doc/samples/`.
 library;
 

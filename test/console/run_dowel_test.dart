@@ -104,6 +104,26 @@ void main() {
       expect(delegateCalled, isFalse);
     });
 
+    test('bypass list skips delegation for doctor', () async {
+      // The leftovers warning exists for a project whose old dispatcher no
+      // longer compiles; delegating doctor to it would never reach the warning.
+      var delegateCalled = false;
+
+      await runDowel(
+        <String>['doctor'],
+        wrapperExists: () => true,
+        delegate: (args) async {
+          delegateCalled = true;
+          return 0;
+        },
+        baseProviders: <DowelServiceProvider>[
+          _StubProvider(<DowelCommand>[_NoopCommand('doctor')]),
+        ],
+      );
+
+      expect(delegateCalled, isFalse);
+    });
+
     test('delegateToConsumer:false skips delegation regardless', () async {
       var delegateCalled = false;
 
