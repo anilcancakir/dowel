@@ -13,7 +13,6 @@ How `dowel` exposes its commands to AI clients as MCP tools: what MCP is, the su
 ---
 
 <a name="what-is-mcp"></a>
-
 ## What is MCP
 
 The [Model Context Protocol](https://modelcontextprotocol.io) (MCP) is an open standard that defines
@@ -27,7 +26,6 @@ done), so the same server can serve multiple AI clients without code duplication
 ---
 
 <a name="why-mcp-in-dowel"></a>
-
 ## Why MCP in dowel
 
 LLM agents working on Flutter codebases traditionally had one interaction mode: read source files and
@@ -46,7 +44,6 @@ reconnect across stop-restart cycles, and structured error formatting so the mod
 ---
 
 <a name="substrate-tools"></a>
-
 ## Substrate Tools
 
 The MCP server always registers the following tools, derived from the dowel CLI's built-in
@@ -78,7 +75,6 @@ client's own file tools, or recurse into the MCP server itself.
 ---
 
 <a name="plugin-contributed-tools"></a>
-
 ## Plugin-Contributed Tools
 
 Beyond the substrate tools, plugins extend the MCP catalogue by overriding
@@ -119,7 +115,6 @@ the CLI REPL host for `dart run dowel tinker`, but its MCP surface is now the su
 ---
 
 <a name="state-file-contract"></a>
-
 ## State File Contract
 
 `dowel start` writes a JSON file per project at `~/.dowel/sessions/<hash>/state.json` (the path is machine-local and
@@ -149,7 +144,6 @@ Fields (from `lib/src/state/state_file.dart`):
 ---
 
 <a name="architecture-diagram"></a>
-
 ## Architecture Diagram
 
 ```
@@ -200,7 +194,6 @@ Fields (from `lib/src/state/state_file.dart`):
 ---
 
 <a name="related-documentation"></a>
-
 ## Related Documentation
 
 - [Setup guide](setup.md): install the MCP server, configure `.dowel/mcp.json`, and wire provider

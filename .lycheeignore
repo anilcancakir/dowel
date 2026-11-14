@@ -11,21 +11,6 @@
 # A private vulnerability report needs a signed-in session.
 ^https://github\.com/anilcancakir/dowel/security/advisories/new
 
-# The doc pages are published with the docs site at a release tag; until then
-# they answer 404.
-# Added 2026-11-13: remove this line once the docs site serves /dowel/docs.
-^https://anilcancakir\.com/dowel/docs(?:[/?#]|$)
-
-# The pub.dev pages exist only after the first publish.
-# Added 2026-11-13: remove these lines once dowel is on pub.dev.
-^https://pub\.dev/packages/dowel
-^https://pub\.dev/documentation/dowel
-
-# The tapir and crumbs docs pages exist only once their docs sync runs.
-# Added 2026-11-13: remove these lines once tapir and crumbs are published.
-^https://anilcancakir\.com/tapir/docs
-^https://anilcancakir\.com/crumbs/docs
-
 # Placeholder hosts inside example code.
 ^https?://([a-z0-9-]+\.)*example\.com
 ^https?://localhost

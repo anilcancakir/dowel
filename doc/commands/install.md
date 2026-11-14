@@ -177,7 +177,7 @@ Compiling dispatcher...
 Generating snapshot for dispatcher...
 Generated: /path/to/my_app/.dowel/cli-bundle/bundle/bin/dispatcher
 
-✓ dowel: ready. Run ./bin/dowel <cmd> for a ~50ms startup.
+✓ dowel: ready. Run ./bin/dowel <cmd> for a startup of about 0.2 s.
 ```
 
 ### 2. Force-overwrite after project rename

@@ -1,6 +1,6 @@
 # make:fast-cli
 
-Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for a startup of tens of milliseconds, avoiding the 3-second `dart run` overhead with build hooks.
+Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for a startup of about 0.2 s, avoiding the 3-second `dart run` overhead with build hooks.
 
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
@@ -21,7 +21,7 @@ Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for a
 dart run dowel make:fast-cli
 ```
 
-Writes `bin/dowel` (POSIX shell wrapper, executable), `.dowel/cli-bundle/` (compiled binary + runtime libraries) and `.dowel/build.stamp` (staleness marker), and patches `.gitignore` to ignore that cache. Caches the build result so subsequent invocations are cached (tens of milliseconds on a hit).
+Writes `bin/dowel` (POSIX shell wrapper, executable), `.dowel/cli-bundle/` (compiled binary + runtime libraries) and `.dowel/build.stamp` (staleness marker), and patches `.gitignore` to ignore that cache. Caches the build result so subsequent invocations are cached (about 0.2 s on a hit).
 
 ---
 
@@ -109,7 +109,7 @@ time ./bin/dowel status
 # sys  0m0.015s
 ```
 
-Tens of milliseconds round-trip on a modern machine (no `dart run`, no "Running build hooks..." overhead).
+About 0.2 s round-trip on a modern machine (no `dart run`, no "Running build hooks..." overhead).
 
 ### Cache miss (first run or staleness detected)
 

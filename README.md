@@ -43,7 +43,7 @@ dart pub add dowel
 dart run dowel install
 ```
 
-`install` writes `bin/dispatcher.dart` (the entry that calls `runDowel`), the codegen barrels `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, and builds the fast wrapper `bin/dowel` (tens of milliseconds to start, against about 3 s for `dart run`). Run it again and it skips every file that already exists (`--force` overwrites them) and keeps the `dowel` constraint your pubspec already has: `install` adds `dowel: ^<running version>` only when the pubspec declares none. It adds only the machine-local cache to `.gitignore` (`.dowel/cli-bundle*`, `.dowel/build.stamp*` and `.dowel/.dowel.lock/`), so commit `.dowel/plugins.json` and `.dowel/installed/`.
+`install` writes `bin/dispatcher.dart` (the entry that calls `runDowel`), the codegen barrels `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, and builds the fast wrapper `bin/dowel` (about 0.2 s to start, against about 3 s for `dart run`). Run it again and it skips every file that already exists (`--force` overwrites them) and keeps the `dowel` constraint your pubspec already has: `install` adds `dowel: ^<running version>` only when the pubspec declares none. It adds only the machine-local cache to `.gitignore` (`.dowel/cli-bundle*`, `.dowel/build.stamp*` and `.dowel/.dowel.lock/`), so commit `.dowel/plugins.json` and `.dowel/installed/`.
 
 Moving an app from `fluttersdk_artisan`? `install` stops on the files that package generated and prints what to delete and the commands to run; `doctor` warns about the same leftovers. The steps are in [Migrating from fluttersdk_artisan](https://anilcancakir.com/dowel/docs/getting-started/migrating-from-fluttersdk-artisan).
 
