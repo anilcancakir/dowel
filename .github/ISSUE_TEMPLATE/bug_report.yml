@@ -88,7 +88,7 @@ body:
     attributes:
       label: dowel Version
       description: Output of `dart run dowel --version`.
-      placeholder: "0.0.21"
+      placeholder: "1.0.1"
     validations:
       required: true
 

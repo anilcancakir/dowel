@@ -8,6 +8,8 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-15
+
 ### Fixed
 
 - **`doctor` and the `start` docs name the real tapir commands.** The old-SDK warning and `doc/commands/start.md` pointed at `tapir:resize` and `tapir:device`; the commands are `tapir:resize_viewport` and `tapir:device_profile`. (`lib/src/commands/doctor_command.dart`, `doc/commands/start.md`)
@@ -512,7 +514,8 @@ Both write through `.tmp` + atomic rename; never hand-edit.
 
 ---
 
-[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.1...HEAD
+[1.0.1]: https://github.com/anilcancakir/dowel/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/anilcancakir/dowel/compare/0.0.21...1.0.0
 [0.0.21]: https://github.com/anilcancakir/dowel/compare/0.0.20...0.0.21
 [0.0.20]: https://github.com/fluttersdk/artisan/compare/0.0.19...0.0.20
