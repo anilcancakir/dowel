@@ -43,7 +43,7 @@ Reconnect the MCP client afterwards (Claude Code: `/mcp reconnect dowel`); stdio
 Substrate tools, available unless `.dowel/mcp.json`, `DOWEL_MCP_TOOLS_DENY` or `--exclude-tool` denies them:
 
 | Family | Tools | Mental model |
-|---|---|---|
+|:---|:---|:---|
 | Lifecycle | `dowel_start`, `dowel_stop`, `dowel_restart`, `dowel_reload`, `dowel_hot_restart` | Boot, kill, full cycle, or send `r` or `R` to the FIFO; the session file is the side effect |
 | Inspect | `dowel_status`, `dowel_logs`, `dowel_doctor`, `dowel_list` | Session JSON, captured log, preflight checks, command catalogue |
 | Evaluate | `dowel_tinker { eval: "..." }` | One Dart expression on the main isolate |
@@ -53,7 +53,7 @@ Substrate tools, available unless `.dowel/mcp.json`, `DOWEL_MCP_TOOLS_DENY` or `
 ## Picking the path
 
 | Need | Use | Why |
-|---|---|---|
+|:---|:---|:---|
 | Boot, restart, inspect or evaluate the running app | `dowel_*` tool | One round trip inside the MCP session |
 | Read the app log | `dowel_logs` | The whole log comes back in the tool result; follow it from a shell |
 | Read or change live state (singletons, controllers, caches) | `dowel_tinker` | VM Service evaluate, one shot |
@@ -101,7 +101,7 @@ CLI-only work from Bash:
 Connected tools soft-fail with text. Branch on the substring:
 
 | Substring | Cause | Next move |
-|---|---|---|
+|:---|:---|:---|
 | `No Flutter app detected (~/.dowel/state.json missing or has no vmServiceUri)` from a plugin tool, or `Not connected to a running Flutter app` from `dowel_tinker` | No session, or a session that records no `vmServiceUri` | `dowel_status`: `running: false` means `dowel_start { device }` and retry; `booting: true` means the next row; otherwise `flutter run` crashed during boot, so read the log, `dowel_stop`, then `dowel_start` |
 | `VM Service connect failed:` from a plugin tool, or a raw exception with a stack trace from `dowel_tinker` | A session is recorded but the app is gone, or the connection just closed | `dowel_status` (`alive`), then `dowel_restart` or `dowel_start` and retry; the server dials the new URI on its own. Reconnect the MCP client only if it keeps failing |
 | session shows `booting: true` | `start` was cut short by its caller; the app is running | Do not re-run start or hand-write the file. Run `./bin/dowel tinker --eval=1`: a CLI connected command reads the URI back from the session log and saves it, exiting 75 while the build is still running and 1 when the recorded process is gone; MCP tools do not |

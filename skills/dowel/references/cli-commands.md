@@ -17,7 +17,7 @@ The substrate MCP tools cover the app lifecycle and inspection. Every other buil
 ## Picking the shell form
 
 | Form | Use when |
-|---|---|
+|:---|:---|
 | `./bin/dowel <cmd>` | The AOT wrapper exists (after `install`). Native start; it rebuilds itself when stale, see `state-and-recovery.md` |
 | `dart run :dispatcher <cmd>` | `./bin/dowel` is unavailable (Windows, fresh clone, broken cache); plugin commands load |
 | `dart run dowel <cmd>` | Before `install`, or to debug the substrate. It hands over to `bin/dispatcher.dart` when the project has one, except `install`, `commands:refresh` and `plugins:refresh`, which run in-process |
