@@ -194,7 +194,7 @@ final class InstallDowelCommand extends DowelCommand {
     // 6. Auto-chain make:fast-cli IN-PROCESS so a single `install` invocation
     //    yields the full canonical state (dispatcher + barrels + pubspec dep
     //    + bin/dowel + AOT bundle). Process-spawning here would lose stdout
-    //    sharing + cost ~3s startup; the static entry preserves both.
+    //    sharing + cost a `dart run` startup (0.4 to 2.7 s); the static entry preserves both.
     final fastCliExitCode = await MakeFastCliCommand.scaffoldInto(
       root: root,
       force: force,

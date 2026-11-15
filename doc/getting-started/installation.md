@@ -98,7 +98,7 @@ The output lists all registered commands grouped by the part of the name before 
 
  make
   make:command                 Scaffold a new DowelCommand subclass under lib/app/commands/ (or lib/src/commands/ when run inside a plugin).
-  make:fast-cli                Scaffold a fast-CLI wrapper (bin/dowel) plus AOT-compiled dowel binary, giving local invocations a startup of about 0.2 s vs about 3 s with dart run.
+  make:fast-cli                Scaffold a fast-CLI wrapper (bin/dowel) plus AOT-compiled dowel binary, giving local invocations a startup of about 0.2 s vs 0.4 to 2.7 s with dart run.
   make:plugin                  Scaffold a new dowel plugin skeleton.
 
  mcp

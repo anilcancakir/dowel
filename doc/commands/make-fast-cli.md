@@ -1,6 +1,6 @@
 # make:fast-cli
 
-Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for a startup of about 0.2 s, avoiding the 3-second `dart run` overhead with build hooks.
+Scaffold a POSIX shell wrapper (`bin/dowel`) and AOT-compiled dowel binary for a startup of about 0.2 s, against 0.4 to 2.7 s for `dart run`, which resolves and runs its build hooks on every cold start.
 
 - [Basic Usage](#basic-usage)
 - [Synopsis](#synopsis)
@@ -104,12 +104,12 @@ Any match triggers a recompile inside the lock-acquire section. The re-check ins
 
 ```bash
 time ./bin/dowel status
-# real 0m0.045s
-# user 0m0.020s
-# sys  0m0.015s
+# real 0m0.170s
+# user 0m0.010s
+# sys  0m0.010s
 ```
 
-About 0.2 s round-trip on a modern machine (no `dart run`, no "Running build hooks..." overhead).
+About 0.2 s round-trip (0.17 to 0.35 s over six runs of `status` on the example app) on a modern machine (no `dart run`, no "Running build hooks..." overhead).
 
 ### Cache miss (first run or staleness detected)
 
@@ -125,12 +125,12 @@ time dart run dowel make:fast-cli
 
 ```bash
 time dart run dowel status
-# real 0m3.100s
-# (includes "Running build hooks..." unless all hooks are cached)
+# real 0m0.650s
+# (warm; the first run after a dependency change took 1.7 s for `status` and 2.7 s for `list`)
 
 time ./bin/dowel status
-# real 0m0.045s
-# (cached; 68x faster)
+# real 0m0.170s
+# (cached; about 4x faster than a warm `dart run`, about 10x faster than a first run)
 ```
 
 ---

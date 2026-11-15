@@ -136,6 +136,7 @@ void main() {
       'line', () async {
     expect(MakeFastCliCommand().description, contains('about 0.2 s'));
     expect(MakeFastCliCommand().description, isNot(contains('50ms')));
+    expect(MakeFastCliCommand().description, contains('0.4 to 2.7 s'));
 
     final output = BufferedOutput();
     final ctx = DowelContext.bare(MapInput(const <String, dynamic>{}), output);

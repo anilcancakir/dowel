@@ -13,8 +13,8 @@ import '../stubs/stub_loader.dart';
 /// `make:fast-cli`: scaffold a POSIX shell wrapper (`bin/dowel`) that compiles
 /// `bin/dispatcher.dart` into an AOT binary via `dart build cli`, cached at
 /// `.dowel/cli-bundle/`. Wrapper auto-detects staleness and re-compiles
-/// transparently. Result: about 0.2 s startup for `./bin/dowel <cmd>` vs about 3 s
-/// for `dart run dowel <cmd>`.
+/// transparently. Result: about 0.2 s startup for `./bin/dowel <cmd>` vs 0.4 to
+/// 2.7 s for `dart run dowel <cmd>` (warm and first run).
 ///
 /// Idempotent: skips `bin/dowel` when it already exists; pass `--force` to
 /// overwrite.
@@ -29,8 +29,8 @@ final class MakeFastCliCommand extends DowelCommand {
   @override
   String get description =>
       'Scaffold a fast-CLI wrapper (bin/dowel) plus AOT-compiled dowel '
-      'binary, giving local invocations a startup of about 0.2 s vs about 3 s '
-      'with dart run.';
+      'binary, giving local invocations a startup of about 0.2 s vs 0.4 to '
+      '2.7 s with dart run.';
 
   @override
   CommandBoot get boot => CommandBoot.none;
