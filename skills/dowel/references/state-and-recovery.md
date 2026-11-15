@@ -23,7 +23,7 @@ dowel keeps mutable state outside the source tree: the session directory `~/.dow
 ## state.json keys
 
 | Key | Notes |
-|---|---|
+|:---|:---|
 | `pid`, `stdinHolderPid` | The `flutter run` process and the `tail -f /dev/null > fifo` holder that keeps the FIFO open |
 | `stdinPipe` | FIFO path; `reload` and `hot-restart` write into it, so hand-written state without it cannot hot restart |
 | `vmServiceUri` | `ws://host:port/<token>/ws`; null while `booting` |
@@ -48,7 +48,7 @@ dowel keeps mutable state outside the source tree: the session directory `~/.dow
 `./bin/dowel` is a shell wrapper generated from `assets/stubs/bin_dowel.sh.stub`. It rebuilds the dispatcher AOT when any of these holds:
 
 | Condition | Meaning |
-|---|---|
+|:---|:---|
 | Binary missing | `.dowel/cli-bundle/bundle/bin/dispatcher` absent or not executable |
 | Stamp missing or empty | `.dowel/build.stamp` |
 | Stamp mismatch | The key `<sha256(pubspec.lock)>:<4th word of dart --version>` changed |
@@ -62,7 +62,7 @@ A build takes `.dowel/.dowel.lock` (an atomic `mkdir`), runs `dart build cli -t 
 ## MCP entry points
 
 | Aspect | `dart run dowel:mcp` | `./bin/dowel mcp:serve` |
-|---|---|---|
+|:---|:---|:---|
 | Entry | `bin/mcp.dart` of the dowel package | `bin/dispatcher.dart` of the host app |
 | Loads `lib/app/_plugins.g.dart` | No | Yes |
 | Tools | Substrate only | Substrate plus every plugin's `mcpTools()` |

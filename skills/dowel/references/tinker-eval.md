@@ -22,7 +22,7 @@
 ## Reading the result
 
 | Result | Rendered as |
-|---|---|
+|:---|:---|
 | Null, bool, number | `null`, `true`, `42` |
 | String | `"quoted"` (double quotes) |
 | Any other object, including the Future an `await` expression returns | `<ClassName#id>` |
@@ -35,7 +35,7 @@ Append `.toString()` inside the expression to read a non-primitive: `MyService.i
 The result text starts with `` # `dowel tinker` exit N ``, and `isError` is set when `N` is not 0.
 
 | Case | Text | Exit |
-|---|---|---|
+|:---|:---|:---|
 | Compile error | `[ERROR] evaluate: (113) <compiler message>` | 1 |
 | The expression threw at runtime | `Error: <message>` | 0, so `isError` is false: read the text |
 | A blank `eval` | `--eval needs a Dart expression, e.g. --eval "1 + 1". Omit it to start the REPL.` | 1 |

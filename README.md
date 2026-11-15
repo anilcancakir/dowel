@@ -26,7 +26,7 @@
 ## At a glance
 
 | Fact | Value |
-|---|---|
+|:---|:---|
 | Package | [`dowel`](https://pub.dev/packages/dowel) |
 | Install | `dart pub add dowel`, then `dart run dowel install` |
 | Import | `package:dowel/dowel.dart` |
@@ -65,7 +65,7 @@ dart run dowel stop
 ```
 
 | Command | Effect |
-|---|---|
+|:---|:---|
 | `start`, `stop`, `restart` | Launch, tear down and relaunch the app; `stop` reaps the process group |
 | `reload`, `hot-restart` | Send `r` and `R` to the detached `flutter run` through a FIFO |
 | `status`, `logs` | Print the recorded session as JSON; print or follow the captured log |
@@ -115,7 +115,7 @@ dart run dowel plugin:install awesome_plugin
 A plugin describes its install footprint in an `install.yaml` manifest, or in code with the `PluginInstaller` DSL when it needs branching. Either way the installer stages every operation and writes nothing until the commit, writes through a `.tmp` file and a rename, skips what is already in place, and records each applied operation under `.dowel/installed/<plugin>.json`, so `plugin:uninstall` can reverse it. The reversal removes the files an install wrote, the dependencies it added and the plugin's registry entry; a dependency the project already declared stays, and edits injected into existing files (`InjectImport`, `InjectAfterPattern`) are logged as skipped, so remove those by hand. An install record written by an older dowel is refused until `plugin:install <name> --force` rewrites it, and `plugin:install` refuses to run when `lib/app/_plugins.g.dart` registers providers but `.dowel/plugins.json` is missing: restore it from version control.
 
 | Piece | Where it lives |
-|---|---|
+|:---|:---|
 | Manifest: files to copy, provider and config wiring, Android, iOS, macOS and web edits, env vars, prompts | `install.yaml` in the plugin package |
 | Procedural escape hatch: `writeFile`, `injectImport`, `injectProvider`, `injectAndroidPermission`, `injectEnvVar`, ... | `DowelInstallCommand` subclass driving `PluginInstaller` |
 | The plugin's commands | A `DowelServiceProvider` exported from `package:<name>/cli.dart` |
@@ -131,7 +131,7 @@ A plugin without a manifest is registered directly in `.dowel/plugins.json` and 
 `mcp:install` writes the `dowel` entry into `.mcp.json`; reconnect your client once (Claude Code: `/mcp reconnect dowel`). The server speaks stdio JSON-RPC and exposes the substrate tools plus whatever the installed plugins contribute:
 
 | Tool | Does |
-|---|---|
+|:---|:---|
 | `dowel_start`, `dowel_stop`, `dowel_restart` | Run the app lifecycle |
 | `dowel_reload`, `dowel_hot_restart` | Apply a code change to the running app |
 | `dowel_status`, `dowel_logs`, `dowel_doctor`, `dowel_list` | Read the session, the log (returned in the tool result), the toolchain and the command list |
@@ -142,7 +142,7 @@ A plugin without a manifest is registered directly in `.dowel/plugins.json` and 
 ## Commands
 
 | Namespace | Commands |
-|---|---|
+|:---|:---|
 | Lifecycle | `start`, `stop`, `status`, `logs`, `restart`, `reload`, `hot-restart` |
 | Scaffolding | `install`, `make:plugin`, `make:command`, `make:fast-cli` |
 | Plugin management | `plugin:install`, `plugin:uninstall`, `plugins:refresh` |
@@ -155,7 +155,7 @@ A plugin without a manifest is registered directly in `.dowel/plugins.json` and 
 Rules for an agent working with this package. Each one is a mistake the maintainers already made once.
 
 | Do | Because |
-|---|---|
+|:---|:---|
 | Run `dart run dowel install` once before `plugin:install` for a plugin without an `install.yaml` | The command registers into `lib/app/_plugins.g.dart` and stops without it |
 | Preview with `plugin:install <name> --dry-run` before the real run | File writes swap in through `.tmp` files after staging, but dependency and injection edits write directly and are not rolled back (a failed install then reports `rolledBack: false` and leaves a partial record), and a conflict with a user-edited file needs a decision (a dry run returns before the conflict check, so it does not detect conflicts) |
 | Commit `.dowel/plugins.json` and `.dowel/installed/`; ignore only `.dowel/cli-bundle*`, `.dowel/build.stamp*` and `.dowel/.dowel.lock/` | The registry regenerates `lib/app/_plugins.g.dart`; without it on a fresh clone `plugin:install` refuses to run |

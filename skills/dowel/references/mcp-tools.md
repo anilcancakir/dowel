@@ -21,7 +21,7 @@ The substrate tools are the builtin commands in `_safeDowelCommandNames` (`lib/s
 Boot mode is `none` for every tool except `dowel_tinker` (`connected`).
 
 | Tool | Behaviour the description omits |
-|---|---|
+|:---|:---|
 | `dowel_start` | Spawns `flutter run` and records the session; it never checks for an existing one. It takes every option `start` takes: `cdp-port` and `timeout` are numeric strings, `flutter-arg` is an array of strings (`["--dart-define=K=V"]`) and `restart` carries it. Success lines: `flutter run pid=<n>`, `vmServiceUri=<ws>`, `state=<path>`, `log=<path>`. Exit 75 while the build is still running. |
 | `dowel_stop` | Stops the app and deletes the session. On an Android serial it also runs `adb shell am force-stop`. If it cannot kill the app it keeps the session and exits 1. Refuses a session owned by another project. |
 | `dowel_restart` | Stops, then starts with the prior session's device, ports, `flutterArgs` and build mode. It takes `device`, `port`, `vm-service-port`, `cdp-port`, `profile-static` and `flutter-arg`: an omitted one keeps the prior value, so pass only the setting to change (`profile-static: false` forces a debug build; any `flutter-arg` replaces the whole carried set, and `flutter-arg: []` clears it). |
