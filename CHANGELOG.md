@@ -8,6 +8,11 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`doctor` and the `start` docs name the real tapir commands.** The old-SDK warning and `doc/commands/start.md` pointed at `tapir:resize` and `tapir:device`; the commands are `tapir:resize_viewport` and `tapir:device_profile`. (`lib/src/commands/doctor_command.dart`, `doc/commands/start.md`)
+- **One startup figure for the fast wrapper.** The README, the docs, the `make:fast-cli` description and its ready line, and the `mcp:install` notes quoted about 50 ms, about 110 ms and "tens of milliseconds" for the same wrapper; they all say about 0.2 s now, which is what `./bin/dowel` measures on a cached build (0.17 to 0.35 s), against 0.4 to 2.7 s for `dart run` (warm and first run, replacing the old "about 3 s"). The `make:fast-cli` page's example output and its "68x faster" comparison now carry the same measurements. (`lib/src/commands/make_fast_cli_command.dart`, `lib/src/commands/mcp_install_command.dart`, `doc/commands/make-fast-cli.md`)
+
 ## [1.0.0] - 2026-11-14
 
 ### Changed

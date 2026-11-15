@@ -64,7 +64,7 @@ Commands that write source files into the consumer project. They are deliberatel
 |:---|:---|:---|:---|
 | `make:plugin` | Scaffold a new dowel plugin skeleton. | none | no |
 | `make:command` | Scaffold a new DowelCommand subclass under `lib/app/commands/` (or `lib/src/commands/` when run inside a plugin). | none | no |
-| `make:fast-cli` | Scaffold the POSIX `bin/dowel` wrapper and pre-compile the AOT cache under `.dowel/cli-bundle/` for a startup of tens of milliseconds; `.gitignore` gets only the cache entries. | none | no |
+| `make:fast-cli` | Scaffold the POSIX `bin/dowel` wrapper and pre-compile the AOT cache under `.dowel/cli-bundle/` for a startup of about 0.2 s; `.gitignore` gets only the cache entries. | none | no |
 | `install` | Scaffold the canonical native Flutter consumer wrapper (`bin/dispatcher.dart` plus `lib/app/_plugins.g.dart` plus `lib/app/commands/_index.g.dart`) and chain `make:fast-cli` in-process. It stops and lists what to delete when a generated file still comes from `fluttersdk_artisan`; see [Migrating from fluttersdk_artisan](../getting-started/migrating-from-fluttersdk-artisan.md). | none | no |
 
 <a name="plugin-management"></a>

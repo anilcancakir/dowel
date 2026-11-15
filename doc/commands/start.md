@@ -45,7 +45,7 @@ dart run dowel start [--device=<target>] [--port=<n>] [--vm-service-port=<n>]
 | `--vm-service-port` | int | `8181` | VM Service listener port. Recorded in `state.json`; used by `mcp:serve` and connected-mode tools to open the WebSocket. |
 | `--dds` | flag | `false` | Enable Dart Development Service. When absent (default), `--no-dds` is forwarded to `flutter run` so tapir and tinker connect directly to the VM Service. |
 | `--profile-static` | flag | `false` | Start a static-profile run. Sets `profile: "static"` in `state.json`; otherwise `"debug"`. On a device (Android, iOS, desktop) it also forwards `--profile` to `flutter run`, once even when `--flutter-arg=--profile` is passed too; there is no hot reload in that mode. On Chrome it stays a label, because a web profile build has no VM Service. `restart` replays it from `state.json`; `restart --no-profile-static` drops it. |
-| `--cdp-port` | int | (none) | Chrome DevTools Protocol port. When set, `start` pre-launches Chrome with `--remote-debugging-port=<n>` and runs Flutter on `-d web-server`, recording `chromePid` / `tmpProfileDir` / `cdpPort` in `state.json`. Required for `tapir:resize` / `tapir:device`. Only valid with `--device=chrome` or `--device=web-server`, and requires Flutter SDK 3.30.0 or newer. A subsequent `restart` preserves this port. The port is probed before Chrome launches; if it is already in use you receive a clear error with the `--cdp-port` hint instead of a misleading "Is Chrome installed?" message. |
+| `--cdp-port` | int | (none) | Chrome DevTools Protocol port. When set, `start` pre-launches Chrome with `--remote-debugging-port=<n>` and runs Flutter on `-d web-server`, recording `chromePid` / `tmpProfileDir` / `cdpPort` in `state.json`. Required for `tapir:resize_viewport` / `tapir:device_profile`. Only valid with `--device=chrome` or `--device=web-server`, and requires Flutter SDK 3.30.0 or newer. A subsequent `restart` preserves this port. The port is probed before Chrome launches; if it is already in use you receive a clear error with the `--cdp-port` hint instead of a misleading "Is Chrome installed?" message. |
 | `--timeout` | int | `90` | Seconds to wait for the VM Service URI to appear in the `flutter run` log. Increase on cold starts where build and DartDev initialisation takes longer than the default (common on first run after a clean Flutter SDK install or on low-powered CI). On the plain branch a timeout while `flutter run` is still alive exits `75` and leaves the session recording (see [Troubleshooting](#troubleshooting)). Applies to the `--cdp-port` branch and to the plain one alike; on the `--cdp-port` branch it also bounds the wait for the web server's `is being served at` line, which used to be a fixed 60 seconds and failed a web compile that ran long under load. |
 | `--flutter-arg` | string | (none) | Extra argument forwarded verbatim to `flutter run`, repeatable. Use it for anything `start` has no flag of its own for: `--flutter-arg=--dart-define=KEY=VALUE`, `--flutter-arg=--flavor=dev`, `--flutter-arg=--dart-define-from-file=config.json`. Forwarded AFTER the arguments `start` builds, so a repeated flag overrides the default it chose. A value containing commas is kept whole (`splitCommas` is off), so `--flutter-arg=--dart-define=TAGS=a,b` reaches Flutter as one argument. Recorded in `state.json` as `flutterArgs` and replayed by `restart`; `restart --flutter-arg=<arg>` replaces the whole carried set, which is also how to clear one. |
 
@@ -137,13 +137,13 @@ dart run dowel start --device=chrome --port=4000 --dds
 
 Starts the Chrome session on port `4000` and omits `--no-dds`, letting the Dart Development Service run. Use this when your tooling requires DDS (for example, a secondary IDE debugger).
 
-**CDP session for `tapir:resize` / `tapir:device`:**
+**CDP session for `tapir:resize_viewport` / `tapir:device_profile`:**
 
 ```bash
 dart run dowel start --device=chrome --cdp-port=9222
 ```
 
-Pre-launches Chrome with `--remote-debugging-port=9222` and runs Flutter on `-d web-server`, recording `chromePid` / `tmpProfileDir` / `cdpPort` in `state.json` so `tapir:resize` and `tapir:device` can drive the Chrome DevTools Protocol. Requires Flutter SDK 3.30.0 or newer. A subsequent `restart` preserves the CDP port.
+Pre-launches Chrome with `--remote-debugging-port=9222` and runs Flutter on `-d web-server`, recording `chromePid` / `tmpProfileDir` / `cdpPort` in `state.json` so `tapir:resize_viewport` and `tapir:device_profile` can drive the Chrome DevTools Protocol. Requires Flutter SDK 3.30.0 or newer. A subsequent `restart` preserves the CDP port.
 
 **CDP session with extended VM Service timeout (cold CI or slow machine):**
 

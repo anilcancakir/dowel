@@ -15,7 +15,7 @@ import '../helpers/file_helper.dart';
 /// branch only applies on POSIX hosts (macOS, Linux); Windows always
 /// skips the `bin/dowel` shape because the shim is a POSIX shell script.
 ///
-/// 1. POSIX host with `bin/dowel` present (fast path, ~110ms startup):
+/// 1. POSIX host with `bin/dowel` present (fast path, about 0.2 s startup):
 /// ```json
 /// {
 ///   "mcpServers": {
@@ -30,7 +30,7 @@ import '../helpers/file_helper.dart';
 ///
 /// 2. POSIX without `bin/dowel`, or any Windows host, plus
 /// `--invocation=<executable>` supplied (plugin executable path,
-/// e.g. `tapir`, ~3s startup):
+/// e.g. `tapir`, 0.4 to 2.7 s startup):
 /// ```json
 /// {
 ///   "mcpServers": {
@@ -44,7 +44,7 @@ import '../helpers/file_helper.dart';
 /// ```
 ///
 /// 3. POSIX without `bin/dowel`, or any Windows host, without
-/// `--invocation` (`:dispatcher` fallback, ~3s startup):
+/// `--invocation` (`:dispatcher` fallback, 0.4 to 2.7 s startup):
 /// ```json
 /// {
 ///   "mcpServers": {

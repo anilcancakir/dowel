@@ -7,7 +7,7 @@
 ## Commands
 
 | Command | When |
-|---|---|
+|:---|:---|
 | `dart test --timeout=30s --reporter=failures-only < /dev/null` | All tests. The redirect and reporter are not optional outside a TTY: the default reporter redraws a terminal and the `prompt` suite reads stdin. |
 | `dart test --tags=integration` | Integration tests (minutes, needs network). CI excludes them; run them before tagging a release. |
 | `dart test --coverage=coverage && dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --packages=.dart_tool/package_config.json --report-on=lib` | Coverage; CI fails below the 80% line floor. Without `--report-on=lib` the report counts dependencies and tests and reads about 48%, which looks like a regression. |
@@ -38,7 +38,7 @@ Before changing module boundaries or a main flow, read ARCHITECTURE.md; update i
 ## Key Gotchas
 
 | Mistake | Fix |
-|---|---|
+|:---|:---|
 | Editing `lib/app/_plugins.g.dart` or `lib/app/commands/_index.g.dart` (this repo's copies live in `example/`) | Generated; run `commands:refresh` or `plugins:refresh` |
 | Running a command that uses the session (`reload`, `stop`, `tinker`, a plugin's `<package>:*`) in a git worktree before `dowel start` there | Run `dowel start` in the worktree first, or pass `--state=<path>`. `sessionOwnershipError` passes when the worktree sits inside the project root the main app recorded (an app at the repo root, the worktree under `.claude/worktrees/<slug>/`) and for state with no recorded `projectRoot`; the command then acts on the main app and reports success. A sibling checkout, or an app in a subdirectory the worktree is not inside (this repo's `example/`), is refused. MCP plugin tools and `dowel_tinker` run no check, and an MCP server falls back to the shared pointer when its own project has no session. `--state=<path>` skips the check, and a missing file falls back to the pointer too |
 | Committing `.dowel/` | The suite writes install records into it in the repo root; it is gitignored, never force-add it |
