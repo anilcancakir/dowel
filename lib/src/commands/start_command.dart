@@ -101,7 +101,7 @@ Future<Process> _defaultProcessStart(
 ///
 /// The optional `--cdp-port=N` flag enables a CDP-aware Chrome launch:
 /// 1. Validates the Flutter SDK is at or above 3.30.0 (the version that
-///    activates `--web-experimental-hot-reload` for `-d web-server` per
+///    activates web hot reload for `-d web-server` per
 ///    flutter/flutter#170612).
 /// 2. Resolves a Chrome binary path (macOS bundle or Linux PATH).
 /// 3. Probes the web port ([defaultPortProbe]) to confirm it is free.
@@ -109,11 +109,13 @@ Future<Process> _defaultProcessStart(
 /// 4. Pre-launches Chrome detached with `--remote-debugging-port=N`,
 ///    `--remote-allow-origins=*`, and a dedicated `--user-data-dir`.
 /// 5. Probes the debug port to confirm Chrome is reachable.
-/// 6. Runs `flutter run -d web-server --web-port=<port> --web-experimental-hot-reload`
-///    (silent remap from `--device=chrome` because the chrome target would
-///    auto-launch its own conflicting Chrome).
+/// 6. Runs `flutter run -d web-server --web-port=<port>`, plus
+///    `--web-experimental-hot-reload` on an SDK older than 3.50.0 (see
+///    [passesWebHotReloadFlag]); the chrome target is remapped silently
+///    because it would auto-launch its own conflicting Chrome.
 /// 7. Waits for the web-server log line "is being served at" so the URL
-///    is bound before any client attempts to connect.
+///    is bound before any client attempts to connect. A `flutter run` that
+///    exits first fails the start at once with the first lines of its log.
 /// 8. Navigates the pre-launched Chrome to the served URL via CDP
 ///    Page.navigate. DWDS only emits "Debug service listening on ..."
 ///    AFTER a debugger client connects, so the navigate must happen
@@ -138,9 +140,23 @@ final class StartCommand extends DowelCommand {
   CommandBoot get boot => CommandBoot.none;
 
   /// Minimum Flutter SDK version required for the --cdp-port branch.
-  /// Tied to flutter/flutter#170612 which wires --web-experimental-hot-reload
-  /// for `-d web-server` and removes the --start-paused requirement.
+  /// Tied to flutter/flutter#170612 which wires web hot reload for
+  /// `-d web-server` and removes the --start-paused requirement.
   static const String _minCdpSdkVersion = '3.30.0';
+
+  /// First Flutter SDK whose `flutter run` no longer registers
+  /// `--web-experimental-hot-reload`. flutter/flutter#185994 made web hot
+  /// reload unconditional (the option already defaulted on and warned), so
+  /// passing the removed option is a usage error and `flutter run` exits
+  /// before it prints a URI.
+  static const String _webHotReloadFlagRemovedIn = '3.50.0';
+
+  /// Whether `flutter run` on [sdkVersion] still registers
+  /// `--web-experimental-hot-reload`. A pre-release of 3.50.0 counts as 3.50.0,
+  /// as [compareSemver] ignores the suffix.
+  @visibleForTesting
+  static bool passesWebHotReloadFlag(String sdkVersion) =>
+      compareSemver(sdkVersion, _webHotReloadFlagRemovedIn) < 0;
 
   /// Test seam: Process.start replacement (Chrome + flutter wrapper).
   @visibleForTesting
@@ -746,7 +762,7 @@ final class StartCommand extends DowelCommand {
       vmServicePort: vmServicePort,
       ddsOn: ddsOn,
       isChromeTarget: true,
-      webExperimentalHotReload: true,
+      webExperimentalHotReload: passesWebHotReloadFlag(sdkProbe),
       extra: extraFlutterArgs,
     );
 
@@ -784,7 +800,11 @@ final class StartCommand extends DowelCommand {
       //     has a client to emit the VM Service URI to. Scraping the URI before
       //     navigation deadlocks: -d web-server only emits "Debug service
       //     listening on ws://..." AFTER a debugger client connects.
-      await _runWebServerReadyWait(logFile, scrapeTimeout);
+      await _runWebServerReadyWait(
+        logFile,
+        scrapeTimeout,
+        flutterPid: childPid,
+      );
       await cdpChromeNavigator(cdpPort, 'http://localhost:$webPort/');
 
       // 11. Record the session BEFORE the scrape, so a caller that gives up
@@ -970,17 +990,28 @@ final class StartCommand extends DowelCommand {
   }
 
   /// Runs the web-server readiness wait, honoring the test seam when set.
-  Future<void> _runWebServerReadyWait(File logFile, int timeoutSeconds) {
+  Future<void> _runWebServerReadyWait(
+    File logFile,
+    int timeoutSeconds, {
+    int? flutterPid,
+  }) {
     final waiter = cdpWebServerReadyWaiter;
     if (waiter != null) return waiter(logFile, timeoutSeconds);
-    return _waitForWebServerReady(logFile, timeoutSeconds);
+    return _waitForWebServerReady(
+      logFile,
+      timeoutSeconds,
+      flutterPid: flutterPid,
+    );
   }
 
   /// Test-only entry to the live web-server readiness loop, the production
   /// path the [cdpWebServerReadyWaiter] seam otherwise bypasses.
   @visibleForTesting
-  Future<void> waitForWebServerReadyForTest(File logFile, int timeoutSeconds) =>
-      _waitForWebServerReady(logFile, timeoutSeconds);
+  Future<void> waitForWebServerReadyForTest(
+    File logFile,
+    int timeoutSeconds, {
+    int? flutterPid,
+  }) => _waitForWebServerReady(logFile, timeoutSeconds, flutterPid: flutterPid);
 
   /// Wait until the web-server log emits "is being served at" so the URL
   /// is bound and Chrome's navigation will not race the bind.
@@ -988,12 +1019,32 @@ final class StartCommand extends DowelCommand {
   /// Bounded by the resolved `--timeout`, like the scrape that follows. A
   /// literal 60 s used to fail a start whose web compile ran long under load
   /// although `--timeout` allowed more.
-  Future<void> _waitForWebServerReady(File logFile, int timeoutSeconds) async {
+  ///
+  /// With [flutterPid], a `flutter run` that has exited without serving ends
+  /// the wait at once and the error carries the first lines of its log. Without
+  /// that, a usage error such as a rejected option showed only the timeout,
+  /// minutes later, and the cause stayed in the log.
+  Future<void> _waitForWebServerReady(
+    File logFile,
+    int timeoutSeconds, {
+    int? flutterPid,
+  }) async {
     final deadline = DateTime.now().add(Duration(seconds: timeoutSeconds));
     while (DateTime.now().isBefore(deadline)) {
-      if (logFile.existsSync()) {
-        final content = logFile.readAsStringSync();
-        if (content.contains('is being served at')) return;
+      final content = logFile.existsSync() ? logFile.readAsStringSync() : '';
+      if (content.contains('is being served at')) return;
+      if (flutterPid != null && !startIsAlive(flutterPid)) {
+        // The process can write its last lines between the read above and the
+        // liveness check, so read once more before judging the log.
+        final String finalContent = logFile.existsSync()
+            ? logFile.readAsStringSync()
+            : '';
+        if (finalContent.contains('is being served at')) return;
+        throw StateError(
+          'flutter run exited before the web server was ready (pid '
+          '$flutterPid). First lines of ${logFile.path}:\n'
+          '${_firstLogLines(finalContent)}',
+        );
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
@@ -1001,6 +1052,17 @@ final class StartCommand extends DowelCommand {
       'Timed out after ${timeoutSeconds}s waiting for "is being served at" in '
       '${logFile.path}.',
     );
+  }
+
+  /// The first non-empty lines of [log], for an error that has to name its cause.
+  static String _firstLogLines(String log, {int count = 5}) {
+    final List<String> lines = log
+        .split('\n')
+        .map((String line) => line.trim())
+        .where((String line) => line.isNotEmpty)
+        .take(count)
+        .toList(growable: false);
+    return lines.isEmpty ? '(the log is empty)' : lines.join('\n');
   }
 
   /// Runs the VM Service URI scrape, honoring the test seam when set.
