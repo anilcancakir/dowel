@@ -143,3 +143,50 @@ jobs:
     secrets:
       REGISTRY_BOT_CLIENT_ID: ${{ secrets.REGISTRY_BOT_CLIENT_ID }}
       REGISTRY_BOT_PRIVATE_KEY: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}
+
+  # Publishes server.json to the MCP registry (io.github.anilcancakir/dowel)
+  # after a stable release, over the registry's GitHub OIDC login. It runs only
+  # after the GitHub Release job, so a failure here leaves pub.dev and the
+  # release untouched. The registry holds each version once, so re-running this
+  # job after it succeeded fails with "already exists".
+  mcp-registry:
+    name: Publish to MCP registry
+    needs: github-release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for the registry's GitHub OIDC login
+    env:
+      # Pinned on purpose: the registry's own guide warns against the mutable
+      # releases/latest URL. Raise it by hand, after checking that the release
+      # carries the .sigstore.json bundle for linux_amd64.
+      MCP_PUBLISHER_VERSION: v1.8.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Install mcp-publisher
+        run: |
+          set -euo pipefail
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          rm -f "$archive" "$archive.sigstore.json"
+
+      - name: Log in to the registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server.json
+        run: ./mcp-publisher publish

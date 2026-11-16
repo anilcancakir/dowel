@@ -58,7 +58,7 @@ Before changing module boundaries or a main flow, read ARCHITECTURE.md; update i
 
 1. `release: X.Y.Z` PR: bump every stamp, promote `[Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` with its footer compare link.
 2. Stamps: `pubspec.yaml`; `dowelVersion` in `lib/src/console/dowel_version.dart`, the only version literal in code (`dowel_version_test.dart` and `mcp_server_version_test.dart` guard it); `example/pubspec.yaml` and `example/packages/awesome_plugin/pubspec.yaml` (`flutter pub get` fails when they drift); `server.json` (`server_json_version_test.dart` guards it; the MCP registry never rewrites a published version). The skill keeps its own `version:` in `skills/dowel/SKILL.md`. Docs that quote the caret constraint track the released version.
-3. After it merges, tag the merge commit with the bare version: `git tag X.Y.Z && git push origin X.Y.Z`. `publish.yml` validates it (tag on `master`, `pubspec.yaml` and `server.json` carry the version, pana 160/160, a CHANGELOG section), publishes through OIDC and creates the GitHub Release.
+3. After it merges, tag the merge commit with the bare version: `git tag X.Y.Z && git push origin X.Y.Z`. `publish.yml` validates it (tag on `master`, `pubspec.yaml` and `server.json` carry the version, pana 160/160, a CHANGELOG section), publishes through OIDC, creates the GitHub Release and publishes `server.json` to the MCP registry (the `mcp-registry` job, stable tags only; the registry holds a version once, so a re-run after success fails with "already exists").
 4. A recovery after a failed `Validate` is forward: delete the tag, fix on a PR, tag the new merge commit.
 
 ## CI

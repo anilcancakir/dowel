@@ -100,9 +100,11 @@ updates:
           - patch
     ignore:
       # These run only on a release tag (the reusable workflow that publishes to
-      # pub.dev over OIDC, and the registry dispatch: App token plus repository
-      # dispatch), so no pull request check exercises a bump of them: they are
-      # reviewed and updated by hand.
+      # pub.dev over OIDC, the registry dispatch: App token plus repository
+      # dispatch, and the MCP registry publish: the cosign install), so no pull
+      # request check exercises a bump of them: they are reviewed and updated by
+      # hand.
       - dependency-name: dart-lang/setup-dart/.github/workflows/publish.yml
       - dependency-name: actions/create-github-app-token
       - dependency-name: peter-evans/repository-dispatch
+      - dependency-name: sigstore/cosign-installer
