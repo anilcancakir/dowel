@@ -17,6 +17,7 @@ import '../console/dowel_version.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 import '../vm/vm_service_client.dart';
+import '../vm/web_server_evaluate_gap.dart';
 import 'mcp_filter_config.dart';
 import 'mcp_tool_descriptor.dart';
 
@@ -391,7 +392,15 @@ final class McpServer extends MCPServer with ToolsSupport {
         ],
       );
     } on RPCError catch (e) {
-      // 4. Compile error from the VM's expression compiler.
+      // 4. A web-server session (`start --cdp-port`): dwds has no evaluate.
+      final gap = webServerEvaluateGapMessage(e);
+      if (gap != null) {
+        return CallToolResult(
+          isError: true,
+          content: [TextContent(text: '### Error\n$gap')],
+        );
+      }
+      // 5. Compile error from the VM's expression compiler.
       if (e.code == 113) {
         final details = (e.data?['details'] as String?) ?? e.message;
         return CallToolResult(

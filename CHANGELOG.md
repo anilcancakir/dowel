@@ -10,7 +10,7 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- **`tinker` explains why it cannot evaluate on a web-server session.** `start --cdp-port` runs `flutter run -d web-server`, where dwds's `WebSocketProxyService` has no `evaluate`, so every `tinker --eval` (and `dowel_tinker`) failed with a raw `NoSuchMethodError` and a stack trace. It now prints one line, `evaluate is not available on a web-server session`, with the way out (`start --device=chrome` without `--cdp-port`) and still exits 1. The skill and `doc/commands/tinker.md` carry the caveat. (`lib/src/commands/tinker_command.dart`, `skills/dowel/`, `doc/commands/tinker.md`)
+- **`tinker` explains why it cannot evaluate on a web-server session.** `start --cdp-port` runs `flutter run -d web-server`, where dwds's `WebSocketProxyService` has no `evaluate`, so every `tinker --eval`, `dowel_tinker` and `tapir_evaluate` failed with a raw `NoSuchMethodError` and a stack trace. It now prints one line, `evaluate is not available on a web-server session`, with the way out (`start --device=chrome` without `--cdp-port`) and still exits 1. The skill and `doc/commands/tinker.md` carry the caveat. (`lib/src/commands/tinker_command.dart`, `lib/src/mcp/mcp_server.dart`, `lib/src/vm/web_server_evaluate_gap.dart`, `skills/dowel/`, `doc/commands/tinker.md`)
 
 ## [1.0.3] - 2026-11-16
 

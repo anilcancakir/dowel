@@ -5,6 +5,7 @@ import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../tinker/tinker.dart';
 import '../tinker/tinker_formatter.dart';
+import '../vm/web_server_evaluate_gap.dart';
 
 /// `dowel tinker`: connected REPL into the running Flutter app.
 ///
@@ -79,20 +80,8 @@ final class TinkerCommand extends DowelCommand {
     return 0;
   }
 
-  /// dwds answers `evaluate` on a `flutter run -d web-server` session (the one
-  /// `start --cdp-port` uses) with a raw `NoSuchMethodError`: its
-  /// `WebSocketProxyService` has no `evaluate`, since no browser tab is
-  /// attached as a debug connection. The chrome device has no such gap, so the
-  /// message names it instead of passing the stack trace through.
-  static String _failureText(Object error) {
-    final text = '$error';
-    final isWebServerGap =
-        text.contains('WebSocketProxyService') &&
-        text.contains("has no instance method 'evaluate'");
-    if (!isWebServerGap) return text;
-    return 'evaluate is not available on a web-server session (the Flutter '
-        'web-server device has no debug connection to a browser tab). Run '
-        '`dowel start --device=chrome` without --cdp-port to evaluate; '
-        '--cdp-port keeps the CDP commands and gives up evaluate.';
-  }
+  /// The text printed for a failed evaluate: the web-server explanation when
+  /// dwds cannot evaluate, the error as it came otherwise.
+  static String _failureText(Object error) =>
+      webServerEvaluateGapMessage(error) ?? '$error';
 }
