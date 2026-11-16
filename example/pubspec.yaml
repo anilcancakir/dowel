@@ -38,7 +38,7 @@ dependencies:
 
   dowel:
     path: ..
-    version: 1.0.1
+    version: 1.0.2
 
   awesome_plugin:
     path: ./packages/awesome_plugin
