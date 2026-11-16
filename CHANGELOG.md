@@ -8,6 +8,12 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-11-16
+
+### Changed
+
+- **A stable tag publishes `server.json` to the MCP registry.** `publish.yml` has an `mcp-registry` job after the GitHub Release that signs in through GitHub OIDC and publishes `io.github.anilcancakir/dowel`, so the registry listing follows each release instead of a manual publish. (`.github/workflows/publish.yml`)
+
 ### Fixed
 
 - **`tinker` explains why it cannot evaluate on a web-server session.** `start --cdp-port` runs `flutter run -d web-server`, where dwds's `WebSocketProxyService` has no `evaluate`, so every `tinker --eval`, `dowel_tinker` and `tapir_evaluate` failed with a raw `NoSuchMethodError` and a stack trace. It now prints one line, `evaluate is not available on a web-server session`, with the way out (`start --device=chrome` without `--cdp-port`) and `tinker --eval` still exits 1. The skill and `doc/commands/tinker.md` carry the caveat. (`lib/src/commands/tinker_command.dart`, `lib/src/mcp/mcp_server.dart`, `lib/src/vm/web_server_evaluate_gap.dart`, `skills/dowel/`, `doc/commands/tinker.md`)
@@ -530,7 +536,8 @@ Both write through `.tmp` + atomic rename; never hand-edit.
 
 ---
 
-[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.3...HEAD
+[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.4...HEAD
+[1.0.4]: https://github.com/anilcancakir/dowel/compare/1.0.3...1.0.4
 [1.0.3]: https://github.com/anilcancakir/dowel/compare/1.0.2...1.0.3
 [1.0.2]: https://github.com/anilcancakir/dowel/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/anilcancakir/dowel/compare/1.0.0...1.0.1
