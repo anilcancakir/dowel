@@ -17,6 +17,7 @@ import '../console/dowel_version.dart';
 import '../console/command_boot.dart';
 import '../state/state_file.dart';
 import '../vm/vm_service_client.dart';
+import '../vm/web_server_evaluate_gap.dart';
 import 'mcp_filter_config.dart';
 import 'mcp_tool_descriptor.dart';
 
@@ -391,7 +392,15 @@ final class McpServer extends MCPServer with ToolsSupport {
         ],
       );
     } on RPCError catch (e) {
-      // 4. Compile error from the VM's expression compiler.
+      // 4. A web-server session (`start --cdp-port`): dwds has no evaluate.
+      final gap = webServerEvaluateGapMessage(e);
+      if (gap != null) {
+        return CallToolResult(
+          isError: true,
+          content: [TextContent(text: '### Error\n$gap')],
+        );
+      }
+      // 5. Compile error from the VM's expression compiler.
       if (e.code == 113) {
         final details = (e.data?['details'] as String?) ?? e.message;
         return CallToolResult(
@@ -403,7 +412,7 @@ final class McpServer extends MCPServer with ToolsSupport {
           ],
         );
       }
-      // 5. Other RPCError codes: surface as isError instead of bubbling
+      // 6. Other RPCError codes: surface as isError instead of bubbling
       //    out as a protocol-level failure (the dispatch contract promises
       //    "errors surface as `isError: true` rather than RPC failures").
       return CallToolResult(
@@ -417,7 +426,7 @@ final class McpServer extends MCPServer with ToolsSupport {
         ],
       );
     } catch (e) {
-      // 6. Unexpected exception: same contract: surface as isError
+      // 7. Unexpected exception: same contract: surface as isError
       //    rather than letting it bubble out.
       return CallToolResult(
         isError: true,

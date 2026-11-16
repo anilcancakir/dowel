@@ -5,6 +5,7 @@ import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
 import '../tinker/tinker.dart';
 import '../tinker/tinker_formatter.dart';
+import '../vm/web_server_evaluate_gap.dart';
 
 /// `dowel tinker`: connected REPL into the running Flutter app.
 ///
@@ -53,7 +54,7 @@ final class TinkerCommand extends DowelCommand {
         ctx.output.writeln(formatTinkerResult(result, casters: Tinker.casters));
         return 0;
       } catch (e) {
-        ctx.output.error('$e');
+        ctx.output.error(_failureText(e));
         return 1;
       }
     }
@@ -71,11 +72,16 @@ final class TinkerCommand extends DowelCommand {
         final result = await ctx.evaluate(input);
         ctx.output.writeln(formatTinkerResult(result, casters: Tinker.casters));
       } catch (e) {
-        ctx.output.error('$e');
+        ctx.output.error(_failureText(e));
       }
     }
     ctx.output.writeln('');
     ctx.output.info('Tinker session ended.');
     return 0;
   }
+
+  /// The text printed for a failed evaluate: the web-server explanation when
+  /// dwds cannot evaluate, the error as it came otherwise.
+  static String _failureText(Object error) =>
+      webServerEvaluateGapMessage(error) ?? '$error';
 }

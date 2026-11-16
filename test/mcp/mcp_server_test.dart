@@ -871,6 +871,49 @@ void main() {
       expect(text, contains('Method not found'));
     });
 
+    test('tapir_evaluate names the web-server evaluate gap instead of passing '
+        'dwds\'s raw NoSuchMethodError through', () async {
+      // dwds answers `evaluate` on a `flutter run -d web-server` session (the
+      // one `start --cdp-port` boots) with a NoSuchMethodError from its
+      // WebSocketProxyService, which has no evaluate.
+      final registry = DowelRegistry()
+        ..registerMcpToolsFor(
+          _FakeMcpProvider(
+            providerName: 'tapir',
+            tools: [
+              _tool('tapir_evaluate', extensionMethod: 'ext.tapir.evaluate'),
+            ],
+          ),
+        );
+
+      final harness = await _TestHarness.build(
+        registry: registry,
+        filter: McpFilterConfig.empty(),
+      );
+      addTearDown(harness.dispose);
+      harness.stub._evaluateScript = (_, _) => throw RPCError(
+        'evaluate',
+        -32603,
+        'evaluate: NoSuchMethodError: Class \'WebSocketProxyService\' has no '
+            'instance method \'evaluate\' with matching arguments.',
+      );
+
+      final callResult = await harness.connection.callTool(
+        CallToolRequest(
+          name: 'tapir_evaluate',
+          arguments: const {'expression': '1 + 2'},
+        ),
+      );
+
+      expect(callResult.isError, isTrue);
+      final text = (callResult.content.single as TextContent).text;
+      expect(text, contains('### Error'));
+      expect(text, contains('not available on a web-server session'));
+      expect(text, contains('dowel start --device=chrome'));
+      expect(text, isNot(contains('NoSuchMethodError')));
+      expect(text, isNot(contains('WebSocketProxyService')));
+    });
+
     test('tapir_evaluate translates an unexpected exception into an isError '
         'result instead of bubbling as a protocol-level failure', () async {
       final registry = DowelRegistry()
