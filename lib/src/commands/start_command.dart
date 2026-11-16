@@ -110,7 +110,7 @@ Future<Process> _defaultProcessStart(
 ///    `--remote-allow-origins=*`, and a dedicated `--user-data-dir`.
 /// 5. Probes the debug port to confirm Chrome is reachable.
 /// 6. Runs `flutter run -d web-server --web-port=<port>`, plus
-///    `--web-experimental-hot-reload` on an SDK older than 3.50.0 (see
+///    `--web-experimental-hot-reload` on an SDK older than 3.48.0 (see
 ///    [passesWebHotReloadFlag]); the chrome target is remapped silently
 ///    because it would auto-launch its own conflicting Chrome.
 /// 7. Waits for the web-server log line "is being served at" so the URL
@@ -149,11 +149,12 @@ final class StartCommand extends DowelCommand {
   /// reload unconditional (the option already defaulted on and warned), so
   /// passing the removed option is a usage error and `flutter run` exits
   /// before it prints a URI.
-  static const String _webHotReloadFlagRemovedIn = '3.50.0';
+  static const String _webHotReloadFlagRemovedIn = '3.48.0';
 
   /// Whether `flutter run` on [sdkVersion] still registers
-  /// `--web-experimental-hot-reload`. A pre-release of 3.50.0 counts as 3.50.0,
-  /// as [compareSemver] ignores the suffix.
+  /// `--web-experimental-hot-reload`. A pre-release of 3.48.0 counts as 3.48.0,
+  /// as [compareSemver] ignores the suffix, which is right here: the removal
+  /// is in every 3.48.0 pre-release tag, from `3.48.0-0.1.pre` on.
   @visibleForTesting
   static bool passesWebHotReloadFlag(String sdkVersion) =>
       compareSemver(sdkVersion, _webHotReloadFlagRemovedIn) < 0;
