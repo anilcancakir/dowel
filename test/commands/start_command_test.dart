@@ -1447,6 +1447,41 @@ void main() {
       );
     }, timeout: const Timeout(Duration(seconds: 10)));
 
+    test(
+      'live web-server wait reads the log again after it sees flutter run '
+      'gone, so an error written just before the exit is not missed',
+      () async {
+        final dir = Directory.systemTemp.createTempSync('dowel_ready_');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final log = File('${dir.path}/run.log')..writeAsStringSync('');
+        // The process writes its error and exits between the wait's read of the
+        // log and its liveness check.
+        StartCommand.startIsAlive = (_) {
+          log.writeAsStringSync('Could not find an option named "--bogus".\n');
+          return false;
+        };
+
+        await expectLater(
+          StartCommand().waitForWebServerReadyForTest(
+            log,
+            30,
+            flutterPid: 4242,
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.toString(),
+              'message',
+              allOf(
+                contains('Could not find an option named "--bogus"'),
+                isNot(contains('(the log is empty)')),
+              ),
+            ),
+          ),
+        );
+      },
+      timeout: const Timeout(Duration(seconds: 10)),
+    );
+
     test('the live wait keeps waiting while flutter run is alive', () async {
       final dir = Directory.systemTemp.createTempSync('dowel_ready_');
       addTearDown(() => dir.deleteSync(recursive: true));

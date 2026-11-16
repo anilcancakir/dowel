@@ -1034,10 +1034,16 @@ final class StartCommand extends DowelCommand {
       final content = logFile.existsSync() ? logFile.readAsStringSync() : '';
       if (content.contains('is being served at')) return;
       if (flutterPid != null && !startIsAlive(flutterPid)) {
+        // The process can write its last lines between the read above and the
+        // liveness check, so read once more before judging the log.
+        final String finalContent = logFile.existsSync()
+            ? logFile.readAsStringSync()
+            : '';
+        if (finalContent.contains('is being served at')) return;
         throw StateError(
           'flutter run exited before the web server was ready (pid '
           '$flutterPid). First lines of ${logFile.path}:\n'
-          '${_firstLogLines(content)}',
+          '${_firstLogLines(finalContent)}',
         );
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
