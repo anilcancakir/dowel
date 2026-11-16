@@ -162,7 +162,10 @@ void main() {
       expect(StartCommand.passesWebHotReloadFlag('3.47.9'), isTrue);
     });
 
-    test('3.50.0 and later do not: flutter run rejects the option', () {
+    test('3.48.0 and later do not, pre-releases included: flutter run rejects '
+        'the option', () {
+      expect(StartCommand.passesWebHotReloadFlag('3.48.0-0.1.pre'), isFalse);
+      expect(StartCommand.passesWebHotReloadFlag('3.49.0-0.2.pre'), isFalse);
       expect(StartCommand.passesWebHotReloadFlag('3.50.0'), isFalse);
       expect(StartCommand.passesWebHotReloadFlag('3.50.1'), isFalse);
       expect(StartCommand.passesWebHotReloadFlag('3.51.0-0.0.pre'), isFalse);
