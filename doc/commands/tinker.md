@@ -130,9 +130,10 @@ Only the chrome device evaluates on the web. `start --cdp-port` runs Flutter on
 `-d web-server` with a separately launched Chrome, and the dwds service behind that
 device has no `evaluate` (no browser tab is attached as a debug connection), so
 `tinker` prints `evaluate is not available on a web-server session` with the way out
-and exits `1`. `start --device=chrome` without `--cdp-port` evaluates normally, at the
-cost of the commands that need the CDP port (`tapir:resize_viewport`,
-`tapir:device_profile`).
+and exits `1`. Run `dowel stop` first (a second `start` replaces the session record
+without stopping the running app), then `start --device=chrome` without `--cdp-port`,
+which evaluates normally, at the cost of the commands that need the CDP port
+(`tapir:resize_viewport`, `tapir:device_profile`).
 
 ---
 

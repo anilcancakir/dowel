@@ -412,7 +412,7 @@ final class McpServer extends MCPServer with ToolsSupport {
           ],
         );
       }
-      // 5. Other RPCError codes: surface as isError instead of bubbling
+      // 6. Other RPCError codes: surface as isError instead of bubbling
       //    out as a protocol-level failure (the dispatch contract promises
       //    "errors surface as `isError: true` rather than RPC failures").
       return CallToolResult(
@@ -426,7 +426,7 @@ final class McpServer extends MCPServer with ToolsSupport {
         ],
       );
     } catch (e) {
-      // 6. Unexpected exception: same contract: surface as isError
+      // 7. Unexpected exception: same contract: surface as isError
       //    rather than letting it bubble out.
       return CallToolResult(
         isError: true,

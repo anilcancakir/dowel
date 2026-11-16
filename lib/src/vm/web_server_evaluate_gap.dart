@@ -20,6 +20,7 @@ String? webServerEvaluateGapMessage(Object error) {
 
   return 'evaluate is not available on a web-server session (the Flutter '
       'web-server device has no debug connection to a browser tab). Run '
-      '`dowel start --device=chrome` without --cdp-port to evaluate; '
-      '--cdp-port keeps the CDP commands and gives up evaluate.';
+      '`dowel stop`, then `dowel start --device=chrome` without --cdp-port '
+      'to evaluate; --cdp-port keeps the CDP commands and gives up '
+      'evaluate.';
 }

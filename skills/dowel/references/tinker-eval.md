@@ -43,7 +43,7 @@ The result text starts with `` # `dowel tinker` exit N ``, and `isError` is set 
 | No session | `### Error` then `Not connected to a running Flutter app. Run ...` | error |
 | A session is recorded but the VM Service is unreachable | An error result from the uncaught connect exception; the text may not start with `### Error` | error |
 
-On the web, only the chrome device evaluates. `start --cdp-port` runs flutter on `-d web-server` with a separately launched Chrome, and the dwds service behind that device has no `evaluate` (flutter prints "The web-server device requires the Dart Debug Chrome extension for debugging"), so every `tinker` and `tapir_evaluate` call there fails. `start --device=chrome` without `--cdp-port` lets flutter drive Chrome with a debug connection and evaluates normally, at the cost of the CDP-only commands (`tapir:resize_viewport`, `tapir:device_profile`); the two cannot be had in one session.
+On the web, only the chrome device evaluates. `start --cdp-port` runs flutter on `-d web-server` with a separately launched Chrome, and the dwds service behind that device has no `evaluate` (flutter prints "The web-server device requires the Dart Debug Chrome extension for debugging"), so every `tinker` and `tapir_evaluate` call there fails. `dowel stop` and then `start --device=chrome` without `--cdp-port` lets flutter drive Chrome with a debug connection and evaluates normally, at the cost of the CDP-only commands (`tapir:resize_viewport`, `tapir:device_profile`); the two cannot be had in one session.
 
 For a compile error, rewrite as one valid expression. For a runtime error, fix the app code or the expression. A stale isolate after a hot restart recovers on the next call; if it does not, call `dowel_hot_restart`.
 
