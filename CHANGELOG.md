@@ -8,6 +8,8 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-16
+
 ### Fixed
 
 - **`start --cdp-port` works on Flutter 3.50.** `flutter run` on 3.50.0 no longer registers `--web-experimental-hot-reload` (flutter/flutter#185994 removed the option), so every CDP start exited at once and `start` reported only a 360 s timeout. The flag is now passed only to an SDK older than 3.50.0 (`StartCommand.passesWebHotReloadFlag`). When `flutter run` exits before the web server is up, the start fails at once with `flutter run exited before the web server was ready` and the first lines of its log, instead of waiting out `--timeout`. Fixes #86. (`lib/src/commands/start_command.dart`, `doc/commands/start.md`)
@@ -518,7 +520,8 @@ Both write through `.tmp` + atomic rename; never hand-edit.
 
 ---
 
-[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.1...HEAD
+[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.2...HEAD
+[1.0.2]: https://github.com/anilcancakir/dowel/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/anilcancakir/dowel/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/anilcancakir/dowel/compare/0.0.21...1.0.0
 [0.0.21]: https://github.com/anilcancakir/dowel/compare/0.0.20...0.0.21
