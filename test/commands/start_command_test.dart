@@ -155,6 +155,21 @@ void main() {
     });
   });
 
+  group('StartCommand.passesWebHotReloadFlag', () {
+    test('SDKs that still register the flag get it (3.30.0 to 3.47.9)', () {
+      expect(StartCommand.passesWebHotReloadFlag('3.30.0'), isTrue);
+      expect(StartCommand.passesWebHotReloadFlag('3.44.0'), isTrue);
+      expect(StartCommand.passesWebHotReloadFlag('3.47.9'), isTrue);
+    });
+
+    test('3.50.0 and later do not: flutter run rejects the option', () {
+      expect(StartCommand.passesWebHotReloadFlag('3.50.0'), isFalse);
+      expect(StartCommand.passesWebHotReloadFlag('3.50.1'), isFalse);
+      expect(StartCommand.passesWebHotReloadFlag('3.51.0-0.0.pre'), isFalse);
+      expect(StartCommand.passesWebHotReloadFlag('4.0.0'), isFalse);
+    });
+  });
+
   group('StartCommand.resolveChromeBinary', () {
     test('returns macOS path when file exists on macOS', () {
       // The file existence check on the actual host machine resolves to
@@ -1351,6 +1366,105 @@ void main() {
         expect(waitedSeconds, 150);
       },
     );
+
+    test('does not pass --web-experimental-hot-reload to Flutter 3.50.0, whose '
+        '`flutter run` rejects it', () async {
+      StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
+      StartCommand.cdpProcessRunner = _fakeProcessRunner(
+        flutterVersionStdout: '{"frameworkVersion":"3.50.0"}',
+      );
+      StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
+      StartCommand.cdpPortProbe = (_) async => true;
+
+      final spawned = <List<String>>[];
+      StartCommand.cdpProcessStarter =
+          (
+            String exec,
+            List<String> args, {
+            String? workingDirectory,
+            ProcessStartMode? mode,
+          }) async {
+            spawned.add(<String>[exec, ...args]);
+            if (exec == '/fake/chrome') return _SpyProcess(pid: 1111);
+            return _FakeFlutterProcess(holderPid: 200, flutterPid: 300);
+          };
+
+      StartCommand.cdpChromeProber = (port, timeout) async {};
+      StartCommand.cdpChromeNavigator = (port, url) async {};
+      StartCommand.cdpVmServiceScraper = (_) async =>
+          'ws://127.0.0.1:8181/abc/ws';
+      StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
+      StartCommand.cdpFifoMaker = (path) async {
+        File(path).writeAsStringSync('');
+      };
+
+      final output = BufferedOutput();
+      final code = await StartCommand().handle(
+        DowelContext.bare(
+          MapInput(<String, dynamic>{
+            'device': 'chrome',
+            'port': '3100',
+            'dds': false,
+            'profile-static': false,
+            'cdp-port': '9223',
+          }),
+          output,
+        ),
+      );
+
+      expect(code, 0, reason: output.content);
+      final shPayload = spawned.firstWhere((a) => a.first == 'sh')[2];
+      expect(shPayload, contains('-d web-server'));
+      expect(shPayload, isNot(contains('--web-experimental-hot-reload')));
+    });
+
+    test('live web-server wait names the first log line when flutter run '
+        'exited before the server came up', () async {
+      final dir = Directory.systemTemp.createTempSync('dowel_ready_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final log = File('${dir.path}/run.log')
+        ..writeAsStringSync(
+          'Could not find an option named "--web-experimental-hot-reload".\n'
+          '\n'
+          "Run 'flutter -h' (or 'flutter <command> -h') for available "
+          'flutter commands and options.\n',
+        );
+      StartCommand.startIsAlive = (_) => false;
+
+      await expectLater(
+        StartCommand().waitForWebServerReadyForTest(log, 30, flutterPid: 4242),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.toString(),
+            'message',
+            allOf(
+              contains('flutter run exited before the web server was ready'),
+              contains('Could not find an option named'),
+              isNot(contains('Timed out')),
+            ),
+          ),
+        ),
+      );
+    }, timeout: const Timeout(Duration(seconds: 10)));
+
+    test('the live wait keeps waiting while flutter run is alive', () async {
+      final dir = Directory.systemTemp.createTempSync('dowel_ready_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final log = File('${dir.path}/run.log')
+        ..writeAsStringSync('Compiling lib/main.dart for the Web...\n');
+      StartCommand.startIsAlive = (_) => true;
+
+      await expectLater(
+        StartCommand().waitForWebServerReadyForTest(log, 1, flutterPid: 4242),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Timed out after 1s'),
+          ),
+        ),
+      );
+    }, timeout: const Timeout(Duration(seconds: 10)));
 
     test('live web-server wait throws at the configured deadline', () async {
       final dir = Directory.systemTemp.createTempSync('dowel_ready_');
