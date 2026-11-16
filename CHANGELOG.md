@@ -8,6 +8,8 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-11-16
+
 ### Fixed
 
 - **`start --cdp-port` also works on the Flutter 3.48 and 3.49 pre-releases.** 1.0.2 passed `--web-experimental-hot-reload` to every SDK older than 3.50.0, but flutter/flutter#185994 is in every 3.48.0 pre-release tag (from `3.48.0-0.1.pre`), so a CDP start on a 3.48 or 3.49 beta still exited at once. The cut-off is 3.48.0 now; 3.47.x and older keep the flag, and there is no stable 3.48 or 3.49 release. (`lib/src/commands/start_command.dart`, `doc/commands/start.md`)
@@ -524,7 +526,8 @@ Both write through `.tmp` + atomic rename; never hand-edit.
 
 ---
 
-[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.2...HEAD
+[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.3...HEAD
+[1.0.3]: https://github.com/anilcancakir/dowel/compare/1.0.2...1.0.3
 [1.0.2]: https://github.com/anilcancakir/dowel/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/anilcancakir/dowel/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/anilcancakir/dowel/compare/0.0.21...1.0.0
