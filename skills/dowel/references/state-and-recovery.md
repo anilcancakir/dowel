@@ -54,10 +54,11 @@ dowel keeps mutable state outside the source tree: the session directory `~/.dow
 | Stamp mismatch | The key `<sha256(pubspec.lock)>:<4th word of dart --version>` changed |
 | `pubspec.yaml` newer than the stamp | Edited after the last build |
 | `lib/app/_plugins.g.dart` newer than the stamp | Regenerated after the last build |
+| `lib/app/commands/_index.g.dart` newer than the stamp | The index was edited or regenerated after the last build |
 
 A build takes `.dowel/.dowel.lock` (an atomic `mkdir`), runs `dart build cli -t bin/dispatcher.dart` into `.dowel/cli-bundle.build.<pid>`, swaps it in by rename, writes the stamp and `exec`s the binary. The lock is released before the `exec`, so a long-lived `mcp:serve` never holds it. A dead owner's lock is reclaimed through a PID probe; a live owner is waited on for `DOWEL_LOCK_TIMEOUT` seconds (default 600), then the call fails naming its pid. The wait prints `dowel: waiting for another dowel invocation to finish...` on stderr. If it never clears, regenerate a wrapper that predates the release lock with `dart run dowel make:fast-cli --force`, or `rm -rf .dowel/.dowel.lock`.
 
-`plugins:refresh` (so `plugin:install` too) and `plugin:uninstall` purge the bundle, `make:fast-cli --force` rebuilds it, and `commands:refresh` does neither. If `./bin/dowel` does not see a command you just generated, run `rm -rf .dowel/cli-bundle .dowel/build.stamp && ./bin/dowel list`, or use `dart run :dispatcher <cmd>`.
+`plugins:refresh` (so `plugin:install` too) and `plugin:uninstall` purge the bundle and the stamp; `commands:refresh` and `make:command` delete only the stamp, and the old bundle stays until the rebuild replaces it. Either way the next `./bin/dowel` call rebuilds; `make:fast-cli --force` rebuilds it at once. If `./bin/dowel` still does not see a command you just generated, run `rm -rf .dowel/cli-bundle .dowel/build.stamp && ./bin/dowel list`, or use `dart run :dispatcher <cmd>`.
 
 ## MCP entry points
 

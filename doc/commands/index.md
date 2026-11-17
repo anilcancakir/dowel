@@ -106,7 +106,7 @@ Commands that observe the substrate or its host. `tinker` is the only command in
 <a name="code-generation"></a>
 ## Code generation
 
-One command that rewrites the `lib/app/commands/_index.g.dart` barrel. Codegen sits in its own bucket because the consumer rarely runs it by hand: `make:command` and `plugin:install` invoke it as a follow-up step. The generated barrel is never edited manually; the source of truth is the set of `*_command.dart` files under `lib/app/commands/`. `commands:refresh` does not rebuild the compiled `bin/dowel`: delete `.dowel/build.stamp` (the next `./bin/dowel` call rebuilds) or use `dart run :dispatcher <command>` to see a new command at once.
+One command that rewrites the `lib/app/commands/_index.g.dart` barrel. Codegen sits in its own bucket because the consumer rarely runs it by hand: `make:command` and `plugin:install` invoke it as a follow-up step. The generated barrel is never edited manually; the source of truth is the set of `*_command.dart` files under `lib/app/commands/`. `commands:refresh` and `make:command` delete `.dowel/build.stamp` after writing the index, so the next `./bin/dowel` call rebuilds and lists the new command (the compiled bundle stays until the rebuild replaces it); `dart run :dispatcher <command>` shows it without a rebuild.
 
 | Command | Description | Boot Mode | MCP Tool |
 |:---|:---|:---|:---|

@@ -40,7 +40,7 @@ Wires `bin/dowel` and compiles the AOT bundle. It stops before compiling when `b
 
 ## commands:refresh and plugins:refresh
 
-- `commands:refresh` rescans `lib/app/commands/*.dart` (files starting with `_` are skipped), lists each class it found and rewrites `_index.g.dart`. It does not purge the AOT bundle.
+- `commands:refresh` rescans `lib/app/commands/*.dart` (files starting with `_` are skipped), lists each class it found and rewrites `_index.g.dart`. It then deletes `.dowel/build.stamp` (as `make:command` does), so the next `./bin/dowel` call rebuilds; the compiled bundle stays until the rebuild replaces it. When it registers nothing although `*.dart` files not starting with `_` exist, it warns that none holds a `class <Name>Command extends ...Command` declaration; subdirectories are not scanned.
 - `plugins:refresh` rewrites `lib/app/_plugins.g.dart` from `.dowel/plugins.json` through a `.tmp` swap, prints `Refreshed N plugin(s)` and purges the AOT bundle. A non-identifier `providerClass` is refused.
 - Neither delegates to the project wrapper. Failures such as a missing `lib/app` exit 3.
 

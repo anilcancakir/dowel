@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../console/dowel_context.dart';
 import '../console/dowel_generator_command.dart';
 import '../console/string_helper.dart';
+import '../helpers/cli_bundle_cache.dart';
 import '../helpers/config_editor.dart';
 import '../helpers/file_helper.dart';
 import 'commands_index_writer.dart';
@@ -118,6 +119,7 @@ class MakeCommandCommand extends DowelGeneratorCommand {
       // without an extra `commands:refresh` invocation.
       final commandsDir = Directory(p.join(root, 'lib', 'app', 'commands'));
       writeCommandsIndex(commandsDir);
+      CliBundleCache.invalidate(root);
     }
     return 0;
   }
