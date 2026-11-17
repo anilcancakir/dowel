@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`./bin/dowel` rebuilds after `commands:refresh` or `make:command`.** The wrapper's staleness check watched `pubspec.yaml` and `lib/app/_plugins.g.dart` but not `lib/app/commands/_index.g.dart`, which the dispatcher imports, so `./bin/dowel list` kept serving the old command set until `.dowel/build.stamp` was deleted. Both commands now purge the AOT bundle and delete `.dowel/build.stamp` after writing the index, as `plugins:refresh` does, so the next `./bin/dowel` call rebuilds with every wrapper ever generated, and the wrapper also rebuilds when the index is newer than the stamp (a hand-edited index). `commands:refresh` also warns when it registers no command although the directory holds `.dart` files, naming the pattern the scan needs (`class <Name>Command extends ...Command`, in files directly under `lib/app/commands/`). Fixes #95. (`lib/src/commands/commands_refresh_command.dart`, `lib/src/commands/make_command_command.dart`, `assets/stubs/bin_dowel.sh.stub`, `doc/`, `skills/dowel/`)
+
 ## [1.0.4] - 2026-11-16
 
 ### Changed
