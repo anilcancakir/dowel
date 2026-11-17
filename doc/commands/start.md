@@ -13,7 +13,7 @@ The `start` command spawns `flutter run` as a detached background process, scrap
 
 The session lives in a directory of its own, **per project**: `~/.dowel/sessions/<hash>/state.json`, with the log and the FIFO beside it. It used to be one global `~/.dowel/state.json`, so a second project's `start` silently took the slot and every command from the first project then drove the second app, succeeding each time. That file is still written, as a pointer to whichever session started last, because hand-writing it is the documented recovery recipe when `start` cannot boot an app.
 
-Two projects at once still need distinct `--port`, `--vm-service-port` and `--cdp-port` values; `start` fails fast when one is taken. Override the session path with `--state=<path>` or `DOWEL_STATE_FILE` when you need to name it explicitly.
+Two projects at once still need distinct `--port` and `--cdp-port` values for a web session; `start` fails fast when one is taken. `--vm-service-port` separates projects only on a device that honours it: desktop and web-server sessions, for example, ignore it (`start` warns when the VM Service listens on another port). Override the session path with `--state=<path>` or `DOWEL_STATE_FILE` when you need to name it explicitly.
 
 <a name="basic-usage"></a>
 ## Basic Usage
@@ -22,7 +22,7 @@ Two projects at once still need distinct `--port`, `--vm-service-port` and `--cd
 dart run dowel start
 ```
 
-Launches a Chrome web dev session on port `3100` with the VM Service listener on port `8181`. The command exits as soon as the URI is confirmed; the Flutter process continues running in the background.
+Launches a Chrome web dev session on port `3100` and asks `flutter run` for VM Service port `8181`; the URI in `state.json` carries the port actually used. The command exits as soon as the URI is confirmed; the Flutter process continues running in the background.
 
 <a name="synopsis"></a>
 ## Synopsis
@@ -42,7 +42,7 @@ dart run dowel start [--device=<target>] [--port=<n>] [--vm-service-port=<n>]
 |:---|:---|:---|:---|
 | `--device` | string | `chrome` | Flutter device target. Accepts `chrome`, `macos`, `linux`, `windows`, an iOS UDID, or an Android serial number. |
 | `--port` | int | `3100` | Web server port passed as `--web-port` to `flutter run`. Ignored for non-Chrome targets. |
-| `--vm-service-port` | int | `8181` | VM Service listener port. Recorded in `state.json`; used by `mcp:serve` and connected-mode tools to open the WebSocket. |
+| `--vm-service-port` | int | `8181` | The VM Service port requested from `flutter run` (`--host-vmservice-port`). Recorded in `state.json` as `vmServicePort`. A device that forwards no device-side port (desktop and web-server sessions, for example) ignores the request, and `start` warns when you passed the option and the `vmServiceUri` port differs; `restart` carries the value over, so it warns only when you pass `--vm-service-port` to `restart` itself. Connect to the port in `vmServiceUri`; the requested port is not reserved. |
 | `--dds` | flag | `false` | Enable Dart Development Service. When absent (default), `--no-dds` is forwarded to `flutter run` so tapir and tinker connect directly to the VM Service. |
 | `--profile-static` | flag | `false` | Start a static-profile run. Sets `profile: "static"` in `state.json`; otherwise `"debug"`. On a device (Android, iOS, desktop) it also forwards `--profile` to `flutter run`, once even when `--flutter-arg=--profile` is passed too; there is no hot reload in that mode. On Chrome it stays a label, because a web profile build has no VM Service. `restart` replays it from `state.json`; `restart --no-profile-static` drops it. |
 | `--cdp-port` | int | (none) | Chrome DevTools Protocol port. When set, `start` pre-launches Chrome with `--remote-debugging-port=<n>` and runs Flutter on `-d web-server`, recording `chromePid` / `tmpProfileDir` / `cdpPort` in `state.json`. Required for `tapir:resize_viewport` / `tapir:device_profile`. Only valid with `--device=chrome` or `--device=web-server`, and requires Flutter SDK 3.30.0 or newer. A subsequent `restart` preserves this port. The port is probed before Chrome launches; if it is already in use you receive a clear error with the `--cdp-port` hint instead of a misleading "Is Chrome installed?" message. |
@@ -101,7 +101,7 @@ Field reference:
 | `vmServiceUri` | string | Canonical `ws://host:port/<token>/ws` URI. All connected-mode tools open this WebSocket. |
 | `webPort` | int | `--web-port` value forwarded to Flutter. Chrome only; ignored for other targets. |
 | `flutterArgs` | list | The `--flutter-arg` values this session was started with. Absent when there were none. `restart` reads it so the relaunched app keeps the build configuration the running one had; a dropped define compiles clean and behaves differently, where a dropped port at least refuses to bind. |
-| `vmServicePort` | int | Informational; the port embedded in `vmServiceUri`. |
+| `vmServicePort` | int | The port requested with `--vm-service-port` (default `8181`), not necessarily the one in `vmServiceUri`. Connect to the `vmServiceUri` port. |
 | `startedAt` | string | ISO 8601 UTC timestamp of the `start` invocation. |
 | `profile` | string | `"debug"` or `"static"` (set by `--profile-static`). `restart` reads it so a profile session comes back as a profile build. |
 | `projectRoot` | string | Absolute path to the working directory at invocation time. |
@@ -119,7 +119,7 @@ Field reference:
 dart run dowel start
 ```
 
-Equivalent to `dart run dowel start --device=chrome --port=3100 --vm-service-port=8181`.
+Equivalent to `dart run dowel start --device=chrome --port=3100`.
 
 **macOS desktop session:**
 

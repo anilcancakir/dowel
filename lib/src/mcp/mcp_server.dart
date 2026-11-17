@@ -819,9 +819,11 @@ final class McpServer extends MCPServer with ToolsSupport {
             'vm-service-port': <String, dynamic>{
               'type': 'string',
               'description':
-                  'Port the VM Service binds to on the host as '
-                  'a numeric string. Default `8181`. Change when 8181 is '
-                  'already taken by a sibling process.',
+                  'Requested host VM Service port as a numeric string. '
+                  'Default `8181`. A device that forwards no device-side port '
+                  '(desktop and web-server sessions, for example) ignores it: '
+                  'connect to the port in `vmServiceUri`, and start warns when '
+                  'it differs from the requested one.',
             },
             'dds': <String, dynamic>{
               'type': 'boolean',
@@ -888,8 +890,8 @@ final class McpServer extends MCPServer with ToolsSupport {
             'vm-service-port': <String, dynamic>{
               'type': 'string',
               'description':
-                  'Host VM Service port as a numeric string. Omit '
-                  'to keep the prior session\'s port.',
+                  'Requested host VM Service port as a numeric string. Omit '
+                  'to keep the prior session\'s request.',
             },
             'cdp-port': <String, dynamic>{
               'type': 'string',

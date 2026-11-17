@@ -133,7 +133,7 @@ Fields (from `lib/src/state/state_file.dart`):
 | `pid` | `int` | PID of the `flutter run` process |
 | `vmServiceUri` | `string` | Canonical `ws://host:port/<token>/ws` used for VM Service connection |
 | `webPort` | `int` | `--web-port` value passed to `flutter run` |
-| `vmServicePort` | `int` | Informational; defaults to 8181 |
+| `vmServicePort` | `int` | The port requested with `--vm-service-port`, default 8181; desktop and web-server sessions, for example, ignore it, so connect to the port in `vmServiceUri` |
 | `startedAt` | `string` | ISO 8601 UTC timestamp |
 | `profile` | `string` | `debug` or `static` |
 | `projectRoot` | `string` | Absolute path to the consumer project |
