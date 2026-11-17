@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dowel/dowel.dart';
 import 'package:test/test.dart';
+import 'package:vm_service/vm_service.dart' show RPCError;
 
 void main() {
   group('VmServiceClient (offline contract)', () {
@@ -211,6 +212,116 @@ void main() {
         ),
         throwsA(isA<ExtensionNotRegisteredException>()),
       );
+    });
+  });
+
+  group('VmServiceClient.callServiceExtension (error as result map)', () {
+    late HttpServer server;
+    late VmServiceClient client;
+
+    // A web-server session answers an extension error as an ordinary `result`
+    // member instead of a JSON-RPC `error`; [replies] carries each answer.
+    Future<void> serve(List<Map<String, dynamic>> replies) async {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.transform(WebSocketTransformer()).listen((WebSocket socket) {
+        socket.listen((dynamic raw) {
+          final Map<String, dynamic> request =
+              jsonDecode(raw as String) as Map<String, dynamic>;
+          socket.add(
+            jsonEncode(<String, dynamic>{
+              'jsonrpc': '2.0',
+              'id': request['id'],
+              if (request['method'] == 'getVM')
+                'result': <String, dynamic>{
+                  'type': 'VM',
+                  'isolates': <Map<String, dynamic>>[
+                    <String, dynamic>{
+                      'type': '@Isolate',
+                      'id': 'isolates/1',
+                      'name': 'main',
+                      'number': '1',
+                    },
+                  ],
+                }
+              else
+                'result': replies.removeAt(0),
+            }),
+          );
+        });
+      });
+      client = VmServiceClient('ws://127.0.0.1:${server.port}/ws');
+      await client.connect();
+    }
+
+    Map<String, dynamic> errorMap(int code) => <String, dynamic>{
+      'code': code,
+      'message': 'Server error',
+      'data': <String, dynamic>{'details': '{"message":"ref not found"}'},
+      'type': 'Response',
+    };
+
+    tearDown(() async {
+      await client.disconnect();
+      await server.close(force: true);
+    });
+
+    test('throws RPCError for a map holding code, message and data', () async {
+      await serve(<Map<String, dynamic>>[errorMap(-32000)]);
+
+      await expectLater(
+        client.callServiceExtension<Object?>(
+          'ext.tapir.tap',
+          isolateId: 'isolates/1',
+        ),
+        throwsA(
+          isA<RPCError>()
+              .having((e) => e.code, 'code', -32000)
+              .having((e) => e.message, 'message', 'Server error')
+              .having(
+                (e) => e.details,
+                'details',
+                '{"message":"ref not found"}',
+              ),
+        ),
+      );
+    });
+
+    test('maps a -32601 map to ExtensionNotRegisteredException', () async {
+      await serve(<Map<String, dynamic>>[errorMap(-32601)]);
+
+      await expectLater(
+        client.callServiceExtension<Object?>(
+          'ext.tapir.tap',
+          isolateId: 'isolates/1',
+        ),
+        throwsA(isA<ExtensionNotRegisteredException>()),
+      );
+    });
+
+    test('returns a map with only code and message', () async {
+      await serve(<Map<String, dynamic>>[
+        <String, dynamic>{'code': 7, 'message': 'fine', 'type': 'Response'},
+      ]);
+
+      final Object? result = await client.callServiceExtension<Object?>(
+        'ext.tapir.tap',
+        isolateId: 'isolates/1',
+      );
+
+      expect(result, containsPair('code', 7));
+    });
+
+    test('returns an ordinary result map', () async {
+      await serve(<Map<String, dynamic>>[
+        <String, dynamic>{'ok': true, 'type': 'Response'},
+      ]);
+
+      final Object? result = await client.callServiceExtension<Object?>(
+        'ext.tapir.tap',
+        isolateId: 'isolates/1',
+      );
+
+      expect(result, containsPair('ok', true));
     });
   });
 

@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A web session reports an extension error as an error.** On a `-d web-server` session (`dowel start --cdp-port`) DWDS answers an extension error as an ordinary result map, so an unknown tapir ref printed `✓ Tapped e99` and exited 0; the client now throws it as an `RPCError` when the map holds `code`, `message` and `data`, so the CLI exits non-zero and MCP returns `isError`, as on a native session. Reported as `anilcancakir/tapir#94`. (`lib/src/vm/vm_service_client.dart`, `test/vm/vm_service_client_test.dart`)
+
 ## [1.0.4] - 2026-11-16
 
 ### Changed

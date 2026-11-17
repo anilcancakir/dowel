@@ -91,6 +91,9 @@ class VmServiceClient {
   /// `dowel_hot_restart` → next-MCP-call workflow without forcing every
   /// caller to invalidate its own cache.
   ///
+  /// An extension error that arrives as an ordinary result map (a web-server
+  /// session) is thrown as an `RPCError`, like a native session's.
+  ///
   /// Throws [ExtensionNotRegisteredException] when the app has no handler
   /// for [method] (JSON-RPC `-32601`), so callers can tell "not registered
   /// yet" from a failed call without depending on `package:vm_service`.
@@ -150,7 +153,18 @@ class VmServiceClient {
         isolateId: isolateId,
         args: params,
       );
-      return resp.json as T;
+      final json = resp.json;
+      // A web-server session (DWDS) answers an extension error as a plain
+      // result map instead of a JSON-RPC `error`, so vm_service never throws.
+      // Same three-key rule as DWDS's own chrome proxy service.
+      if (json case {
+        'code': final int code,
+        'message': final String message,
+        'data': final Map<dynamic, dynamic> data,
+      }) {
+        throw vm.RPCError(method, code, message, data.cast<String, dynamic>());
+      }
+      return json as T;
     } on vm.RPCError catch (e) {
       if (e.code == vm.RPCErrorKind.kMethodNotFound.code) {
         throw ExtensionNotRegisteredException(method);
