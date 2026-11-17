@@ -89,7 +89,7 @@ The wrapper's `needs_build()` function triggers a rebuild when any of these cond
 
 5. **`lib/app/_plugins.g.dart` modified since last build.** The mtime of `lib/app/_plugins.g.dart` is newer than the stamp file's mtime. It invalidates the cache when `plugin:install` or `plugins:refresh` regenerates the file.
 
-6. **`lib/app/commands/_index.g.dart` modified since last build.** The mtime of the commands index is newer than the stamp file's mtime. It catches a hand-edited index. `commands:refresh` and `make:command` also purge `.dowel/cli-bundle/` and `.dowel/build.stamp` after writing the index, so the next `./bin/dowel` call rebuilds under conditions 1 and 2 even in the same second.
+6. **`lib/app/commands/_index.g.dart` modified since last build.** The mtime of the commands index is newer than the stamp file's mtime. It catches a hand-edited index. `commands:refresh` and `make:command` also delete `.dowel/build.stamp` after writing the index, so the next `./bin/dowel` call rebuilds under condition 2 even in the same second; the compiled bundle stays until the rebuild replaces it.
 
 Any match triggers a recompile inside the lock-acquire section. The re-check inside the lock prevents redundant builds when multiple invocations race.
 

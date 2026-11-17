@@ -119,7 +119,7 @@ class MakeCommandCommand extends DowelGeneratorCommand {
       // without an extra `commands:refresh` invocation.
       final commandsDir = Directory(p.join(root, 'lib', 'app', 'commands'));
       writeCommandsIndex(commandsDir);
-      CliBundleCache.purge(root);
+      CliBundleCache.invalidate(root);
     }
     return 0;
   }

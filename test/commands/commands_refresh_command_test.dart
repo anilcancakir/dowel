@@ -93,16 +93,24 @@ void main() {
     });
 
     test(
-      'deletes the build stamp so the next ./bin/dowel call rebuilds',
+      'deletes the build stamp but leaves the compiled bundle in place',
       () async {
         final dowelDir = Directory(p.join(project.path, '.dowel'))
           ..createSync();
         final stamp = File(p.join(dowelDir.path, 'build.stamp'))
           ..writeAsStringSync('deadbeef:3.4.0');
+        final bundle = File(
+          p.join(dowelDir.path, 'cli-bundle', 'bundle', 'bin', 'dispatcher'),
+        )..createSync(recursive: true);
 
         await refresh();
 
         expect(stamp.existsSync(), isFalse);
+        expect(
+          bundle.existsSync(),
+          isTrue,
+          reason: 'a call already past needs_build still execs this binary',
+        );
       },
     );
   });

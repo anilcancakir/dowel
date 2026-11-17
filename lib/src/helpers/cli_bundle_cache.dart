@@ -23,6 +23,16 @@ final class CliBundleCache {
   /// Never instantiate; call [purge] directly.
   const CliBundleCache._();
 
+  /// Deletes only `<projectRoot>/.dowel/build.stamp`.
+  ///
+  /// The compiled bundle stays in place, so an invocation that already passed
+  /// `needs_build` can still exec it; the next call sees the missing stamp and
+  /// rebuilds. An I/O failure propagates.
+  static void invalidate(String projectRoot) {
+    final stamp = File(p.join(projectRoot, '.dowel', 'build.stamp'));
+    if (stamp.existsSync()) stamp.deleteSync();
+  }
+
   /// Purges the AOT cli-bundle cache for the project rooted at [projectRoot].
   ///
   /// Deletes:

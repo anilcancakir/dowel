@@ -35,11 +35,19 @@ class CommandsRefreshCommand extends DowelCommand {
 
   @override
   Future<int> handle(DowelContext ctx) async {
+    // 1. Resolve the project and its commands directory.
     final root = _projectRoot ?? FileHelper.findProjectRoot();
     final commandsDir = Directory(p.join(root, 'lib', 'app', 'commands'));
+
+    // 2. Rescan and rewrite the index.
     final discovered = writeCommandsIndex(commandsDir);
-    // The dispatcher imports the index, so the compiled bundle is stale now.
-    CliBundleCache.purge(root);
+
+    // 3. The dispatcher imports the index, so the compiled bundle is stale.
+    //    Only the stamp goes: a call already past needs_build can still exec
+    //    the old binary, and the next call rebuilds.
+    CliBundleCache.invalidate(root);
+
+    // 4. Report what was registered, and why an empty index may be a mistake.
     final indexPath = p.join(commandsDir.path, '_index.g.dart');
     ctx.output.success(
       'Refreshed: ${discovered.length} command(s) registered → $indexPath',
