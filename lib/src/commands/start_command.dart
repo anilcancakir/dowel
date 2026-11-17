@@ -254,9 +254,12 @@ final class StartCommand extends DowelCommand {
         'vm-service-port',
         defaultsTo: '8181',
         help:
-            'Host VM Service port. Forwarded to flutter run as '
-            '--host-vmservice-port=N and recorded in state.json so tools '
-            'can reach the running app. Change when 8181 is already taken.',
+            'Requested host VM Service port. Forwarded to flutter run as '
+            '--host-vmservice-port=N and recorded in state.json as '
+            'vmServicePort. The port in vmServiceUri is the one to connect to: '
+            'a device that forwards no device-side port (desktop and '
+            'web-server sessions, for example) ignores the request, and '
+            'start then warns.',
       )
       ..addFlag('dds', defaultsTo: false, negatable: true)
       ..addFlag('profile-static', defaultsTo: false, negatable: true)
@@ -567,6 +570,11 @@ final class StartCommand extends DowelCommand {
 
     await StateFile.write(readyState(booting, vmServiceUri: vmServiceUri));
 
+    _warnIfVmServicePortIgnored(
+      ctx,
+      requestedPort: resolvedVmServicePort,
+      vmServiceUri: vmServiceUri,
+    );
     ctx.output.success('flutter run pid=$childPid');
     ctx.output.success('vmServiceUri=$vmServiceUri');
     ctx.output.success('state=${StateFile.path}');
@@ -831,6 +839,11 @@ final class StartCommand extends DowelCommand {
 
       await StateFile.write(readyState(booting, vmServiceUri: vmServiceUri));
 
+      _warnIfVmServicePortIgnored(
+        ctx,
+        requestedPort: vmServicePort,
+        vmServiceUri: vmServiceUri,
+      );
       ctx.output.success('chrome pid=${chromeProcess.pid} (cdpPort=$cdpPort)');
       ctx.output.success('flutter run pid=$childPid');
       ctx.output.success('vmServiceUri=$vmServiceUri');
@@ -1291,6 +1304,42 @@ final class StartCommand extends DowelCommand {
       await ws.close();
     }
   };
+
+  /// The notice for a `--vm-service-port` the device did not honour, or null
+  /// when [vmServiceUri] already carries [requestedPort].
+  ///
+  /// `--host-vmservice-port` only applies when a device-side VM Service port
+  /// is forwarded to the host; a desktop or web-server session forwards
+  /// nothing, so Flutter announces an ephemeral port and the requested one is
+  /// never bound.
+  static String? vmServicePortWarning({
+    required int requestedPort,
+    required String vmServiceUri,
+  }) {
+    final int actualPort = Uri.parse(vmServiceUri).port;
+    if (actualPort == requestedPort) return null;
+
+    return '--vm-service-port=$requestedPort was not honoured by this device: '
+        'the VM Service listens on port $actualPort (see vmServiceUri), and '
+        'port $requestedPort is not reserved.';
+  }
+
+  /// Warns when the caller passed `--vm-service-port` and [vmServiceUri] says
+  /// another port. The default is always forwarded, so a start that never
+  /// passed the option stays quiet.
+  void _warnIfVmServicePortIgnored(
+    DowelContext ctx, {
+    required int requestedPort,
+    required String vmServiceUri,
+  }) {
+    if (!ctx.input.hasOption('vm-service-port')) return;
+
+    final String? warning = vmServicePortWarning(
+      requestedPort: requestedPort,
+      vmServiceUri: vmServiceUri,
+    );
+    if (warning != null) ctx.output.warning(warning);
+  }
 
   /// Delegates to [normalizeVmServiceUriString]; kept as a static so the
   /// existing public entry point does not move.

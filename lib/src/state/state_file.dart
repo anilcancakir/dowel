@@ -38,7 +38,10 @@ import 'package:meta/meta.dart';
 /// - `vmServiceUri` (string, null while `booting`): canonical
 ///   `ws://host:port/<token>/ws`
 /// - `webPort` (int, required): `--web-port` passed to flutter
-/// - `vmServicePort` (int, optional, informational, default 8181)
+/// - `vmServicePort` (int, optional, default 8181): the port requested with
+///   `--vm-service-port`, not necessarily the one in `vmServiceUri`, which is
+///   the one to connect to (a device that forwards no device-side port, such
+///   as a desktop or web-server session, ignores the request)
 /// - `startedAt` (ISO 8601 UTC string, required)
 /// - `profile` (string, required, `debug` | `static`)
 /// - `projectRoot` (string, required)

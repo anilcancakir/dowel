@@ -28,7 +28,7 @@ dowel keeps mutable state outside the source tree: the session directory `~/.dow
 | `stdinPipe` | FIFO path; `reload` and `hot-restart` write into it, so hand-written state without it cannot hot restart |
 | `vmServiceUri` | `ws://host:port/<token>/ws`; null while `booting` |
 | `booting` | Present and true between the spawn and the URI landing: the record is incomplete, not wrong |
-| `webPort`, `vmServicePort` | Recorded for every device; `webPort` is passed to flutter for `chrome` only; `vmServicePort` defaults to 8181 |
+| `webPort`, `vmServicePort` | Recorded for every device; `webPort` is passed to flutter for `chrome` only; `vmServicePort` is the port requested with `--vm-service-port` (default 8181), not necessarily the one in `vmServiceUri`: connect to the `vmServiceUri` port, because a device that forwards no device-side port (desktop and web-server sessions, for example) ignores the request and `start` warns |
 | `device`, `profile`, `startedAt`, `projectRoot` | Target device, `debug` or `static`, ISO 8601 time, absolute project path |
 | `chromePid`, `tmpProfileDir`, `cdpPort` | Set by `start --cdp-port`, null otherwise |
 | `flutterArgs` | The `--flutter-arg` values; absent when there were none |
@@ -90,11 +90,13 @@ Plugin tools missing from `tools/list` (`dowel_list` shows command namespaces an
 
 ## Two projects at once
 
-Each project has its own session directory, so state, log and FIFO do not collide; ports do. Only `--cdp-port` starts probe ports, so give every session its own:
+Each project has its own session directory, so state, log and FIFO do not collide; ports do. Only `--cdp-port` starts probe ports, so give every web session its own `--port` and `--cdp-port`:
 
 ```bash
-./bin/dowel start --device=chrome --port=3100 --cdp-port=9333 --vm-service-port=8181   # project A
-./bin/dowel start --device=chrome --port=3180 --cdp-port=9380 --vm-service-port=8281   # project B
+./bin/dowel start --device=chrome --port=3100 --cdp-port=9333   # project A
+./bin/dowel start --device=chrome --port=3180 --cdp-port=9380   # project B
 ```
+
+`--vm-service-port` separates two projects only on a device that honours it; desktop and web-server sessions, for example, ignore it, and `start` warns when you passed it and the VM Service listens elsewhere.
 
 Run commands from inside the project they belong to. A CLI command that would act on another project's app refuses and names both paths, but plugin tools and `dowel_tinker` over MCP, and a worktree inside the recorded root, are not refused: check `dowel_status` (`projectRoot`, `ownedByThisProject`) before acting. Pass `--state=<path>` to name a session outside the directory.

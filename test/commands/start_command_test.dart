@@ -53,6 +53,42 @@ void main() {
       expect(results['device'], 'macos');
     });
 
+    test(
+      'vmServicePortWarning is null when the URI carries the requested port',
+      () {
+        expect(
+          StartCommand.vmServicePortWarning(
+            requestedPort: 8195,
+            vmServiceUri: 'http://127.0.0.1:8195/abc=/',
+          ),
+          isNull,
+        );
+      },
+    );
+
+    test('vmServicePortWarning names both ports when the URI differs', () {
+      final message = StartCommand.vmServicePortWarning(
+        requestedPort: 8195,
+        vmServiceUri: 'ws://127.0.0.1:62642/abc=/ws',
+      );
+
+      expect(message, isNotNull);
+      expect(message, contains('--vm-service-port=8195'));
+      expect(message, contains('not honoured'));
+      expect(message, contains('62642'));
+      expect(message, contains('vmServiceUri'));
+      expect(message, contains('not reserved'));
+    });
+
+    test('vmServicePortWarning reads the port from a URI with no path', () {
+      final message = StartCommand.vmServicePortWarning(
+        requestedPort: 8195,
+        vmServiceUri: 'http://127.0.0.1:62642',
+      );
+
+      expect(message, contains('62642'));
+    });
+
     test('normalizeVmServiceUri converts http:// to ws:// and appends /ws', () {
       expect(
         StartCommand.normalizeVmServiceUri('http://127.0.0.1:8181/abc'),
@@ -676,6 +712,98 @@ void main() {
         expect(state!['vmServicePort'], 8282);
       },
     );
+
+    group('vm-service-port warning', () {
+      Future<BufferedOutput> startWithScrapedUri(
+        String scrapedUri, {
+        String? vmServicePort,
+      }) async {
+        StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
+        StartCommand.cdpProcessRunner = _fakeProcessRunner(
+          flutterVersionStdout: '{"frameworkVersion":"3.30.0"}',
+        );
+        StartCommand.cdpChromeBinaryResolver = (_) => '/fake/chrome';
+        StartCommand.cdpPortProbe = (_) async => true;
+        StartCommand.cdpProcessStarter =
+            (
+              String exec,
+              List<String> args, {
+              String? workingDirectory,
+              ProcessStartMode? mode,
+            }) async {
+              if (exec == '/fake/chrome') return _SpyProcess(pid: 1111);
+              return _FakeFlutterProcess(holderPid: 200, flutterPid: 300);
+            };
+        StartCommand.cdpChromeProber = (port, timeout) async {};
+        StartCommand.cdpChromeNavigator = (port, url) async {};
+        StartCommand.cdpVmServiceScraper = (_) async => scrapedUri;
+        StartCommand.cdpWebServerReadyWaiter = (_, _) async {};
+        StartCommand.cdpFifoMaker = (path) async {
+          File(path).writeAsStringSync('');
+        };
+
+        final output = BufferedOutput();
+        final code = await StartCommand().handle(
+          DowelContext.bare(
+            MapInput(<String, dynamic>{
+              'device': 'chrome',
+              'port': '3100',
+              'vm-service-port': ?vmServicePort,
+              'dds': false,
+              'profile-static': false,
+              'cdp-port': '9223',
+            }),
+            output,
+          ),
+        );
+        expect(code, 0, reason: output.content);
+        return output;
+      }
+
+      test('warns once, before the success lines, when the scraped port '
+          'differs from the explicit request, and keeps recording the '
+          'requested port', () async {
+        final output = await startWithScrapedUri(
+          'ws://127.0.0.1:62642/abc=/ws',
+          vmServicePort: '8195',
+        );
+
+        final content = output.content;
+        expect(
+          RegExp('--vm-service-port=8195 was not honoured').allMatches(content),
+          hasLength(1),
+        );
+        expect(content, contains('62642'));
+        expect(
+          content.indexOf('not honoured'),
+          lessThan(content.indexOf('vmServiceUri=')),
+        );
+        final state = await StateFile.read();
+        expect(state!['vmServicePort'], 8195);
+        expect(state['vmServiceUri'], 'ws://127.0.0.1:62642/abc=/ws');
+      });
+
+      test(
+        'prints no warning when the scraped port equals the request',
+        () async {
+          final output = await startWithScrapedUri(
+            'ws://127.0.0.1:8195/abc=/ws',
+            vmServicePort: '8195',
+          );
+
+          expect(output.content, isNot(contains('not honoured')));
+        },
+      );
+
+      test('prints no warning when the option was never passed, although the '
+          'default port differs from the scraped one', () async {
+        final output = await startWithScrapedUri(
+          'ws://127.0.0.1:62642/abc=/ws',
+        );
+
+        expect(output.content, isNot(contains('not honoured')));
+      });
+    });
 
     test('--device=web-server with --cdp-port is accepted (no silent remap needed)', () async {
       StartCommand.cdpTmpProfileDirRoot = tempProfileRoot.path;
@@ -1881,6 +2009,109 @@ void main() {
       }
     });
   });
+
+  group(
+    'StartCommand handle() on the native branch, vm-service-port warning',
+    () {
+      late Directory tempHome;
+
+      setUp(() {
+        tempHome = Directory.systemTemp.createTempSync('dowel_start_native_');
+        StateFile.debugHomeOverride = tempHome.path;
+        StateFile.debugProjectRootOverride = Directory.current.path;
+        StartCommand.cdpFifoMaker = (String path) async {
+          File(path).writeAsStringSync('');
+        };
+        StartCommand.cdpProcessStarter = (
+          String executable,
+          List<String> arguments, {
+          String? workingDirectory,
+          ProcessStartMode? mode,
+        }) async => _FakeFlutterProcess(holderPid: 4241, flutterPid: 4242);
+      });
+
+      tearDown(() async {
+        StateFile.debugHomeOverride = null;
+        StateFile.debugProjectRootOverride = null;
+        StartCommand.cdpFifoMaker = null;
+        StartCommand.cdpProcessStarter =
+            (exec, args, {workingDirectory, mode}) => Process.start(
+              exec,
+              args,
+              workingDirectory: workingDirectory,
+              mode: mode ?? ProcessStartMode.normal,
+            );
+        StartCommand.cdpVmServiceScraper = null;
+        if (tempHome.existsSync()) await tempHome.delete(recursive: true);
+      });
+
+      Future<BufferedOutput> startMacos(
+        String scrapedUri, {
+        String? vmServicePort,
+      }) async {
+        StartCommand.cdpVmServiceScraper = (File _) async => scrapedUri;
+        final output = BufferedOutput();
+        final code = await StartCommand().handle(
+          DowelContext.bare(
+            MapInput(<String, dynamic>{
+              'device': 'macos',
+              'port': '3100',
+              'vm-service-port': ?vmServicePort,
+              'dds': false,
+              'profile-static': false,
+              'timeout': '90',
+            }),
+            output,
+          ),
+        );
+        expect(code, 0, reason: output.content);
+        return output;
+      }
+
+      test(
+        'warns once, before the success lines, when the scraped port differs '
+        'from the explicit request, and keeps recording the requested port',
+        () async {
+          final output = await startMacos(
+            'ws://127.0.0.1:62642/abc=/ws',
+            vmServicePort: '8195',
+          );
+
+          final content = output.content;
+          expect(
+            RegExp('--vm-service-port=8195 was not honoured')
+                .allMatches(content),
+            hasLength(1),
+          );
+          expect(
+            content.indexOf('not honoured'),
+            lessThan(content.indexOf('vmServiceUri=')),
+          );
+          final state = await StateFile.read();
+          expect(state!['vmServicePort'], 8195);
+          expect(state['vmServiceUri'], 'ws://127.0.0.1:62642/abc=/ws');
+        },
+      );
+
+      test(
+        'prints no warning when the scraped port equals the request',
+        () async {
+          final output = await startMacos(
+            'ws://127.0.0.1:8195/abc=/ws',
+            vmServicePort: '8195',
+          );
+
+          expect(output.content, isNot(contains('not honoured')));
+        },
+      );
+
+      test('prints no warning when the option was never passed', () async {
+        final output = await startMacos('ws://127.0.0.1:62642/abc=/ws');
+
+        expect(output.content, isNot(contains('not honoured')));
+      });
+    },
+  );
 }
 
 // Test helpers below.

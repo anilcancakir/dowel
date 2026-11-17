@@ -94,7 +94,9 @@ final class RestartCommand extends DowelCommand {
     parser.addOption(
       'vm-service-port',
       defaultsTo: null,
-      help: 'Host VM Service port. Omit to keep the previous session\'s port.',
+      help:
+          'Requested host VM Service port. Omit to keep the previous '
+          'session\'s request.',
     );
     parser.addOption(
       'device',

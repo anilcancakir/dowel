@@ -81,7 +81,7 @@ tinker) can connect to the running VM.
 |:---|:---|:---|:---|
 | `device` | string | `chrome` | Flutter device id. Common values: `chrome` (web), `macos` (desktop), `<adb-serial>` (Android), or any id from `flutter devices`. |
 | `port` | string | `3100` | Web port for the chrome device (numeric string). Ignored for non-web devices. |
-| `vm-service-port` | string | `8181` | Port the VM Service binds to on the host. Change when 8181 is already taken. |
+| `vm-service-port` | string | `8181` | VM Service port requested from `flutter run` and recorded as `vmServicePort`. Connect to the port in `vmServiceUri`: a device that forwards no device-side port (desktop and web-server sessions, for example) ignores the request. |
 | `dds` | boolean | `false` | Enable the Dart Development Service (DDS) proxy. Set `true` when a tool requires DDS-only features. |
 | `profile-static` | boolean | `false` | Run a device (Android, iOS, desktop) with `flutter run --profile`: release-like performance, no hot reload. On `chrome` it only tags the session, because a web profile build has no VM Service. |
 | `cdp-port` | string | (none) | Chrome DevTools Protocol port (numeric string). Pre-launches Chrome with `--remote-debugging-port=N` and runs Flutter on `-d web-server`; needed by the plugin tools that resize or emulate a device. Omit for a plain start. |
@@ -146,7 +146,7 @@ next call that needs the VM Service.
 |:---|:---|:---|
 | `device` | string | Flutter device id. Omit to keep the prior session's device. |
 | `port` | string | Web port (numeric string). Omit to keep the prior port. |
-| `vm-service-port` | string | Host VM Service port (numeric string). Omit to keep the prior port. |
+| `vm-service-port` | string | Requested host VM Service port (numeric string); the port in `vmServiceUri` is the one to connect to. Omit to keep the prior request. |
 | `cdp-port` | string | Chrome DevTools Protocol port (numeric string). Omit to keep the prior port. |
 | `profile-static` | boolean | Profile build on a device. Omit to keep the prior build mode; `false` forces a debug build. |
 | `flutter-arg` | array of strings | Extra arguments forwarded verbatim to `flutter run`. Omit to keep the prior session's arguments; passing any replaces the whole carried set, and `[]` clears it. |
