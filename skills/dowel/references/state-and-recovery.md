@@ -28,7 +28,7 @@ dowel keeps mutable state outside the source tree: the session directory `~/.dow
 | `stdinPipe` | FIFO path; `reload` and `hot-restart` write into it, so hand-written state without it cannot hot restart |
 | `vmServiceUri` | `ws://host:port/<token>/ws`; null while `booting` |
 | `booting` | Present and true between the spawn and the URI landing: the record is incomplete, not wrong |
-| `webPort`, `vmServicePort` | Recorded for every device; `webPort` is passed to flutter for `chrome` only; `vmServicePort` is the port requested with `--vm-service-port` (default 8181), not necessarily the one in `vmServiceUri`: connect to the `vmServiceUri` port, because a device that forwards no device-side port (desktop and web-server sessions, for example) ignores the request and `start` warns |
+| `webPort`, `vmServicePort` | Recorded for every device; `webPort` is passed to flutter for `chrome` only; `vmServicePort` is the port requested with `--vm-service-port` (default 8181), not necessarily the one in `vmServiceUri`: connect to the `vmServiceUri` port, because a device that forwards no device-side port (desktop and web-server sessions, for example) ignores the request, and `start` warns only when `--vm-service-port` was passed explicitly (no warning does not mean the port is reserved) |
 | `device`, `profile`, `startedAt`, `projectRoot` | Target device, `debug` or `static`, ISO 8601 time, absolute project path |
 | `chromePid`, `tmpProfileDir`, `cdpPort` | Set by `start --cdp-port`, null otherwise |
 | `flutterArgs` | The `--flutter-arg` values; absent when there were none |
