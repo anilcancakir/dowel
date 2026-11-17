@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../console/dowel_command.dart';
 import '../console/dowel_context.dart';
 import '../console/command_boot.dart';
+import '../helpers/cli_bundle_cache.dart';
 import '../helpers/file_helper.dart';
 import 'commands_index_writer.dart';
 
@@ -16,6 +17,12 @@ import 'commands_index_writer.dart';
 /// common path is `dowel make:command Foo`, which already updates the
 /// index automatically).
 class CommandsRefreshCommand extends DowelCommand {
+  /// [projectRoot] pins the project to scan; it defaults to the nearest
+  /// `pubspec.yaml` above the working directory.
+  CommandsRefreshCommand({this._projectRoot});
+
+  final String? _projectRoot;
+
   @override
   String get name => 'commands:refresh';
 
@@ -28,9 +35,19 @@ class CommandsRefreshCommand extends DowelCommand {
 
   @override
   Future<int> handle(DowelContext ctx) async {
-    final root = FileHelper.findProjectRoot();
+    // 1. Resolve the project and its commands directory.
+    final root = _projectRoot ?? FileHelper.findProjectRoot();
     final commandsDir = Directory(p.join(root, 'lib', 'app', 'commands'));
+
+    // 2. Rescan and rewrite the index.
     final discovered = writeCommandsIndex(commandsDir);
+
+    // 3. The dispatcher imports the index, so the compiled bundle is stale.
+    //    Only the stamp goes: a call already past needs_build can still exec
+    //    the old binary, and the next call rebuilds.
+    CliBundleCache.invalidate(root);
+
+    // 4. Report what was registered, and why an empty index may be a mistake.
     final indexPath = p.join(commandsDir.path, '_index.g.dart');
     ctx.output.success(
       'Refreshed: ${discovered.length} command(s) registered → $indexPath',
@@ -38,6 +55,21 @@ class CommandsRefreshCommand extends DowelCommand {
     for (final c in discovered) {
       ctx.output.writeln('  - ${c.className}  (${c.fileName})');
     }
+    if (discovered.isEmpty && _hasScannedFiles(commandsDir)) {
+      ctx.output.warning(
+        'Found .dart files in ${commandsDir.path} but no '
+        '`class <Name>Command extends ...Command` declaration, so the index '
+        'is empty.',
+      );
+    }
     return 0;
   }
+
+  /// Whether [commandsDir] holds a file the scan reads (a `*.dart` file that
+  /// does not start with `_`, the same filter `discoverCommandsInDir` applies).
+  bool _hasScannedFiles(Directory commandsDir) =>
+      commandsDir.listSync().whereType<File>().any((f) {
+        final base = p.basename(f.path);
+        return base.endsWith('.dart') && !base.startsWith('_');
+      });
 }

@@ -129,7 +129,6 @@ An app that has already moved to dowel meets a few one-time changes when it upda
 | Mistake | Fix |
 |:---|:---|
 | Running `dart run dowel install` before `dart pub add dowel` | `dart run dowel` needs the dependency. Step 1 comes first. |
-| Running `./bin/dowel <command>` right after `commands:refresh` and meeting `Unknown command` | `commands:refresh` does not rebuild the compiled `bin/dowel`, which still holds the empty index `install` built. Delete `.dowel/build.stamp` and the next `./bin/dowel` call rebuilds, or use `dart run :dispatcher <command>`, which compiles fresh. |
 | Re-adding `.mcp.json` with `mcp:install` while the `fluttersdk` entry is still there | Both servers then run side by side. Delete the old entry first. |
 | Reinstalling a plugin and meeting `unmanaged-file` or `unsupported-install-record` | A file a renamed plugin published earlier has no record, and a record kept from before it was versioned is refused. Commit or stash your work, run `plugin:install <name> --force`, then read `git diff`: `--force` switches off every conflict check, so it overwrites a file you edited. `--dry-run` skips the conflict check and cannot preview this. |
 | Ignoring the whole `.dowel/` directory | A fresh clone then has no `plugins.json`, and the next `plugin:install` refuses to run. Ignore only the cache entries. |

@@ -87,6 +87,27 @@ void main() {
     });
   });
 
+  group('bin_dowel.sh.stub staleness check condition 6', () {
+    test('condition 6 compares lib/app/commands/_index.g.dart against '
+        'STAMP_FILE so commands:refresh invalidates the AOT bundle', () {
+      // Regression guard for issue #95: the dispatcher imports the commands
+      // index, so it is compiled into the bundle. Without this condition a
+      // regenerated index never reached `./bin/dowel list` until the stamp
+      // was deleted by hand.
+      final stub = StubLoader.load('bin_dowel.sh');
+
+      expect(
+        stub,
+        contains(
+          r'"$PROJECT_ROOT/lib/app/commands/_index.g.dart" -nt "$STAMP_FILE"',
+        ),
+        reason:
+            'condition 6 must invalidate the AOT bundle when '
+            'commands:refresh or make:command regenerates the commands index',
+      );
+    });
+  });
+
   group('bin_dowel.sh.stub PID-aware lock recovery', () {
     test('stub source contains kill -0 staleness probe', () {
       // The defining marker of the PID-aware recovery is the `kill -0`
@@ -289,6 +310,78 @@ chmod +x "$out/bundle/bin/dispatcher"
 
       first.kill(ProcessSignal.sigkill);
       await first.exitCode;
+    });
+  });
+
+  group('bin_dowel.sh.stub commands index rebuild', () {
+    test('a regenerated commands index triggers a rebuild on the next call, '
+        'an untouched one does not', () async {
+      final root = Directory.systemTemp.createTempSync('dowel_index_');
+      addTearDown(() {
+        if (root.existsSync()) root.deleteSync(recursive: true);
+      });
+
+      // 1. A consumer project whose sources all predate the first build, so
+      //    only the index touched below can be newer than the stamp.
+      Directory(p.join(root.path, 'bin')).createSync();
+      final commandsDir = Directory(p.join(root.path, 'lib', 'app', 'commands'))
+        ..createSync(recursive: true);
+      final sources = [
+        File(p.join(root.path, 'pubspec.yaml'))
+          ..writeAsStringSync('name: probe\n'),
+        File(p.join(root.path, 'pubspec.lock'))
+          ..writeAsStringSync('packages: {}\n'),
+        File(p.join(root.path, 'lib', 'app', '_plugins.g.dart'))
+          ..writeAsStringSync(''),
+      ];
+      final index = File(p.join(commandsDir.path, '_index.g.dart'))
+        ..writeAsStringSync('');
+      for (final file in [...sources, index]) {
+        file.setLastModifiedSync(
+          DateTime.now().subtract(const Duration(seconds: 10)),
+        );
+      }
+      final dowel = File(p.join(root.path, 'bin', 'dowel'))
+        ..writeAsStringSync(StubLoader.load('bin_dowel.sh'));
+      await Process.run('chmod', ['+x', dowel.path]);
+
+      // 2. A fake `dart` that logs each `build cli` and emits a binary that
+      //    exits at once.
+      final fakeBin = Directory(p.join(root.path, 'fake-bin'))..createSync();
+      final buildLog = File(p.join(root.path, 'builds.log'));
+      final fakeDart = File(p.join(fakeBin.path, 'dart'))
+        ..writeAsStringSync(r"""#!/bin/sh
+if [ "$1" = "--version" ]; then echo "Dart SDK version: 9.9.9 (stable)"; exit 0; fi
+echo build >> "$DOWEL_FAKE_BUILD_LOG"
+while [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done
+mkdir -p "$out/bundle/bin"
+printf '#!/bin/sh\nexit 0\n' > "$out/bundle/bin/dispatcher"
+chmod +x "$out/bundle/bin/dispatcher"
+""");
+      await Process.run('chmod', ['+x', fakeDart.path]);
+      final env = {
+        'PATH': '${fakeBin.path}:${Platform.environment['PATH']}',
+        'DOWEL_FAKE_BUILD_LOG': buildLog.path,
+      };
+      Future<int> run() async {
+        final result = await Process.run(dowel.path, [
+          'list',
+        ], environment: env);
+        expect(result.exitCode, 0, reason: 'stderr: ${result.stderr}');
+        return buildLog.existsSync() ? buildLog.readAsLinesSync().length : 0;
+      }
+
+      // 3. The first call builds; the second finds the stamp current.
+      expect(await run(), 1, reason: 'the first call compiles the bundle');
+      expect(await run(), 1, reason: 'an unchanged project reuses the bundle');
+
+      // 4. The index is regenerated after the stamp, so the next call rebuilds.
+      index.setLastModifiedSync(DateTime.now().add(const Duration(seconds: 2)));
+      expect(
+        await run(),
+        2,
+        reason: 'a commands index newer than the stamp must rebuild the bundle',
+      );
     });
   });
 }

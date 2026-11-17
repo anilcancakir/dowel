@@ -67,6 +67,49 @@ void main() {
       );
     });
   });
+
+  group('MakeCommandCommand.handle() in a consumer app', () {
+    test(
+      'rewrites the index, deletes the build stamp and keeps the bundle',
+      () async {
+        final project = Directory.systemTemp.createTempSync('dowel_mkc_run_');
+        addTearDown(() {
+          if (project.existsSync()) project.deleteSync(recursive: true);
+        });
+        File(p.join(project.path, 'pubspec.yaml'))
+            .writeAsStringSync('name: probe\n');
+        // The stub loader falls back to `<cwd>/assets/stubs`, so seed the stub
+        // the zoned working directory will look in.
+        File(p.join(project.path, 'assets', 'stubs', 'dowel_command.stub'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(StubLoader.load('dowel_command'));
+        final dowelDir = Directory(p.join(project.path, '.dowel'))
+          ..createSync();
+        final stamp = File(p.join(dowelDir.path, 'build.stamp'))
+          ..writeAsStringSync('deadbeef:3.4.0');
+        final bundle = File(
+          p.join(dowelDir.path, 'cli-bundle', 'bundle', 'bin', 'dispatcher'),
+        )..createSync(recursive: true);
+        final ctx = DowelContext.bare(
+          MapInput(const {}, positional: const ['Foo']),
+          BufferedOutput(),
+        );
+
+        final code = await IOOverrides.runZoned(
+          () => MakeCommandCommand().handle(ctx),
+          getCurrentDirectory: () => Directory(project.path),
+        );
+
+        expect(code, 0);
+        final index = File(
+          p.join(project.path, 'lib', 'app', 'commands', '_index.g.dart'),
+        ).readAsStringSync();
+        expect(index, contains('FooCommand()'));
+        expect(stamp.existsSync(), isFalse);
+        expect(bundle.existsSync(), isTrue);
+      },
+    );
+  });
 }
 
 class _ProjectRootOverride extends MakeCommandCommand {
