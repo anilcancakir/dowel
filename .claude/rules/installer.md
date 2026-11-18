@@ -18,7 +18,7 @@ paths:
 
 ## Commit order
 
-`InstallTransaction.commit` runs the dry-run short-circuit, the conflict check (`_detectConflicts`, skipped by `force`), the pattern preflight (`_assertPatternsResolvable`), the resolved-path preflight (`_assertTargetsResolveInsideProject`, which `force` does not skip), staging (`_stageOp`), `<path>.tmp` writes, renames, the install record, then `RunShell` operations.
+`InstallTransaction.commit` runs the dry-run short-circuit, the conflict check (`_detectConflicts`, skipped by `force`), the pattern preflight (`_assertPatternsResolvable`), the import preflight (`_assertImportsWellFormed`: an `InjectImport` or `InjectMainDartImport` statement must be exactly one import directive), the resolved-path preflight (`_assertTargetsResolveInsideProject`, which `force` does not skip), staging (`_stageOp`), `<path>.tmp` writes, renames, the install record, then `RunShell` operations.
 
 - Editor-backed operations write through `dart:io` while staging and sit outside the `.tmp` rollback. That is why the preflight runs first: a miss after staging would leave an orphan import and no record to reverse it by.
 - The record lands before the shell operations so a failed shell step stays uninstallable.

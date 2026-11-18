@@ -204,6 +204,14 @@ class InstallTransaction {
       return patternError;
     }
 
+    // 3a'. Refuse an import statement that is not exactly one import
+    //      directive, for the same reason: its helper would throw mid-stage,
+    //      after earlier helper writes reached the disk.
+    final importError = _assertImportsWellFormed();
+    if (importError != null) {
+      return importError;
+    }
+
     // 3b. Refuse a whole-file write or delete that leaves the project once
     //     symbolic links resolve, before anything is written. The record
     //     check in [readInstallRecord] is lexical, so `link/victim.txt` passes
@@ -1166,6 +1174,32 @@ class InstallTransaction {
           'The plugin expected a different shape in those files. Fix the host '
           'file or the plugin pattern; re-running changes nothing.',
       rolledBack: false,
+    );
+  }
+
+  /// Refuses the commit when an import operation carries a statement that is
+  /// not exactly one import directive. Runs before staging, so the refusal
+  /// leaves the project untouched.
+  TransactionResult? _assertImportsWellFormed() {
+    final bad = <String>[
+      for (final op in _ops)
+        if (switch (op) {
+          InjectImport(:final importStatement) ||
+          InjectMainDartImport(
+            :final importStatement,
+          ) => !ConfigEditor.isImportStatement(importStatement),
+          _ => false,
+        })
+          op.describe(),
+    ];
+    if (bad.isEmpty) return null;
+
+    return InstallError(
+      error:
+          'An import statement must be exactly one import directive, so '
+          'nothing was installed:\n  ${bad.join('\n  ')}\n'
+          'Fix the plugin; re-running changes nothing.',
+      rolledBack: true,
     );
   }
 
