@@ -148,7 +148,7 @@ A plugin without a manifest is registered directly in `.dowel/plugins.json` and 
 | Plugin management | `plugin:install`, `plugin:uninstall`, `plugins:refresh` |
 | MCP | `mcp:serve`, `mcp:install`, `mcp:uninstall` |
 | Introspection | `help`, `list`, `doctor`, `tinker` |
-| Codegen | `commands:refresh` |
+| Codegen | `commands:refresh`, `test:bundle` |
 
 ## For AI coding agents
 

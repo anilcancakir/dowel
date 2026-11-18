@@ -1,6 +1,6 @@
 # CLI-only commands
 
-The substrate MCP tools cover the app lifecycle and inspection. Every other builtin is CLI-only and runs from a shell: `help`, `install`, `make:command`, `make:fast-cli`, `make:plugin`, `commands:refresh`, `plugins:refresh`, `plugin:install`, `plugin:uninstall`, `mcp:serve`, `mcp:install`, `mcp:uninstall`. Flags and defaults are in `./bin/dowel help <cmd>` and `<cmd> --help`; this file holds what that output does not say. Unknown options exit 1 and print help.
+The substrate MCP tools cover the app lifecycle and inspection. Every other builtin is CLI-only and runs from a shell: `help`, `install`, `make:command`, `make:fast-cli`, `make:plugin`, `commands:refresh`, `plugins:refresh`, `plugin:install`, `plugin:uninstall`, `test:bundle`, `mcp:serve`, `mcp:install`, `mcp:uninstall`. Flags and defaults are in `./bin/dowel help <cmd>` and `<cmd> --help`; this file holds what that output does not say. Unknown options exit 1 and print help.
 
 ## Contents
 
@@ -12,6 +12,7 @@ The substrate MCP tools cover the app lifecycle and inspection. Every other buil
 - [commands:refresh and plugins:refresh](#commandsrefresh-and-pluginsrefresh)
 - [plugin:install](#plugininstall)
 - [plugin:uninstall](#pluginuninstall)
+- [test:bundle](#testbundle)
 - [mcp:serve, mcp:install and mcp:uninstall](#mcpserve-mcpinstall-and-mcpuninstall)
 
 ## Picking the shell form
@@ -59,6 +60,10 @@ Wires `bin/dowel` and compiles the AOT bundle. It stops before compiling when `b
 ## plugin:uninstall
 
 Needs the install record `.dowel/installed/<name>.json` and the plugin still in `pubspec.yaml`. A plugin registered by the direct route has no record, so uninstall refuses it, and so does a record an older dowel wrote (`The install record <path> has no "version" ...`; run `plugin:install <name> --force` first). It reverses the recorded file-creating operations (`WriteFile`, `PublishFile`, `CopyFile`) and the dependency additions the project did not already declare (a `preExisting` one stays, and the command says so), skips everything else (each `Inject*`, `DeleteFile`) with one warning naming how many, then drops the plugin from `.dowel/plugins.json` and regenerates the barrel. Remove the skipped edits by hand. `--dry-run` previews; it prompts unless `--force` or `--non-interactive`. Answering no exits 0; a conflict exits 2.
+
+## test:bundle
+
+`test:bundle [--shards=N] [--only=LISTFILE]` writes `test/bundle_0.g.dart` up to `test/bundle_<N-1>.g.dart` (default 3 shards, capped at the number of files left after the alone ones) and `test/bundle_alone.g.dart` for files with a `// shard: alone` line; it does not run `flutter test`. Each entry imports every member as `tN` and runs it in `group('<path>', tN.main)`. Every entry is staged as `<name>.tmp` first; then the earlier `test/bundle_<n>.g.dart` and `test/bundle_alone.g.dart` files are removed (another `bundle*.g.dart` is left alone) and the staged ones renamed in. `--only` takes a file of `test/..._test.dart` paths, one per line; an empty list removes the old entries, writes none and exits 0. It exits 1, names every file and rule and writes nothing for: an invalid `--shards`, an unreadable list, a listed path not under `test/` (or with a `.` or `..` segment), missing or not ending in `_test.dart`, a path listed twice, a path character outside `[A-Za-z0-9_./-]`, a top-of-line `@TestOn`, `@Tags`, `@Timeout`, `@Skip`, `@Retry` or `@OnPlatform`, anything but one `void main() {`, a `flutter_test_config.dart` below `test/` (a bundle at `test/` never sees it), and a full run where every file is marked alone. Fix the file rather than working around a refusal.
 
 ## mcp:serve, mcp:install and mcp:uninstall
 
