@@ -144,6 +144,45 @@ void main() {
       },
     );
 
+    test('refuses a main.dart statement that is not one import before it '
+        'writes', () async {
+      final root = makeProject();
+      writeAppConfig(root, populated: true);
+      File('${root.path}/lib/main.dart').writeAsStringSync('void main() {}\n');
+      final config = File('${root.path}/lib/config/app.dart')
+          .readAsStringSync();
+
+      final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
+      tx.stage(
+        const InjectImport(
+          targetFile: 'lib/config/app.dart',
+          importStatement: "import 'package:demo/demo.dart';",
+        ),
+      );
+      tx.stage(
+        const InjectMainDartImport(
+          importStatement:
+              "import 'package:a/a.dart'; import 'package:b/b.dart';",
+        ),
+      );
+
+      final result = await tx.commit(force: true);
+
+      expect(result, isA<InstallError>());
+      expect(
+        (result as InstallError).error,
+        contains('exactly one import directive'),
+      );
+      expect(
+        File('${root.path}/lib/config/app.dart').readAsStringSync(),
+        config,
+      );
+      expect(
+        File('${root.path}/lib/main.dart').readAsStringSync(),
+        'void main() {}\n',
+      );
+    });
+
     test(
       'leaves no partial write behind, which is why it runs first',
       () async {

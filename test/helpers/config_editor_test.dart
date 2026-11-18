@@ -628,6 +628,30 @@ void main() {
         expect(content, "import 'dart:io';\nimport 'dart:math';\n");
       });
 
+      test(
+        'a raw string ending in a backslash inside annotation arguments',
+        () {
+          final content = addImports(
+            "@Deprecated(r'old\\')\nlibrary example;\n",
+            ["import 'dart:io';"],
+          );
+
+          expect(content, endsWith("library example;\nimport 'dart:io';\n"));
+        },
+      );
+
+      test('spacing around == in a conditional import is not a difference', () {
+        const source =
+            "import 'stub.dart' if(dart.library.io=='true') 'native.dart';\n";
+
+        expect(
+          addImports(source, [
+            "import 'stub.dart' if (dart.library.io == 'true') 'native.dart';",
+          ]),
+          source,
+        );
+      });
+
       test('takes a statement wrapped over several lines, idempotently', () {
         const wrapped = "import 'package:b/b.dart'\n    show B;";
         final content = addImports("import 'package:a/a.dart';\n", [
@@ -653,6 +677,8 @@ void main() {
         'an empty statement': '',
         'a comment only': '// nothing to import',
         'a directive with no quoted URI': 'import bogus;',
+        'an import with no semicolon followed by a directive':
+            "import 'dart:io'\nexport 'dart:async';",
       };
 
       for (final entry in notOneImport.entries) {

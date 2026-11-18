@@ -385,7 +385,14 @@ final class ConfigEditor {
     i = open;
     while (i < s.length) {
       final c = s[i];
-      if (c == "'" || c == '"') {
+      final raw =
+          c == 'r' &&
+          i + 1 < s.length &&
+          (s[i + 1] == "'" || s[i + 1] == '"') &&
+          (i == 0 || !_identifier.hasMatch(s[i - 1]));
+      if (raw) {
+        i = _stringEnd(s, i + 1, raw: true);
+      } else if (c == "'" || c == '"') {
         i = _stringEnd(s, i);
       } else if (s.startsWith('//', i)) {
         i = _lineEnd(s, i);
@@ -404,14 +411,15 @@ final class ConfigEditor {
   }
 
   /// Index after the string literal that starts at [at], triple-quoted or not.
-  /// An unterminated single-line string ends at its line.
-  static int _stringEnd(String s, int at) {
+  /// An unterminated single-line string ends at its line. A [raw] string has no
+  /// escapes.
+  static int _stringEnd(String s, int at, {bool raw = false}) {
     final quote = s[at];
     final triple = s.startsWith(quote * 3, at);
     final closer = triple ? quote * 3 : quote;
     var i = at + closer.length;
     while (i < s.length) {
-      if (s[i] == r'\') {
+      if (!raw && s[i] == r'\') {
         i += 2;
       } else if (s.startsWith(closer, i)) {
         return i + closer.length;
@@ -564,9 +572,9 @@ final class ConfigEditor {
   }
 
   /// The form two directives are compared in: comments gone, whitespace outside
-  /// a string collapsed to one space, and none around `,`, `(`, `)` and `.` or
-  /// before `;`, so `if(dart.library.io)` and `if (dart.library.io)` are one
-  /// token sequence. A string is kept as written, so `'a,b.dart'` and
+  /// a string collapsed to one space, and none around `,`, `(`, `)`, `.` and `=`
+  /// or before `;`, so `if(dart.library.io=='x')` and
+  /// `if (dart.library.io == 'x')` are one token sequence. A string is kept as written, so `'a,b.dart'` and
   /// `'a;b.dart'` stay apart.
   static String _normaliseDirective(String directive) {
     final text = _stripComments(directive);
@@ -599,8 +607,8 @@ final class ConfigEditor {
           (c == "'" || c == '"') && !space && _identifier.hasMatch(last);
       if ((space &&
               last.isNotEmpty &&
-              !',().'.contains(last) &&
-              !',;().'.contains(c)) ||
+              !',().='.contains(last) &&
+              !',;().='.contains(c)) ||
           quoteAfterWord) {
         write(' ');
       }
@@ -627,12 +635,22 @@ final class ConfigEditor {
   static bool isImportStatement(String raw) =>
       _parseImportStatement(raw) != null;
 
+  static final RegExp _nextDirectiveLine = RegExp(
+    r'\n[ \t]*(?:import|export|part|library)\b',
+  );
+
   static String? _parseImportStatement(String raw) {
     final text = _stripComments(raw).trim();
     if (_directiveWord(text, 0) != 'import') return null;
 
     final end = _directiveEnd(text, 0);
     if (end >= 0 && text.substring(end).trim().isNotEmpty) return null;
+
+    // No `;` of its own: the scan ran on into the next directive. A wrapped
+    // import never starts a line with a directive keyword.
+    if (_nextDirectiveLine.hasMatch(end < 0 ? text : text.substring(0, end))) {
+      return null;
+    }
 
     final code = (end < 0 ? text : text.substring(0, end))
         .split('\n')
