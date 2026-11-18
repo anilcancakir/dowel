@@ -394,6 +394,10 @@ final class ConfigEditor {
         }
       } else if (c == "'" || c == '"') {
         quote = c;
+      } else if (s.startsWith('//', i)) {
+        i = _lineEnd(s, i) - 1;
+      } else if (s.startsWith('/*', i)) {
+        i = _blockCommentEnd(s, i) - 1;
       } else if (c == '(') {
         depth++;
       } else if (c == ')' && --depth == 0) {
@@ -572,7 +576,10 @@ final class ConfigEditor {
         space = true;
         continue;
       }
-      if (space && last.isNotEmpty && last != ',' && c != ',' && c != ';') {
+      final quoteAfterWord =
+          (c == "'" || c == '"') && !space && _identifier.hasMatch(last);
+      if ((space && last.isNotEmpty && last != ',' && c != ',' && c != ';') ||
+          quoteAfterWord) {
         write(' ');
       }
       space = false;
@@ -582,11 +589,14 @@ final class ConfigEditor {
     return out.toString();
   }
 
+  // A statement is checked in its normalised form (`import` and the URI are
+  // always one space apart, none around `,` or before `;`).
   static final RegExp _importGrammar = RegExp(
-    r'''^import ?(?:'[^'\n]*'|"[^"\n]*")'''
-    r'''(?: if ?\([^)]*\) ?(?:'[^'\n]*'|"[^"\n]*"))*'''
-    r'''(?:(?: deferred)? as [^\s,;'"()]+)?'''
-    r'''(?: (?:show|hide) [^\s,;'"()]+(?:,[^\s,;'"()]+)*)*;$''',
+    r'''^import (?:'[^'\n]*'|"[^"\n]*")'''
+    r'''(?: if ?\( ?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*'''
+    r'''(?: ?== ?(?:'[^'\n]*'|"[^"\n]*"))? ?\) ?(?:'[^'\n]*'|"[^"\n]*"))*'''
+    r'''(?:(?: deferred)? as [A-Za-z_$][\w$]*)?'''
+    r'''(?: (?:show|hide) [A-Za-z_$][\w$]*(?:,[A-Za-z_$][\w$]*)*)*;$''',
   );
 
   /// [raw] without its comments, ending in a `;`.
@@ -622,11 +632,29 @@ final class ConfigEditor {
   /// behind collapsed.
   static String _tidyLine(String line) {
     final indent = RegExp(r'^[ \t]*').stringMatch(line)!;
-    return indent +
-        line
-            .substring(indent.length)
-            .replaceAll(RegExp(r'[ \t]+'), ' ')
-            .trimRight();
+    final out = StringBuffer(indent);
+    String? quote;
+    var space = false;
+
+    for (var i = indent.length; i < line.length; i++) {
+      final c = line[i];
+      if (quote != null) {
+        out.write(c);
+        if (c == r'\' && i + 1 < line.length) {
+          out.write(line[++i]);
+        } else if (c == quote) {
+          quote = null;
+        }
+      } else if (c == ' ' || c == '\t') {
+        space = true;
+      } else {
+        if (space) out.write(' ');
+        space = false;
+        if (c == "'" || c == '"') quote = c;
+        out.write(c);
+      }
+    }
+    return out.toString();
   }
 
   static Never _throwNotOneImport(String raw) => throw ArgumentError.value(

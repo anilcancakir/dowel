@@ -538,6 +538,47 @@ void main() {
         expect(content, "import 'a,b.dart';\nimport 'a;b.dart';\n");
       });
 
+      test(
+        'import with and without a space before the URI is one directive',
+        () {
+          const spaceless = "import'package:a/a.dart' deferred as a;\n";
+          const spaced = "import 'package:a/a.dart' deferred as a;";
+
+          expect(addImports(spaceless, [spaced]), spaceless);
+          expect(
+            addImports("$spaced\n", [
+              "import'package:a/a.dart' deferred as a;",
+            ]),
+            "$spaced\n",
+          );
+        },
+      );
+
+      test(
+        'a comment with a closing parenthesis inside annotation arguments',
+        () {
+          final content = addImports(
+            "@Deprecated(/* ) */ 'old')\nlibrary example;\n",
+            ["import 'dart:io';"],
+          );
+
+          expect(
+            content,
+            "@Deprecated(/* ) */ 'old')\n"
+            'library example;\n'
+            "import 'dart:io';\n",
+          );
+        },
+      );
+
+      test('whitespace inside the requested URI is kept', () {
+        final content = addImports("import 'dart:io';\n", [
+          "import 'two  spaces.dart';",
+        ]);
+
+        expect(content, "import 'dart:io';\nimport 'two  spaces.dart';\n");
+      });
+
       test('takes a statement wrapped over several lines, idempotently', () {
         const wrapped = "import 'package:b/b.dart'\n    show B;";
         final content = addImports("import 'package:a/a.dart';\n", [
@@ -566,6 +607,8 @@ void main() {
         'an alias with no name': "import 'dart:math' as;",
         'a show with no names': "import 'a.dart' show ;",
         'a hide with no names': "import 'a.dart' hide ;",
+        'a numeric alias': "import 'dart:math' as 123;",
+        'an empty conditional': "import 'a.dart' if () 'b.dart';",
       };
 
       for (final entry in notOneImport.entries) {
