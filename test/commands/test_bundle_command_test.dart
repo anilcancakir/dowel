@@ -309,10 +309,12 @@ void main() {
       seed('a_test.dart', _testSource());
       seed('bundle.g.dart', 'someone else');
       seed('bundle_helpers.g.dart', 'someone else');
+      seed('bundle_01.g.dart', 'someone else');
       seed('bundle_7.g.dart', 'stale');
 
       expect(await bundle(), 0);
 
+      expect(read('bundle_01.g.dart'), 'someone else');
       expect(read('bundle.g.dart'), 'someone else');
       expect(read('bundle_helpers.g.dart'), 'someone else');
       expect(
@@ -321,18 +323,26 @@ void main() {
       );
     });
 
-    test('names a test file it cannot read and refuses the run', () async {
-      seed('a_test.dart', _testSource());
-      seed('b_test.dart', _testSource());
-      final unreadable = File(p.join(testDir.path, 'b_test.dart'));
-      Process.runSync('chmod', ['000', unreadable.path]);
-      addTearDown(() => Process.runSync('chmod', ['644', unreadable.path]));
+    test(
+      'names a test file it cannot read and still checks the others',
+      () async {
+        seed('a_test.dart', 'Future<void> main() async {}\n');
+        // A dangling link lists as a file and fails to open, whoever runs this.
+        Link(p.join(testDir.path, 'b_test.dart')).createSync('/no/such/file');
 
-      expect(await bundle(), 1);
+        expect(await bundle(), 1);
 
-      expect(output.content, contains('test/b_test.dart cannot be read'));
-      expect(bundles(), isEmpty);
-    }, skip: Platform.isWindows ? 'chmod is not available' : false);
+        expect(output.content, contains('test/b_test.dart cannot be read'));
+        expect(
+          output.content,
+          contains('test/a_test.dart declares an asynchronous'),
+        );
+        expect(bundles(), isEmpty);
+      },
+      skip: Platform.isWindows
+          ? 'a symbolic link needs a privilege here'
+          : false,
+    );
 
     for (final shards in <String>['0', '-1', 'abc', '', '2.5']) {
       test('refuses --shards=$shards and writes nothing', () async {

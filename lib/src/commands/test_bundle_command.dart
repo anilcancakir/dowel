@@ -393,6 +393,8 @@ final RegExp _asyncMainPattern = RegExp(
 
 /// The entries this command writes: `bundle_<n>.g.dart` and
 /// `bundle_alone.g.dart`. Anything else called `bundle*.g.dart` is not ours.
-final RegExp _bundleFilePattern = RegExp(r'^bundle_(\d+|alone)\.g\.dart$');
+final RegExp _bundleFilePattern = RegExp(
+  r'^bundle_(0|[1-9]\d*|alone)\.g\.dart$',
+);
 
 final RegExp _alonePattern = RegExp(r'^// shard: alone$', multiLine: true);

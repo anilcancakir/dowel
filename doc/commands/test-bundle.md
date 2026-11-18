@@ -19,7 +19,7 @@ dart run dowel test:bundle \
   && { [ ! -f test/bundle_alone.g.dart ] || flutter test test/bundle_alone.g.dart; }
 ```
 
-The `&&` chain stops when generation is refused, so a failed run never tests the entries of an earlier layout; `bundle_alone.g.dart` exists only when a file carries a `// shard: alone` line.
+The `&&` chain stops when generation is refused, so a failed run never tests the entries of an earlier layout; `bundle_alone.g.dart` exists only when a file carries a `// shard: alone` line. The glob also matches any other `bundle_<digit>...g.dart` file you keep in `test/`, so name those differently, and an empty `--only` list writes no entry at all, so skip the run then.
 
 `flutter test` compiles each test file on its own; with 120 files that is most of the run. One entry per shard compiles once per shard. The entries do not end in `_test.dart`, so a plain `flutter test` does not discover them and run every test twice. Add `test/bundle*.g.dart` to `.gitignore` and regenerate them wherever the tests run; `test:bundle` does not run `flutter test` itself.
 
@@ -87,7 +87,7 @@ A file a bundle cannot run as written is refused, never skipped: a skipped file 
 |:-----|:-----|
 | Committing `test/bundle*.g.dart` | Ignore them and run `test:bundle` before `flutter test`; a committed entry drifts from the file list. |
 | Running `flutter test` with no paths after bundling | It runs only the original `*_test.dart` files and gets no compile saving; pass the entries. |
-| A golden test in a bundle | Flutter's default comparator resolves a golden image next to the entry file, `test/`, not next to the test's own directory; keep a golden test out of the list (`--only`), or run it with `flutter test <path>`. |
+| A golden test in a bundle | Flutter's default comparator resolves a golden image next to the entry file, `test/`, not next to the test's own directory; keep a golden test out of the bundle (an `--only` list of every other file) and run it on its own as well with `flutter test <path>`. |
 | A test that leaves a static or a channel handler set | It now leaks into the files after it in the same entry; restore it in `tearDown`. |
 | Expecting a refused file to be skipped | Fix the file: move the annotation into `group` or `test` arguments, make `main` synchronous, or move a nested config's setup into `test/flutter_test_config.dart`. |
 
