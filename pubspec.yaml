@@ -1,6 +1,6 @@
 name: dowel
 description: "One binary for your Flutter dev loop and your AI agent: start, hot reload and inspect a running app, scaffold code, install plugins transactionally. MCP server included."
-version: 1.0.4
+version: 1.0.5
 homepage: https://anilcancakir.com/dowel
 repository: https://github.com/anilcancakir/dowel
 issue_tracker: https://github.com/anilcancakir/dowel/issues

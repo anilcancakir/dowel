@@ -8,6 +8,8 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-18
+
 ### Fixed
 
 - **`start` warns when `--vm-service-port` was not honoured.** `--host-vmservice-port` only applies when a device-side VM Service port is forwarded, so on a desktop or web-server session Flutter announced an ephemeral port while `vmServicePort` in `state.json` still held the requested one. When you pass the option and the scraped `vmServiceUri` carries another port, `start` now prints one warning saying so and that the requested port is not reserved; `vmServicePort` is documented as the requested value only. Fixes #96. (`lib/src/commands/start_command.dart`, `lib/src/commands/restart_command.dart`, `lib/src/mcp/mcp_server.dart`, `lib/src/state/state_file.dart`, `doc/commands/start.md`, `doc/mcp/overview.md`, `doc/mcp/tool-reference.md`, `skills/dowel/references/state-and-recovery.md`)
