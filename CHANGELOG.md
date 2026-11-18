@@ -8,6 +8,8 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-18
+
 ### Added
 
 - **`test:bundle` groups the test suite into a few `flutter test` entries.** `flutter test` compiles every test file on its own; `dowel test:bundle` writes `test/bundle_<n>.g.dart` entries that import every `*_test.dart` under `test/` and run each inside a group named after its path, dealt heaviest first (by line count) onto `--shards=N` entries (default 3), with files carrying a `// shard: alone` line in `test/bundle_alone.g.dart`. `--only=LISTFILE` bundles just the listed paths. A file a bundle cannot run as written (a library annotation such as `@TestOn`, a `main` other than one `void main() {`, a `flutter_test_config.dart` below `test/`, an unsafe path character, a path listed twice) is refused rather than skipped: the command names every offending file and its rule, exits 1 and writes nothing. Fixes #102. (`lib/src/commands/test_bundle_command.dart`, `lib/src/console/run_dowel.dart`, `doc/commands/test-bundle.md`, `doc/commands/index.md`, `README.md`, `llms.txt`, `skills/dowel/`)
@@ -552,7 +554,9 @@ Both write through `.tmp` + atomic rename; never hand-edit.
 
 ---
 
-[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.0.4...HEAD
+[Unreleased]: https://github.com/anilcancakir/dowel/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/anilcancakir/dowel/compare/1.0.5...1.1.0
+[1.0.5]: https://github.com/anilcancakir/dowel/compare/1.0.4...1.0.5
 [1.0.4]: https://github.com/anilcancakir/dowel/compare/1.0.3...1.0.4
 [1.0.3]: https://github.com/anilcancakir/dowel/compare/1.0.2...1.0.3
 [1.0.2]: https://github.com/anilcancakir/dowel/compare/1.0.1...1.0.2
