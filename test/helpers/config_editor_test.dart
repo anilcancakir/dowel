@@ -366,6 +366,107 @@ void main() {
         expect(content, "import 'package:b/b.dart';\nvoid main() {}\n");
       });
 
+      test('an import inside a nested block comment is not an import', () {
+        final content = addImports(
+          "/* outer /* inner */\n"
+          "import 'package:b/b.dart';\n"
+          "*/\n"
+          "import 'package:a/a.dart';\n",
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "/* outer /* inner */\n"
+          "import 'package:b/b.dart';\n"
+          "*/\n"
+          "import 'package:a/a.dart';\n"
+          "import 'package:b/b.dart';\n",
+        );
+      });
+
+      test('the first import goes below a library directive', () {
+        final content = addImports("library example;\n\nvoid main() {}\n", [
+          "import 'package:b/b.dart';",
+        ]);
+
+        expect(
+          content,
+          "library example;\n"
+          "import 'package:b/b.dart';\n"
+          "\n"
+          "void main() {}\n",
+        );
+      });
+
+      test('a string that holds an import line is not a directive', () {
+        final content = addImports(
+          "import 'package:a/a.dart';\n"
+          "const text = '''\n"
+          "import 'package:b/b.dart'\n"
+          "    show B;\n"
+          "''';\n",
+          ["import 'package:b/b.dart' show B;"],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart';\n"
+          "import 'package:b/b.dart' show B;\n"
+          "const text = '''\n"
+          "import 'package:b/b.dart'\n"
+          "    show B;\n"
+          "''';\n",
+        );
+      });
+
+      test('a second directive on the same line counts as present', () {
+        const source =
+            "import 'dart:core'; import 'package:a/a.dart' deferred as a;\n";
+        final content = addImports(source, [
+          "import 'package:a/a.dart' deferred as a;",
+        ]);
+
+        expect(content, source);
+      });
+
+      test('the import goes after a block comment that trails a directive', () {
+        final content = addImports(
+          "import 'package:a/a.dart'\n"
+          "    show A; /* note\n"
+          "   more */\n"
+          "void main() {}\n",
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart'\n"
+          "    show A; /* note\n"
+          "   more */\n"
+          "import 'package:b/b.dart';\n"
+          "void main() {}\n",
+        );
+      });
+
+      test('whitespace around commas does not make a directive new', () {
+        const source = "import 'package:a/a.dart' show A , B;\n";
+        final content = addImports(source, [
+          "import 'package:a/a.dart'\n    show A,B;",
+        ]);
+
+        expect(content, source);
+      });
+
+      test('a different show list is a different directive', () {
+        final content = addImports("import 'package:a/a.dart' show A, B;\n", [
+          "import 'package:a/a.dart' show A, C;",
+        ]);
+
+        expect(content, contains('show A, C;'));
+        expect(content, contains('show A, B;'));
+      });
+
       test('takes a statement wrapped over several lines, idempotently', () {
         const wrapped = "import 'package:b/b.dart'\n    show B;";
         final content = addImports("import 'package:a/a.dart';\n", [
@@ -390,6 +491,7 @@ void main() {
         'a part': "part 'b.g.dart';",
         'an empty statement': '',
         'a comment only': '// nothing to import',
+        'a directive with no quoted URI': 'import bogus;',
       };
 
       for (final entry in notOneImport.entries) {

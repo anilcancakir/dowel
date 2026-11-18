@@ -246,15 +246,20 @@ final class ConfigEditor {
 
   /// Add an import statement to a Dart file if not already present.
   ///
-  /// The import is added after the last complete import directive, or at the
-  /// top of a file with none. A directive that spans several lines (`show`,
-  /// `hide`, `as`, `if (dart.library...)`) is one unit: it ends at the line
-  /// holding its `;`, and the new import never lands inside it.
+  /// The import is added after the last import directive of the file's header
+  /// (the run of `library`, `import`, `export` and `part` directives before the
+  /// first declaration), after the `library` directive of a file with no
+  /// import, or at the top of a file with neither. A directive that spans
+  /// several lines (`show`, `hide`, `as`, `if (dart.library...)`) is one unit
+  /// that ends at its `;`, and the new import never lands inside it or inside
+  /// a comment that follows it. A header `export` or `part` closes the place
+  /// the import goes, so it stays above them.
   ///
-  /// Idempotent: an existing directive with the same text once whitespace is
-  /// collapsed and its `//` comments dropped counts as present, whichever way
-  /// it is wrapped. Automatically handles adding semicolon if missing, and
-  /// drops a trailing `//` comment from [importStatement].
+  /// Idempotent: an import directive anywhere in the header with the same
+  /// tokens counts as present, whatever its whitespace, line wrapping or
+  /// comments. Text inside a declaration, such as a string holding an
+  /// `import` line, is never read. Automatically handles adding semicolon if
+  /// missing, and drops comments from [importStatement].
   ///
   /// Throws [ArgumentError] when [importStatement] is not exactly one import
   /// directive.
@@ -266,91 +271,246 @@ final class ConfigEditor {
 
     // 1. Normalise the statement the way the file's directives are compared.
     final statement = _importStatementOf(importStatement);
-    final wanted = _collapseWhitespace(statement);
+    final wanted = _normaliseDirective(statement);
 
-    // 2. Walk the directives. `insertIndex` follows the last directive of the
-    //    import header; once a non-import, non-comment line closes the header
-    //    it stays put, but later directives still count for the duplicate
-    //    check.
-    final lines = content.split('\n');
-    var insertIndex = 0;
-    var headerClosed = false;
-    var inBlockComment = false;
-    StringBuffer? directive;
+    // 2. Read the header: where the import goes, and what is already there.
+    final header = _scanImportHeader(content);
+    if (header.imports.contains(wanted)) return;
 
-    for (var i = 0; i < lines.length; i++) {
-      final line = lines[i];
-      final trimmed = line.trim();
+    // 3. Insert the import on a line of its own at that offset.
+    final at = header.insertAt;
+    final needsBreak =
+        at > 0 && at == content.length && !content.endsWith('\n');
+    FileHelper.writeFile(
+      filePath,
+      '${content.substring(0, at)}${needsBreak ? '\n' : ''}$statement\n'
+      '${content.substring(at)}',
+    );
+  }
 
-      if (inBlockComment) {
-        inBlockComment = !trimmed.contains('*/');
+  /// Reads the header of [source]: the directives before the first declaration.
+  ///
+  /// `insertAt` is a line start. `imports` holds every import directive of the
+  /// header, normalised for comparison.
+  static ({int insertAt, Set<String> imports}) _scanImportHeader(
+    String source,
+  ) {
+    final imports = <String>{};
+    var insertAt = 0;
+    var afterLibrary = -1;
+    var placementOpen = true;
+    var sawImport = false;
+    var i = source.startsWith('#!') ? _lineEnd(source, 0) : 0;
+
+    while (i < source.length) {
+      final next = _skipTrivia(source, i);
+      if (next != i) {
+        i = next;
         continue;
       }
 
-      if (directive == null) {
-        if (trimmed.isEmpty || trimmed.startsWith('//')) continue;
-
-        if (trimmed.startsWith('/*')) {
-          inBlockComment = !trimmed.contains('*/', 2);
-          continue;
-        }
-
-        if (!_importDirectiveStart.hasMatch(trimmed)) {
-          if (insertIndex > 0) headerClosed = true;
-          continue;
-        }
-
-        directive = StringBuffer();
+      final word = _identifier.matchAsPrefix(source, i)?.group(0);
+      final isImport = word == 'import' && _startsImport(source, i);
+      if (!isImport &&
+          word != 'export' &&
+          word != 'part' &&
+          word != 'library') {
+        break;
       }
 
-      final scan = _scanDirectiveLine(line);
-      directive.write('${scan.code} ');
-      if (!scan.ended) continue;
+      final end = _directiveEnd(source, i);
+      if (end < 0) break;
 
-      if (_collapseWhitespace(directive.toString()) == wanted) return;
-
-      if (!headerClosed) insertIndex = i + 1;
-      directive = null;
+      if (isImport) {
+        imports.add(_normaliseDirective(source.substring(i, end)));
+        if (placementOpen) insertAt = _lineAfter(source, end);
+        sawImport = true;
+      } else if (word == 'library') {
+        afterLibrary = _lineAfter(source, end);
+      } else if (sawImport) {
+        placementOpen = false;
+      }
+      i = end;
     }
 
-    // 3. Insert the import.
-    lines.insert(insertIndex, statement);
-    FileHelper.writeFile(filePath, lines.join('\n'));
+    if (!sawImport && afterLibrary >= 0) insertAt = afterLibrary;
+
+    return (insertAt: insertAt, imports: imports);
   }
 
-  /// `import` followed by whitespace or a quote: a directive start, with or
-  /// without the space (`import'x.dart';` is valid Dart).
-  static final RegExp _importDirectiveStart = RegExp(r'''^import(\s|['"])''');
+  static final RegExp _identifier = RegExp(r'[A-Za-z0-9_$]+');
 
-  static final RegExp _whitespaceRun = RegExp(r'\s+');
+  static final RegExp _importStart = RegExp(r"""import\s*['"]""");
 
-  static String _collapseWhitespace(String text) =>
-      text.replaceAll(_whitespaceRun, ' ').trim();
+  /// `import` followed by a quote: a directive start, with or without the
+  /// space (`import'x.dart';` is valid Dart).
+  static bool _startsImport(String s, int at) =>
+      _importStart.matchAsPrefix(s, at) != null;
 
-  /// [raw] without its `//` comments, ending in a `;`.
+  /// Index of the first character after the whitespace and comments that start
+  /// at [at], or [at] itself when there are none.
+  static int _skipTrivia(String s, int at) {
+    var i = at;
+    while (i < s.length) {
+      final c = s[i];
+      if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+        i++;
+      } else if (s.startsWith('//', i)) {
+        i = _lineEnd(s, i);
+      } else if (s.startsWith('/*', i)) {
+        i = _blockCommentEnd(s, i);
+      } else {
+        break;
+      }
+    }
+    return i;
+  }
+
+  /// Index of the `\n` that ends the line holding [at], or the length.
+  static int _lineEnd(String s, int at) {
+    final newline = s.indexOf('\n', at);
+    return newline < 0 ? s.length : newline;
+  }
+
+  /// Offset of the start of the line after the one holding [at].
+  static int _nextLine(String s, int at) {
+    final end = _lineEnd(s, at);
+    return end < s.length ? end + 1 : s.length;
+  }
+
+  /// Index after the (nested) block comment that starts at [start]; the length
+  /// of [s] when it never closes.
+  static int _blockCommentEnd(String s, int start) {
+    var depth = 0;
+    var i = start;
+    while (i < s.length) {
+      if (s.startsWith('/*', i)) {
+        depth++;
+        i += 2;
+      } else if (s.startsWith('*/', i)) {
+        depth--;
+        i += 2;
+        if (depth == 0) return i;
+      } else {
+        i++;
+      }
+    }
+    return s.length;
+  }
+
+  /// Index after the `;` that ends the directive starting at [from], or -1 when
+  /// there is none. A quote opens a string, so a `;` or `//` inside the URI
+  /// ends nothing and starts no comment.
+  static int _directiveEnd(String s, int from) {
+    String? quote;
+    var i = from;
+    while (i < s.length) {
+      final c = s[i];
+      if (quote != null) {
+        if (c == r'\') {
+          i++;
+        } else if (c == quote || c == '\n') {
+          quote = null;
+        }
+        i++;
+      } else if (c == "'" || c == '"') {
+        quote = c;
+        i++;
+      } else if (c == ';') {
+        return i + 1;
+      } else if (s.startsWith('//', i)) {
+        i = _lineEnd(s, i);
+      } else if (s.startsWith('/*', i)) {
+        i = _blockCommentEnd(s, i);
+      } else {
+        i++;
+      }
+    }
+    return -1;
+  }
+
+  /// Offset of the start of the line after the directive that ends at [end],
+  /// past a trailing comment that begins on that line, even a block comment
+  /// that runs onto later ones.
+  static int _lineAfter(String s, int end) {
+    var i = end;
+    while (i < s.length) {
+      final c = s[i];
+      if (c == '\n') return i + 1;
+      if (c == ' ' || c == '\t' || c == '\r') {
+        i++;
+      } else if (s.startsWith('/*', i)) {
+        i = _blockCommentEnd(s, i);
+      } else {
+        // A line comment, or another token such as a second directive.
+        return _nextLine(s, i);
+      }
+    }
+    return s.length;
+  }
+
+  /// [text] without its comments; a block comment leaves one space, so the
+  /// tokens either side of it stay apart. Strings are kept whole.
+  static String _stripComments(String text) {
+    final out = StringBuffer();
+    String? quote;
+    var i = 0;
+    while (i < text.length) {
+      final c = text[i];
+      if (quote != null) {
+        out.write(c);
+        if (c == r'\' && i + 1 < text.length) {
+          out.write(text[i + 1]);
+          i++;
+        } else if (c == quote || c == '\n') {
+          quote = null;
+        }
+        i++;
+      } else if (c == "'" || c == '"') {
+        quote = c;
+        out.write(c);
+        i++;
+      } else if (text.startsWith('//', i)) {
+        i = _lineEnd(text, i);
+      } else if (text.startsWith('/*', i)) {
+        out.write(' ');
+        i = _blockCommentEnd(text, i);
+      } else {
+        out.write(c);
+        i++;
+      }
+    }
+    return out.toString();
+  }
+
+  /// The form two directives are compared in: comments gone, whitespace
+  /// collapsed, and none around `,` or before `;`.
+  static String _normaliseDirective(String directive) =>
+      _stripComments(directive)
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .replaceAll(RegExp(r'\s*([,;])\s*'), r'$1')
+          .trim();
+
+  /// [raw] without its comments, ending in a `;`.
   ///
   /// Throws [ArgumentError] unless [raw] is exactly one import directive: a
-  /// second directive, an `export` or an empty statement would otherwise be
-  /// dropped, written without the idempotency check, or become a bare `;`.
+  /// second directive, an `export`, an empty statement or `import bogus;`
+  /// would otherwise be dropped, written without the idempotency check, or
+  /// make the file unparseable.
   static String _importStatementOf(String raw) {
-    final lines = <String>[];
-    var ended = false;
+    final text = raw.trim();
+    if (!_startsImport(text, 0)) _throwNotOneImport(raw);
 
-    for (final line in raw.split('\n')) {
-      final scan = _scanDirectiveLine(line);
-      final after = line.substring(scan.code.length).trim();
-      final extra =
-          (ended && scan.code.trim().isNotEmpty) ||
-          (scan.ended && after.isNotEmpty && !after.startsWith('//'));
-
-      if (extra) _throwNotOneImport(raw);
-
-      ended = ended || scan.ended;
-      lines.add(scan.code.trimRight());
+    final end = _directiveEnd(text, 0);
+    if (end >= 0 && _stripComments(text.substring(end)).trim().isNotEmpty) {
+      _throwNotOneImport(raw);
     }
 
-    final code = lines.join('\n').trim();
-    if (!_importDirectiveStart.hasMatch(code)) _throwNotOneImport(raw);
+    final code = _stripComments(end < 0 ? text : text.substring(0, end))
+        .split('\n')
+        .map((line) => line.trimRight())
+        .join('\n')
+        .trim();
 
     return code.endsWith(';') ? code : '$code;';
   }
@@ -360,39 +520,6 @@ final class ConfigEditor {
     'importStatement',
     'must be exactly one import directive',
   );
-
-  /// Scans one line of an import directive.
-  ///
-  /// `code` is the part of [line] that belongs to the directive: up to and
-  /// including the terminating `;`, or up to a `//` comment. `ended` is true
-  /// when that `;` was found. A quote opens a string, so a `;` or `//` inside
-  /// the URI ends nothing and starts no comment.
-  static ({String code, bool ended}) _scanDirectiveLine(String line) {
-    String? quote;
-
-    for (var i = 0; i < line.length; i++) {
-      final char = line[i];
-
-      if (quote != null) {
-        if (char == r'\') {
-          i++;
-        } else if (char == quote) {
-          quote = null;
-        }
-        continue;
-      }
-
-      if (char == "'" || char == '"') {
-        quote = char;
-      } else if (char == ';') {
-        return (code: line.substring(0, i + 1), ended: true);
-      } else if (line.startsWith('//', i)) {
-        return (code: line.substring(0, i), ended: false);
-      }
-    }
-
-    return (code: line, ended: false);
-  }
 
   /// Insert code before the first occurrence of a pattern in a file.
   ///
