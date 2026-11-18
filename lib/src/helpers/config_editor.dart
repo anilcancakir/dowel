@@ -246,42 +246,152 @@ final class ConfigEditor {
 
   /// Add an import statement to a Dart file if not already present.
   ///
-  /// The import is added at the top of the file, after any existing imports.
-  /// Automatically handles adding semicolon if missing.
+  /// The import is added after the last complete import directive, or at the
+  /// top of a file with none. A directive that spans several lines (`show`,
+  /// `hide`, `as`, `if (dart.library...)`) is one unit: it ends at the line
+  /// holding its `;`, and the new import never lands inside it.
+  ///
+  /// Idempotent: an existing directive with the same text once whitespace is
+  /// collapsed and its `//` comments dropped counts as present, whichever way
+  /// it is wrapped. Automatically handles adding semicolon if missing, and
+  /// drops a trailing `//` comment from [importStatement].
+  ///
+  /// Throws [ArgumentError] when [importStatement] is not exactly one import
+  /// directive.
   static void addImportToFile({
     required String filePath,
     required String importStatement,
   }) {
-    var content = FileHelper.readFile(filePath);
+    final content = FileHelper.readFile(filePath);
 
-    // Ensure import has semicolon
-    var statement = importStatement.trim();
-    if (!statement.endsWith(';')) {
-      statement += ';';
-    }
+    // 1. Normalise the statement the way the file's directives are compared.
+    final statement = _importStatementOf(importStatement);
+    final wanted = _collapseWhitespace(statement);
 
-    // Check if import already exists
-    if (content.contains(statement)) {
-      return; // Already present, nothing to do
-    }
-
-    // Find the position to insert (after last import or at start)
+    // 2. Walk the directives. `insertIndex` follows the last directive of the
+    //    import header; once a non-import, non-comment line closes the header
+    //    it stays put, but later directives still count for the duplicate
+    //    check.
     final lines = content.split('\n');
     var insertIndex = 0;
+    var headerClosed = false;
+    var inBlockComment = false;
+    StringBuffer? directive;
 
     for (var i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
-      if (line.startsWith('import ')) {
-        insertIndex = i + 1;
-      } else if (line.isNotEmpty && !line.startsWith('//') && insertIndex > 0) {
-        // Found first non-import, non-comment line after imports
-        break;
+      final line = lines[i];
+      final trimmed = line.trim();
+
+      if (inBlockComment) {
+        inBlockComment = !trimmed.contains('*/');
+        continue;
+      }
+
+      if (directive == null) {
+        if (trimmed.isEmpty || trimmed.startsWith('//')) continue;
+
+        if (trimmed.startsWith('/*')) {
+          inBlockComment = !trimmed.contains('*/', 2);
+          continue;
+        }
+
+        if (!_importDirectiveStart.hasMatch(trimmed)) {
+          if (insertIndex > 0) headerClosed = true;
+          continue;
+        }
+
+        directive = StringBuffer();
+      }
+
+      final scan = _scanDirectiveLine(line);
+      directive.write('${scan.code} ');
+      if (!scan.ended) continue;
+
+      if (_collapseWhitespace(directive.toString()) == wanted) return;
+
+      if (!headerClosed) insertIndex = i + 1;
+      directive = null;
+    }
+
+    // 3. Insert the import.
+    lines.insert(insertIndex, statement);
+    FileHelper.writeFile(filePath, lines.join('\n'));
+  }
+
+  /// `import` followed by whitespace or a quote: a directive start, with or
+  /// without the space (`import'x.dart';` is valid Dart).
+  static final RegExp _importDirectiveStart = RegExp(r'''^import(\s|['"])''');
+
+  static final RegExp _whitespaceRun = RegExp(r'\s+');
+
+  static String _collapseWhitespace(String text) =>
+      text.replaceAll(_whitespaceRun, ' ').trim();
+
+  /// [raw] without its `//` comments, ending in a `;`.
+  ///
+  /// Throws [ArgumentError] unless [raw] is exactly one import directive: a
+  /// second directive, an `export` or an empty statement would otherwise be
+  /// dropped, written without the idempotency check, or become a bare `;`.
+  static String _importStatementOf(String raw) {
+    final lines = <String>[];
+    var ended = false;
+
+    for (final line in raw.split('\n')) {
+      final scan = _scanDirectiveLine(line);
+      final after = line.substring(scan.code.length).trim();
+      final extra =
+          (ended && scan.code.trim().isNotEmpty) ||
+          (scan.ended && after.isNotEmpty && !after.startsWith('//'));
+
+      if (extra) _throwNotOneImport(raw);
+
+      ended = ended || scan.ended;
+      lines.add(scan.code.trimRight());
+    }
+
+    final code = lines.join('\n').trim();
+    if (!_importDirectiveStart.hasMatch(code)) _throwNotOneImport(raw);
+
+    return code.endsWith(';') ? code : '$code;';
+  }
+
+  static Never _throwNotOneImport(String raw) => throw ArgumentError.value(
+    raw,
+    'importStatement',
+    'must be exactly one import directive',
+  );
+
+  /// Scans one line of an import directive.
+  ///
+  /// `code` is the part of [line] that belongs to the directive: up to and
+  /// including the terminating `;`, or up to a `//` comment. `ended` is true
+  /// when that `;` was found. A quote opens a string, so a `;` or `//` inside
+  /// the URI ends nothing and starts no comment.
+  static ({String code, bool ended}) _scanDirectiveLine(String line) {
+    String? quote;
+
+    for (var i = 0; i < line.length; i++) {
+      final char = line[i];
+
+      if (quote != null) {
+        if (char == r'\') {
+          i++;
+        } else if (char == quote) {
+          quote = null;
+        }
+        continue;
+      }
+
+      if (char == "'" || char == '"') {
+        quote = char;
+      } else if (char == ';') {
+        return (code: line.substring(0, i + 1), ended: true);
+      } else if (line.startsWith('//', i)) {
+        return (code: line.substring(0, i), ended: false);
       }
     }
 
-    // Insert the import
-    lines.insert(insertIndex, statement);
-    FileHelper.writeFile(filePath, lines.join('\n'));
+    return (code: line, ended: false);
   }
 
   /// Insert code before the first occurrence of a pattern in a file.

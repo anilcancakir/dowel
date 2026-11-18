@@ -113,6 +113,302 @@ void main() {
       expect(count, 1);
     });
 
+    group('addImportToFile directive boundaries', () {
+      late String dartPath;
+
+      setUp(() {
+        dartPath = p.join(tempDir.path, 'main.dart');
+      });
+
+      /// Seeds [source], adds each of [statements] in turn and returns the file.
+      String addImports(String source, List<String> statements) {
+        File(dartPath).writeAsStringSync(source);
+        for (final statement in statements) {
+          ConfigEditor.addImportToFile(
+            filePath: dartPath,
+            importStatement: statement,
+          );
+        }
+
+        return File(dartPath).readAsStringSync();
+      }
+
+      test('inserts after a multi-line show directive, not inside it', () {
+        final content = addImports(
+          "import 'package:a/a.dart'\n    show A;\n\nvoid main() {}\n",
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart'\n"
+          '    show A;\n'
+          "import 'package:b/b.dart';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('inserts after the last of several multi-line directives', () {
+        final content = addImports(
+          "import 'package:a/a.dart'\n"
+          '    show A;\n'
+          "import 'package:c/c.dart';\n"
+          "import 'package:d/d.dart'\n"
+          '    hide D;\n'
+          '\n'
+          'void main() {}\n',
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart'\n"
+          '    show A;\n'
+          "import 'package:c/c.dart';\n"
+          "import 'package:d/d.dart'\n"
+          '    hide D;\n'
+          "import 'package:b/b.dart';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('inserts after a multi-line as directive', () {
+        final content = addImports(
+          "import 'package:a/a.dart'\n    deferred as a;\n\nvoid main() {}\n",
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart'\n"
+          '    deferred as a;\n'
+          "import 'package:b/b.dart';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('inserts after a conditional import spanning three lines', () {
+        final content = addImports(
+          "import 'a.dart'\n"
+          "    if (dart.library.io) 'b.dart'\n"
+          "    if (dart.library.html) 'c.dart';\n"
+          '\n'
+          'void main() {}\n',
+          ["import 'package:d/d.dart';"],
+        );
+
+        expect(
+          content,
+          "import 'a.dart'\n"
+          "    if (dart.library.io) 'b.dart'\n"
+          "    if (dart.library.html) 'c.dart';\n"
+          "import 'package:d/d.dart';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('does not insert an import already present in multi-line form', () {
+        const source =
+            "import 'package:a/a.dart'\n    show A;\n\nvoid main() {}\n";
+
+        final content = addImports(source, [
+          "import 'package:a/a.dart' show A;",
+          "import 'package:a/a.dart' show A;",
+        ]);
+
+        expect(content, source);
+      });
+
+      test('compares directives by collapsed whitespace and ignores a comment', () {
+        const source =
+            "import 'package:a/a.dart'  show   A; // keep\n\nvoid main() {}\n";
+
+        final content = addImports(source, [
+          "import 'package:a/a.dart' show A",
+        ]);
+
+        expect(content, source);
+      });
+
+      test('treats a different combinator as a different import', () {
+        final content = addImports(
+          "import 'package:a/a.dart'\n    show A;\n\nvoid main() {}\n",
+          ["import 'package:a/a.dart' show B;"],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart'\n"
+          '    show A;\n'
+          "import 'package:a/a.dart' show B;\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('inserts after a directive that carries a comment after the `;`', () {
+        final content = addImports(
+          "import 'package:a/a.dart'\n    show A; // keep\n\nvoid main() {}\n",
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart'\n"
+          '    show A; // keep\n'
+          "import 'package:b/b.dart';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('strips a trailing comment from the statement before the `;`', () {
+        final content = addImports(
+          "import 'package:a/a.dart';\n\nvoid main() {}\n",
+          [
+            "import 'package:b/b.dart' // note",
+            "import 'package:c/c.dart'; // note",
+          ],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart';\n"
+          "import 'package:b/b.dart';\n"
+          "import 'package:c/c.dart';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('recognises an import written without a space', () {
+        final content = addImports(
+          "import'package:a/a.dart';\n\nvoid main() {}\n",
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "import'package:a/a.dart';\n"
+          "import 'package:b/b.dart';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test(
+        'a `;` or `//` inside the URI string does not end the directive',
+        () {
+          final content = addImports(
+            "import 'https://example.com/a;b.dart'\n    show A;\n\n"
+            'void main() {}\n',
+            ["import 'package:b/b.dart';"],
+          );
+
+          expect(
+            content,
+            "import 'https://example.com/a;b.dart'\n"
+            '    show A;\n'
+            "import 'package:b/b.dart';\n"
+            '\n'
+            'void main() {}\n',
+          );
+        },
+      );
+
+      test('ignores an import inside a block comment', () {
+        final content = addImports(
+          '/*\n'
+          "import 'package:old/old.dart';\n"
+          '*/\n'
+          "import 'package:a/a.dart';\n"
+          '\n'
+          'void main() {}\n',
+          ["import 'package:b/b.dart';", "import 'package:old/old.dart';"],
+        );
+
+        expect(
+          content,
+          '/*\n'
+          "import 'package:old/old.dart';\n"
+          '*/\n'
+          "import 'package:a/a.dart';\n"
+          "import 'package:b/b.dart';\n"
+          "import 'package:old/old.dart';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('stops at an export line and inserts before it', () {
+        final content = addImports(
+          "import 'package:a/a.dart';\nexport 'package:e/e.dart';\n",
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "import 'package:a/a.dart';\n"
+          "import 'package:b/b.dart';\n"
+          "export 'package:e/e.dart';\n",
+        );
+      });
+
+      test('inserts at the top of a file with no imports', () {
+        final content = addImports('void main() {}\n', [
+          "import 'package:b/b.dart'",
+        ]);
+
+        expect(content, "import 'package:b/b.dart';\nvoid main() {}\n");
+      });
+
+      test('takes a statement wrapped over several lines, idempotently', () {
+        const wrapped = "import 'package:b/b.dart'\n    show B;";
+        final content = addImports("import 'package:a/a.dart';\n", [
+          wrapped,
+          wrapped,
+        ]);
+
+        expect(
+          content,
+          "import 'package:a/a.dart';\n"
+          "import 'package:b/b.dart'\n"
+          '    show B;\n',
+        );
+      });
+
+      const notOneImport = <String, String>{
+        'two directives on one line':
+            "import 'package:b/b.dart'; import 'package:c/c.dart';",
+        'two directives on two lines':
+            "import 'package:b/b.dart';\nimport 'package:c/c.dart';",
+        'an export': "export 'package:b/b.dart';",
+        'a part': "part 'b.g.dart';",
+        'an empty statement': '',
+        'a comment only': '// nothing to import',
+      };
+
+      for (final entry in notOneImport.entries) {
+        test('refuses ${entry.key} and leaves the file as it was', () {
+          const source = "import 'package:a/a.dart';\n\nvoid main() {}\n";
+          File(dartPath).writeAsStringSync(source);
+
+          expect(
+            () => ConfigEditor.addImportToFile(
+              filePath: dartPath,
+              importStatement: entry.value,
+            ),
+            throwsArgumentError,
+          );
+          expect(File(dartPath).readAsStringSync(), source);
+        });
+      }
+    });
+
     test('insertCodeBeforePattern / insertCodeAfterPattern', () {
       final filePath = p.join(tempDir.path, 'snippet.dart');
       File(filePath).writeAsStringSync('A\nMARK\nC\n');

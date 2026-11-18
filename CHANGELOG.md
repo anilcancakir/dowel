@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`ConfigEditor.addImportToFile` treats a multi-line import as one directive.** The new import went after the last line that began with `import `, so a directive wrapped over several lines (`show`, `hide`, `as`, `deferred as` or an `if (dart.library...)` clause) was split and the file no longer compiled; and an import already present in that wrapped form was inserted a second time, because the duplicate check only looked for the single-line text. The directive now ends at the line holding its `;`, outside any string or `//` comment, the new import lands after the last one, and a directive counts as present when its text matches with whitespace collapsed and its `//` comments dropped. `import'x.dart';` without a space is a directive, an `import` inside a `/* */` comment is not, and a trailing `//` comment on the statement no longer ends up before the added `;`. A statement that is not exactly one import directive (two directives, an `export`, an empty one) now throws `ArgumentError` instead of being dropped, duplicated or written as a bare `;`. Every caller (`injectImport`, `MainDartEditor.addImport`, `make:command`, `RouteRegistryEditor.addRouteImport`) shares the fix. Fixes #101. (`lib/src/helpers/config_editor.dart`)
+
 ## [1.0.5] - 2026-11-18
 
 ### Fixed
