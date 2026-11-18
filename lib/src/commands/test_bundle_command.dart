@@ -103,14 +103,18 @@ final class TestBundleCommand extends DowelCommand {
     }
 
     // 3. Refuse what a bundle cannot run as written, naming every file.
-    final sources = <String, String>{
-      for (final path in files)
+    final sources = <String, String>{};
+    for (final path in files) {
+      try {
         // A file that is not UTF-8 still gets its checks and its refusal.
-        path: utf8.decode(
+        sources[path] = utf8.decode(
           File(p.join(testDir.path, path)).readAsBytesSync(),
           allowMalformed: true,
-        ),
-    };
+        );
+      } on FileSystemException catch (error) {
+        problems.add('test/$path cannot be read: ${error.message}.');
+      }
+    }
     for (final MapEntry(key: path, value: source) in sources.entries) {
       problems.addAll(_sourceProblems(path, source));
     }
@@ -204,8 +208,15 @@ final class TestBundleCommand extends DowelCommand {
     final file = File(path);
     if (!file.existsSync()) return null;
 
+    final List<String> lines;
+    try {
+      lines = file.readAsLinesSync();
+    } on FileSystemException {
+      return null;
+    }
+
     return <String>[
-      for (final line in file.readAsLinesSync())
+      for (final line in lines)
         if (line.trim().isNotEmpty) line,
     ]..sort();
   }
@@ -246,14 +257,17 @@ final class TestBundleCommand extends DowelCommand {
         'that binds the file as a suite and means nothing inside a group.',
       );
     }
-    if (_syncMainPattern.allMatches(source).length != 1) {
-      final asyncMain = _asyncMainPattern.firstMatch(source);
+    // Checked first: a stray `void main() {` line in a string fixture must not
+    // vouch for a file whose real main is asynchronous.
+    final asyncMain = _asyncMainPattern.firstMatch(source);
+    if (asyncMain != null) {
       problems.add(
-        asyncMain != null
-            ? 'test/$path declares `${asyncMain.group(1)}<void> main`; a '
-                  "group body is synchronous, so it needs one 'void main() {'."
-            : "test/$path has no single 'void main() {' to run inside a "
-                  'group.',
+        'test/$path declares an asynchronous `${asyncMain.group(0)}`; a group '
+        "body is synchronous, so it needs one 'void main() {'.",
+      );
+    } else if (_syncMainPattern.allMatches(source).length != 1) {
+      problems.add(
+        "test/$path has no single 'void main() {' to run inside a group.",
       );
     }
     return problems;
@@ -353,7 +367,7 @@ final class TestBundleCommand extends DowelCommand {
 
     for (final file in testDir.listSync().whereType<File>()) {
       final name = p.basename(file.path);
-      if (name.startsWith('bundle') && name.endsWith('.g.dart')) {
+      if (_bundleFilePattern.hasMatch(name)) {
         file.deleteSync();
       }
     }
@@ -373,8 +387,12 @@ final RegExp _libraryAnnotationPattern = RegExp(
 final RegExp _syncMainPattern = RegExp(r'^void main\(\) \{', multiLine: true);
 
 final RegExp _asyncMainPattern = RegExp(
-  r'^(Future|FutureOr)<void> main\(',
+  r'^(?:(?:Future|FutureOr)<void> main\(|void main\(\) async)',
   multiLine: true,
 );
+
+/// The entries this command writes: `bundle_<n>.g.dart` and
+/// `bundle_alone.g.dart`. Anything else called `bundle*.g.dart` is not ours.
+final RegExp _bundleFilePattern = RegExp(r'^bundle_(\d+|alone)\.g\.dart$');
 
 final RegExp _alonePattern = RegExp(r'^// shard: alone$', multiLine: true);

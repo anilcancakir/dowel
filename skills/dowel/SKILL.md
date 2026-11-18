@@ -61,7 +61,7 @@ Substrate tools, available unless `.dowel/mcp.json`, `DOWEL_MCP_TOOLS_DENY` or `
 | Read HTTP, log and exception buffers | `crumbs_*` | Plugin tools over the in-app ring buffers |
 | Scaffold a command, plugin or entry | `./bin/dowel make:command`, `make:plugin`, `make:fast-cli` | CLI-only; `make:command` also refreshes the command index |
 | Install or remove a plugin | `./bin/dowel plugin:install <name>` or `plugin:uninstall <name>` | CLI-only; `--dry-run` previews |
-| Compile the test suite a few times instead of once per file | `./bin/dowel test:bundle`, then `flutter test test/bundle_[0-9]*.g.dart` and `test/bundle_alone.g.dart` | CLI-only; refuses (writes nothing) a file a bundle cannot run |
+| Compile the test suite a few times instead of once per file | `./bin/dowel test:bundle`, then `flutter test test/bundle_[0-9]*.g.dart` (and `test/bundle_alone.g.dart` when it exists) | CLI-only; refuses (writes nothing) a file a bundle cannot run |
 
 ## Recipes
 

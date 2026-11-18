@@ -305,6 +305,35 @@ void main() {
       );
     });
 
+    test('leaves a bundle*.g.dart file it did not write alone', () async {
+      seed('a_test.dart', _testSource());
+      seed('bundle.g.dart', 'someone else');
+      seed('bundle_helpers.g.dart', 'someone else');
+      seed('bundle_7.g.dart', 'stale');
+
+      expect(await bundle(), 0);
+
+      expect(read('bundle.g.dart'), 'someone else');
+      expect(read('bundle_helpers.g.dart'), 'someone else');
+      expect(
+        File(p.join(testDir.path, 'bundle_7.g.dart')).existsSync(),
+        isFalse,
+      );
+    });
+
+    test('names a test file it cannot read and refuses the run', () async {
+      seed('a_test.dart', _testSource());
+      seed('b_test.dart', _testSource());
+      final unreadable = File(p.join(testDir.path, 'b_test.dart'));
+      Process.runSync('chmod', ['000', unreadable.path]);
+      addTearDown(() => Process.runSync('chmod', ['644', unreadable.path]));
+
+      expect(await bundle(), 1);
+
+      expect(output.content, contains('test/b_test.dart cannot be read'));
+      expect(bundles(), isEmpty);
+    }, skip: Platform.isWindows ? 'chmod is not available' : false);
+
     for (final shards in <String>['0', '-1', 'abc', '', '2.5']) {
       test('refuses --shards=$shards and writes nothing', () async {
         seed('a_test.dart', _testSource());
@@ -393,7 +422,6 @@ void main() {
       });
 
       for (final entry in <String, String>{
-        'void main() async': 'void main() async {\n}\n',
         'two mains': 'void main() {\n}\nvoid main() {\n}\n',
         'no main': '// nothing here\n',
         'an arrow main': 'void main() => group("x", () {});\n',
@@ -413,19 +441,37 @@ void main() {
       for (final signature in <String>[
         'Future<void> main() async {',
         'FutureOr<void> main() {',
+        'void main() async {',
       ]) {
         test('an asynchronous main is named: $signature', () async {
           seed('a_test.dart', '$signature\n}\n');
 
           expect(await bundle(), 1);
 
-          final declared = signature.substring(0, signature.indexOf(' main'));
           expect(
             output.content,
-            contains('test/a_test.dart declares `$declared main`'),
+            contains('test/a_test.dart declares an asynchronous `'),
           );
+          expect(output.content, contains('main'));
         });
       }
+
+      test(
+        'a stray void main() { line does not vouch for an async main',
+        () async {
+          seed(
+            'a_test.dart',
+            "const fixture = '''\n"
+                'void main() {\n'
+                "''';\n"
+                'Future<void> main() async {}\n',
+          );
+
+          expect(await bundle(), 1);
+
+          expect(output.content, contains('declares an asynchronous'));
+        },
+      );
 
       test('a flutter_test_config.dart below test/', () async {
         seed('a_test.dart', _testSource());
@@ -539,7 +585,7 @@ void main() {
 
         expect(
           output.content,
-          contains("test/a_test.dart has no single 'void main() {'"),
+          contains('test/a_test.dart declares an asynchronous'),
         );
       });
 

@@ -108,7 +108,7 @@ Commands that observe the substrate or its host. `tinker` is the only command in
 
 Two commands write generated Dart files. `commands:refresh` rewrites the `lib/app/commands/_index.g.dart` barrel, and the consumer rarely runs it by hand: `make:command` and `plugin:install` invoke it as a follow-up step. The generated barrel is never edited manually; the source of truth is the set of `*_command.dart` files under `lib/app/commands/`. `commands:refresh` and `make:command` delete `.dowel/build.stamp` after writing the index, so the next `./bin/dowel` call rebuilds and lists the new command (the compiled bundle stays until the rebuild replaces it); `dart run :dispatcher <command>` shows it without a rebuild.
 
-`test:bundle` generates `test/bundle_<n>.g.dart` entries that group every `*_test.dart`, so `flutter test` compiles a few entries instead of every file. It refuses, and writes nothing, when a file cannot run inside a group as written; see [test:bundle](test-bundle.md).
+`test:bundle` generates `test/bundle_<n>.g.dart` entries that group every `*_test.dart`, so `flutter test` compiles a few entries instead of every file. The compile saving applies only when `flutter test` is given the entries; a plain `flutter test` still runs the original files. It refuses, and writes nothing, when a file cannot run inside a group as written; see [test:bundle](test-bundle.md).
 
 | Command | Description | Boot Mode | MCP Tool |
 |:---|:---|:---|:---|

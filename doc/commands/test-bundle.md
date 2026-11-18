@@ -14,10 +14,12 @@ Generate `test/bundle_<n>.g.dart` entries that group every `*_test.dart` under `
 ## Basic Usage
 
 ```bash
-dart run dowel test:bundle
-flutter test --concurrency=3 test/bundle_[0-9]*.g.dart
-flutter test test/bundle_alone.g.dart
+dart run dowel test:bundle \
+  && flutter test --concurrency=3 test/bundle_[0-9]*.g.dart \
+  && { [ ! -f test/bundle_alone.g.dart ] || flutter test test/bundle_alone.g.dart; }
 ```
+
+The `&&` chain stops when generation is refused, so a failed run never tests the entries of an earlier layout; `bundle_alone.g.dart` exists only when a file carries a `// shard: alone` line.
 
 `flutter test` compiles each test file on its own; with 120 files that is most of the run. One entry per shard compiles once per shard. The entries do not end in `_test.dart`, so a plain `flutter test` does not discover them and run every test twice. Add `test/bundle*.g.dart` to `.gitignore` and regenerate them wherever the tests run; `test:bundle` does not run `flutter test` itself.
 
@@ -40,7 +42,7 @@ Exit codes: 0 when the entries are written (or an empty `--only` list cleared th
 <a name="what-it-writes"></a>
 ## What It Writes
 
-Each entry is staged as `<name>.tmp` first, so a failed write leaves the earlier entries in place and removes what it staged. Then every earlier `test/bundle*.g.dart` is removed (a leftover shard from a larger count would run its files twice) and the staged entries are renamed into place. An entry imports each file under its own prefix and runs it inside a group named after its path:
+Each entry is staged as `<name>.tmp` first, so a failed write leaves the earlier entries in place and removes what it staged. Then every earlier `test/bundle_<n>.g.dart` and `test/bundle_alone.g.dart` is removed (a leftover shard from a larger count would run its files twice; any other `bundle*.g.dart` is left alone) and the staged entries are renamed into place. A rename that fails after the old entries were removed can leave only some of the new ones, with the rest as `.tmp` files: fix the I/O error and run `test:bundle` again before running any entry. An entry imports each file under its own prefix and runs it inside a group named after its path:
 
 ```dart
 // dart format width=80
@@ -84,7 +86,8 @@ A file a bundle cannot run as written is refused, never skipped: a skipped file 
 | Mistake | Fix |
 |:-----|:-----|
 | Committing `test/bundle*.g.dart` | Ignore them and run `test:bundle` before `flutter test`; a committed entry drifts from the file list. |
-| Running `flutter test` with no paths after bundling | It runs only the `*_test.dart` files; pass the entries. |
+| Running `flutter test` with no paths after bundling | It runs only the original `*_test.dart` files and gets no compile saving; pass the entries. |
+| A golden test in a bundle | Flutter's default comparator resolves a golden image next to the entry file, `test/`, not next to the test's own directory; keep a golden test out of the list (`--only`), or run it with `flutter test <path>`. |
 | A test that leaves a static or a channel handler set | It now leaks into the files after it in the same entry; restore it in `tearDown`. |
 | Expecting a refused file to be skipped | Fix the file: move the annotation into `group` or `test` arguments, make `main` synchronous, or move a nested config's setup into `test/flutter_test_config.dart`. |
 
