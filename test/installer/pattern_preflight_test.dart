@@ -107,6 +107,44 @@ void main() {
     });
 
     test(
+      'refuses a statement that is not one import before it writes',
+      () async {
+        final root = makeProject();
+        writeAppConfig(root, populated: true);
+        final before = File('${root.path}/lib/config/app.dart')
+            .readAsStringSync();
+
+        final tx = InstallTransaction(ctxFor(root), pluginName: 'demo');
+        tx.stage(
+          const InjectImport(
+            targetFile: 'lib/config/app.dart',
+            importStatement: "import 'package:demo/demo.dart';",
+          ),
+        );
+        tx.stage(
+          const InjectImport(
+            targetFile: 'lib/config/app.dart',
+            importStatement:
+                "import 'package:a/a.dart'; import 'package:b/b.dart';",
+          ),
+        );
+
+        final result = await tx.commit(force: true);
+
+        expect(result, isA<InstallError>());
+        expect(
+          (result as InstallError).error,
+          contains('exactly one import directive'),
+        );
+        expect(result.rolledBack, isTrue);
+        expect(
+          File('${root.path}/lib/config/app.dart').readAsStringSync(),
+          before,
+        );
+      },
+    );
+
+    test(
       'leaves no partial write behind, which is why it runs first',
       () async {
         // The reason the check is a preflight rather than an in-loop return.

@@ -579,6 +579,55 @@ void main() {
         expect(content, "import 'dart:io';\nimport 'two  spaces.dart';\n");
       });
 
+      test('an export before the first import closes the place for it', () {
+        final content = addImports(
+          "library example;\nexport 'package:e/e.dart';\nimport 'package:a/a.dart';\n",
+          ["import 'package:b/b.dart';"],
+        );
+
+        expect(
+          content,
+          "library example;\n"
+          "import 'package:b/b.dart';\n"
+          "export 'package:e/e.dart';\n"
+          "import 'package:a/a.dart';\n",
+        );
+      });
+
+      test('trivia before annotation arguments and a multi-line message', () {
+        final content = addImports(
+          "@Deprecated /* note */ ('old')\n"
+          "@Deprecated('''\n"
+          "old ) message\n"
+          "''')\n"
+          'library example;\n',
+          ["import 'dart:io';"],
+        );
+
+        expect(content, endsWith("library example;\nimport 'dart:io';\n"));
+      });
+
+      test('spacing around the parentheses of a conditional import is not a '
+          'difference', () {
+        const source =
+            "import 'stub.dart' if(dart.library.io) 'native.dart' deferred as p;\n";
+
+        expect(
+          addImports(source, [
+            "import 'stub.dart' if (dart.library.io) 'native.dart' deferred as p;",
+          ]),
+          source,
+        );
+      });
+
+      test('a comment before the requested import is dropped, not refused', () {
+        final content = addImports("import 'dart:io';\n", [
+          "/* note */ import 'dart:math';",
+        ]);
+
+        expect(content, "import 'dart:io';\nimport 'dart:math';\n");
+      });
+
       test('takes a statement wrapped over several lines, idempotently', () {
         const wrapped = "import 'package:b/b.dart'\n    show B;";
         final content = addImports("import 'package:a/a.dart';\n", [
@@ -604,11 +653,6 @@ void main() {
         'an empty statement': '',
         'a comment only': '// nothing to import',
         'a directive with no quoted URI': 'import bogus;',
-        'an alias with no name': "import 'dart:math' as;",
-        'a show with no names': "import 'a.dart' show ;",
-        'a hide with no names': "import 'a.dart' hide ;",
-        'a numeric alias': "import 'dart:math' as 123;",
-        'an empty conditional': "import 'a.dart' if () 'b.dart';",
       };
 
       for (final entry in notOneImport.entries) {

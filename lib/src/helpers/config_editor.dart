@@ -297,7 +297,6 @@ final class ConfigEditor {
   ) {
     final imports = <String>{};
     var insertAt = 0;
-    var afterLibrary = -1;
     var placementOpen = true;
     var sawImport = false;
     var i = 0;
@@ -333,14 +332,12 @@ final class ConfigEditor {
         if (placementOpen) insertAt = _lineAfter(source, end);
         sawImport = true;
       } else if (word == 'library') {
-        afterLibrary = _lineAfter(source, end);
-      } else if (sawImport) {
+        if (!sawImport) insertAt = _lineAfter(source, end);
+      } else {
         placementOpen = false;
       }
       i = end;
     }
-
-    if (!sawImport && afterLibrary >= 0) insertAt = afterLibrary;
 
     return (insertAt: insertAt, imports: imports);
   }
@@ -380,28 +377,48 @@ final class ConfigEditor {
     while (i < s.length && RegExp(r'[A-Za-z0-9_$.]').hasMatch(s[i])) {
       i++;
     }
-    if (i >= s.length || s[i] != '(') return i;
+
+    final open = _skipTrivia(s, i);
+    if (open >= s.length || s[open] != '(') return i;
 
     var depth = 0;
-    String? quote;
-    for (; i < s.length; i++) {
+    i = open;
+    while (i < s.length) {
       final c = s[i];
-      if (quote != null) {
-        if (c == r'\') {
-          i++;
-        } else if (c == quote || c == '\n') {
-          quote = null;
-        }
-      } else if (c == "'" || c == '"') {
-        quote = c;
+      if (c == "'" || c == '"') {
+        i = _stringEnd(s, i);
       } else if (s.startsWith('//', i)) {
-        i = _lineEnd(s, i) - 1;
+        i = _lineEnd(s, i);
       } else if (s.startsWith('/*', i)) {
-        i = _blockCommentEnd(s, i) - 1;
-      } else if (c == '(') {
-        depth++;
-      } else if (c == ')' && --depth == 0) {
-        return i + 1;
+        i = _blockCommentEnd(s, i);
+      } else {
+        if (c == '(') {
+          depth++;
+        } else if (c == ')' && --depth == 0) {
+          return i + 1;
+        }
+        i++;
+      }
+    }
+    return s.length;
+  }
+
+  /// Index after the string literal that starts at [at], triple-quoted or not.
+  /// An unterminated single-line string ends at its line.
+  static int _stringEnd(String s, int at) {
+    final quote = s[at];
+    final triple = s.startsWith(quote * 3, at);
+    final closer = triple ? quote * 3 : quote;
+    var i = at + closer.length;
+    while (i < s.length) {
+      if (s[i] == r'\') {
+        i += 2;
+      } else if (s.startsWith(closer, i)) {
+        return i + closer.length;
+      } else if (!triple && s[i] == '\n') {
+        return i;
+      } else {
+        i++;
       }
     }
     return s.length;
@@ -547,8 +564,10 @@ final class ConfigEditor {
   }
 
   /// The form two directives are compared in: comments gone, whitespace outside
-  /// a string collapsed to one space, and none around `,` or before `;`. A
-  /// string is kept as written, so `'a,b.dart'` and `'a;b.dart'` stay apart.
+  /// a string collapsed to one space, and none around `,`, `(`, `)` and `.` or
+  /// before `;`, so `if(dart.library.io)` and `if (dart.library.io)` are one
+  /// token sequence. A string is kept as written, so `'a,b.dart'` and
+  /// `'a;b.dart'` stay apart.
   static String _normaliseDirective(String directive) {
     final text = _stripComments(directive);
     final out = StringBuffer();
@@ -578,7 +597,10 @@ final class ConfigEditor {
       }
       final quoteAfterWord =
           (c == "'" || c == '"') && !space && _identifier.hasMatch(last);
-      if ((space && last.isNotEmpty && last != ',' && c != ',' && c != ';') ||
+      if ((space &&
+              last.isNotEmpty &&
+              !',().'.contains(last) &&
+              !',;().'.contains(c)) ||
           quoteAfterWord) {
         write(' ');
       }
@@ -589,47 +611,40 @@ final class ConfigEditor {
     return out.toString();
   }
 
-  // A statement is checked in its normalised form (`import` and the URI are
-  // always one space apart, none around `,` or before `;`).
-  static final RegExp _importGrammar = RegExp(
-    r'''^import (?:'[^'\n]*'|"[^"\n]*")'''
-    r'''(?: if ?\( ?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*'''
-    r'''(?: ?== ?(?:'[^'\n]*'|"[^"\n]*"))? ?\) ?(?:'[^'\n]*'|"[^"\n]*"))*'''
-    r'''(?:(?: deferred)? as [A-Za-z_$][\w$]*)?'''
-    r'''(?: (?:show|hide) [A-Za-z_$][\w$]*(?:,[A-Za-z_$][\w$]*)*)*;$''',
-  );
-
   /// [raw] without its comments, ending in a `;`.
   ///
   /// Throws [ArgumentError] unless [raw] is exactly one import directive: a
   /// second directive, an `export`, an empty statement or `import bogus;`
   /// would otherwise be dropped, written without the idempotency check, or
-  /// make the file unparseable.
-  static String _importStatementOf(String raw) {
-    final text = raw.trim();
-    if (_directiveWord(text, 0) != 'import') _throwNotOneImport(raw);
+  /// make the file unparseable. The directive's own grammar (an alias, a
+  /// `show` list, a conditional) is the analyzer's to check, not this helper's.
+  static String _importStatementOf(String raw) =>
+      _parseImportStatement(raw) ?? _throwNotOneImport(raw);
+
+  /// Whether [raw] is exactly one import directive, which
+  /// [addImportToFile] accepts. The install transaction asks this before it
+  /// stages anything, so a bad statement costs nothing.
+  static bool isImportStatement(String raw) =>
+      _parseImportStatement(raw) != null;
+
+  static String? _parseImportStatement(String raw) {
+    final text = _stripComments(raw).trim();
+    if (_directiveWord(text, 0) != 'import') return null;
 
     final end = _directiveEnd(text, 0);
-    if (end >= 0 && _stripComments(text.substring(end)).trim().isNotEmpty) {
-      _throwNotOneImport(raw);
-    }
+    if (end >= 0 && text.substring(end).trim().isNotEmpty) return null;
 
-    final code = _stripComments(end < 0 ? text : text.substring(0, end))
+    final code = (end < 0 ? text : text.substring(0, end))
         .split('\n')
         .map(_tidyLine)
         .join('\n')
         .trim();
 
-    final statement = code.endsWith(';') ? code : '$code;';
-    if (!_importGrammar.hasMatch(_normaliseDirective(statement))) {
-      _throwNotOneImport(raw);
-    }
-
-    return statement;
+    return code.endsWith(';') ? code : '$code;';
   }
 
   /// [line] with its indentation kept and the spaces a stripped comment left
-  /// behind collapsed.
+  /// behind collapsed, outside strings only.
   static String _tidyLine(String line) {
     final indent = RegExp(r'^[ \t]*').stringMatch(line)!;
     final out = StringBuffer(indent);
