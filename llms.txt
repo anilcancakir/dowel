@@ -50,6 +50,7 @@ Run as `dart run dowel <cmd>` (or `./bin/dowel <cmd>` once `install` built it).
 - Scaffold: `install`, `make:plugin`, `make:command`, `make:fast-cli`.
 - Plugins: `plugin:install`, `plugin:uninstall`, `plugins:refresh`, `commands:refresh`.
 - MCP wiring: `mcp:serve`, `mcp:install`, `mcp:uninstall`.
+- Tests: `test:bundle` writes `test/bundle_<n>.g.dart` entries grouping every `*_test.dart`, and refuses a file a bundle cannot run as written.
 - `help`.
 
 The commands marked "also MCP tools" are the substrate tools, named `dowel_<command>` with `:` and `-` turned into `_` (`dowel_hot_restart`). The rest write source, prompt or recurse into the server, so they are CLI-only: run them from a shell.
@@ -88,6 +89,7 @@ The lifecycle commands (`start`, `stop`, `reload`, `hot-restart`) use a POSIX FI
 - [plugin:install](https://anilcancakir.com/dowel/docs/commands/plugin-install.md): the manifest route and direct registration
 - [start](https://anilcancakir.com/dowel/docs/commands/start.md): the recorded session, one per project (`--state=<path>` or `DOWEL_STATE_FILE` overrides it)
 - [tinker](https://anilcancakir.com/dowel/docs/commands/tinker.md): evaluate Dart in the running app
+- [test:bundle](https://anilcancakir.com/dowel/docs/commands/test-bundle.md): group the test files into a few `flutter test` entries
 - [MCP overview](https://anilcancakir.com/dowel/docs/mcp/overview.md): substrate and plugin tools, the state file contract
 - [MCP setup](https://anilcancakir.com/dowel/docs/mcp/setup.md): wire the server into Claude Code, Cursor and others
 - [MCP tool reference](https://anilcancakir.com/dowel/docs/mcp/tool-reference.md): every substrate tool and its input

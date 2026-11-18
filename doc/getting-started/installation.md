@@ -79,7 +79,7 @@ dart run dowel list
 The output lists all registered commands grouped by the part of the name before the `:`. Commands without a `:` (`start`, `install`, `tinker` and the rest) print first, with no heading; the namespaced commands follow under one heading per prefix, in alphabetical order. A fresh scaffold with no additional plugins shows only the built-in commands:
 
 ```
- ℹ Available commands (22):
+ ℹ Available commands (23):
   doctor                       Run environment preflight checks (flutter, dart, port availability).
   help                         Show detailed help for a single command.
   hot-restart                  Hot restart the running app (sends `R` to flutter run's stdin). Drops Dart state, keeps process.
@@ -114,6 +114,9 @@ After editing .dowel/mcp.json or env vars, run /mcp reconnect dowel in Claude Co
 
  plugins
   plugins:refresh              Regenerate lib/app/_plugins.g.dart from .dowel/plugins.json registry.
+
+ test
+  test:bundle                  Write test/bundle_<n>.g.dart entries that run every *_test.dart in a few compilations.
 ```
 
 The stray paragraph under `mcp:serve` is that command's two-paragraph description printed as written. If the list prints without errors, the installation is complete.

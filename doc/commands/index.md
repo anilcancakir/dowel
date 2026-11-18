@@ -34,7 +34,7 @@ Each group section ships a single table with four columns:
 Two shapes appear in the catalogue:
 
 - Single word (`start`, `stop`, `status`, `logs`, `restart`, `reload`, `hot-restart`, `doctor`, `tinker`, `help`, `list`, `install`) for top-level actions on the substrate.
-- Namespaced `<group>:<verb>` (`make:plugin`, `make:command`, `make:fast-cli`, `plugin:install`, `plugin:uninstall`, `plugins:refresh`, `mcp:serve`, `mcp:install`, `mcp:uninstall`, `commands:refresh`) for actions scoped to a subsystem.
+- Namespaced `<group>:<verb>` (`make:plugin`, `make:command`, `make:fast-cli`, `plugin:install`, `plugin:uninstall`, `plugins:refresh`, `mcp:serve`, `mcp:install`, `mcp:uninstall`, `commands:refresh`, `test:bundle`) for actions scoped to a subsystem.
 
 `hot-restart` is a single word that happens to contain a hyphen: it lives in the lifecycle group and is not namespaced, so `list` prints it among the commands without a heading. It sends the `R` keypress to `flutter run`.
 
@@ -106,11 +106,14 @@ Commands that observe the substrate or its host. `tinker` is the only command in
 <a name="code-generation"></a>
 ## Code generation
 
-One command that rewrites the `lib/app/commands/_index.g.dart` barrel. Codegen sits in its own bucket because the consumer rarely runs it by hand: `make:command` and `plugin:install` invoke it as a follow-up step. The generated barrel is never edited manually; the source of truth is the set of `*_command.dart` files under `lib/app/commands/`. `commands:refresh` and `make:command` delete `.dowel/build.stamp` after writing the index, so the next `./bin/dowel` call rebuilds and lists the new command (the compiled bundle stays until the rebuild replaces it); `dart run :dispatcher <command>` shows it without a rebuild.
+Two commands write generated Dart files. `commands:refresh` rewrites the `lib/app/commands/_index.g.dart` barrel, and the consumer rarely runs it by hand: `make:command` and `plugin:install` invoke it as a follow-up step. The generated barrel is never edited manually; the source of truth is the set of `*_command.dart` files under `lib/app/commands/`. `commands:refresh` and `make:command` delete `.dowel/build.stamp` after writing the index, so the next `./bin/dowel` call rebuilds and lists the new command (the compiled bundle stays until the rebuild replaces it); `dart run :dispatcher <command>` shows it without a rebuild.
+
+`test:bundle` generates `test/bundle_<n>.g.dart` entries that group every `*_test.dart`, so `flutter test` compiles a few entries instead of every file. The compile saving applies only when `flutter test` is given the entries; a plain `flutter test` still runs the original files. It refuses, and writes nothing, when a file cannot run inside a group as written; see [test:bundle](test-bundle.md).
 
 | Command | Description | Boot Mode | MCP Tool |
 |:---|:---|:---|:---|
 | `commands:refresh` | Rescan `lib/app/commands/` and rewrite the auto-discovery index. | none | no |
+| `test:bundle` | Write `test/bundle_<n>.g.dart` entries that run every `*_test.dart` in a few compilations (`--shards`, `--only`). | none | no |
 
 <a name="boot-mode-at-a-glance"></a>
 ## Boot mode at a glance
@@ -131,6 +134,7 @@ These commands earn their own pages because their flags, modes, or composition r
 - [make:fast-cli](make-fast-cli.md)
 - [install](install.md)
 - [tinker](tinker.md)
+- [test:bundle](test-bundle.md)
 
 Slug rule: the deep-dive URL drops the `:` separator in favour of `-`, so `plugin:install` lives at `commands/plugin-install/`, `mcp:serve` at `commands/mcp-serve/` and `make:fast-cli` at `commands/make-fast-cli/`. The remaining commands share this index page; reach for `dart run dowel help <name>` for their full flag surface.
 

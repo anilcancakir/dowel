@@ -24,6 +24,7 @@ import '../commands/restart_command.dart';
 import '../commands/start_command.dart';
 import '../commands/status_command.dart';
 import '../commands/stop_command.dart';
+import '../commands/test_bundle_command.dart';
 import '../commands/tinker_command.dart';
 import 'dowel_application.dart';
 import 'dowel_command.dart';
@@ -246,6 +247,7 @@ List<DowelCommand> _builtinCommands(DowelRegistry registry) => <DowelCommand>[
   MakePluginCommand(),
   CommandsRefreshCommand(),
   PluginsRefreshCommand(),
+  TestBundleCommand(),
   PluginInstallCommand(),
   PluginUninstallCommand(),
   InstallDowelCommand(),
