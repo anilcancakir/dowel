@@ -328,7 +328,8 @@ void main() {
       () async {
         seed('a_test.dart', 'Future<void> main() async {}\n');
         // A dangling link lists as a file and fails to open, whoever runs this.
-        Link(p.join(testDir.path, 'b_test.dart')).createSync('/no/such/file');
+        Link(p.join(testDir.path, 'b_test.dart'))
+            .createSync(p.join(project.path, 'missing_target.dart'));
 
         expect(await bundle(), 1);
 
