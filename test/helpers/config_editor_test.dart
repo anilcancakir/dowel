@@ -467,6 +467,77 @@ void main() {
         expect(content, contains('show A, B;'));
       });
 
+      test('the first import goes below a shebang', () {
+        final content = addImports('#!/usr/bin/env dart\n\nvoid main() {}\n', [
+          "import 'dart:io';",
+        ]);
+
+        expect(
+          content,
+          '#!/usr/bin/env dart\n'
+          "import 'dart:io';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('the import goes below an annotated library directive', () {
+        final content = addImports(
+          '@deprecated\nlibrary example;\n\nvoid main() {}\n',
+          ["import 'dart:io';"],
+        );
+
+        expect(
+          content,
+          '@deprecated\n'
+          'library example;\n'
+          "import 'dart:io';\n"
+          '\n'
+          'void main() {}\n',
+        );
+      });
+
+      test('an annotated import is still an import', () {
+        const source = "@Deprecated('old')\nimport 'dart:io';\n";
+
+        expect(addImports(source, ["import 'dart:io';"]), source);
+      });
+
+      test('a function called library is not a library directive', () {
+        final content = addImports('library() => 1;\n', ["import 'dart:io';"]);
+
+        expect(content, "import 'dart:io';\nlibrary() => 1;\n");
+      });
+
+      test('a comment between import and its URI is accepted', () {
+        const source = "import /* note */ 'dart:math';\n";
+
+        expect(addImports(source, ["import 'dart:math';"]), source);
+        expect(
+          addImports("import 'dart:io';\n", ["import /* note */ 'dart:math';"]),
+          "import 'dart:io';\nimport 'dart:math';\n",
+        );
+      });
+
+      test('the import goes before a part directive on the same line', () {
+        final content = addImports("import 'dart:math'; part 'piece.dart';\n", [
+          "import 'dart:io';",
+        ]);
+
+        expect(
+          content,
+          "import 'dart:math'; import 'dart:io';\npart 'piece.dart';\n",
+        );
+      });
+
+      test('URIs that differ only in a comma or a semicolon stay distinct', () {
+        final content = addImports("import 'a,b.dart';\n", [
+          "import 'a;b.dart';",
+        ]);
+
+        expect(content, "import 'a,b.dart';\nimport 'a;b.dart';\n");
+      });
+
       test('takes a statement wrapped over several lines, idempotently', () {
         const wrapped = "import 'package:b/b.dart'\n    show B;";
         final content = addImports("import 'package:a/a.dart';\n", [
@@ -492,6 +563,9 @@ void main() {
         'an empty statement': '',
         'a comment only': '// nothing to import',
         'a directive with no quoted URI': 'import bogus;',
+        'an alias with no name': "import 'dart:math' as;",
+        'a show with no names': "import 'a.dart' show ;",
+        'a hide with no names': "import 'a.dart' hide ;",
       };
 
       for (final entry in notOneImport.entries) {

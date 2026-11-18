@@ -300,7 +300,13 @@ final class ConfigEditor {
     var afterLibrary = -1;
     var placementOpen = true;
     var sawImport = false;
-    var i = source.startsWith('#!') ? _lineEnd(source, 0) : 0;
+    var i = 0;
+
+    // A script's shebang stays the first line.
+    if (source.startsWith('#!')) {
+      i = _lineEnd(source, 0);
+      insertAt = _nextLine(source, 0);
+    }
 
     while (i < source.length) {
       final next = _skipTrivia(source, i);
@@ -309,14 +315,15 @@ final class ConfigEditor {
         continue;
       }
 
-      final word = _identifier.matchAsPrefix(source, i)?.group(0);
-      final isImport = word == 'import' && _startsImport(source, i);
-      if (!isImport &&
-          word != 'export' &&
-          word != 'part' &&
-          word != 'library') {
-        break;
+      // Metadata belongs to the directive or declaration after it.
+      if (source[i] == '@') {
+        i = _annotationEnd(source, i);
+        continue;
       }
+
+      final word = _directiveWord(source, i);
+      if (word == null) break;
+      final isImport = word == 'import';
 
       final end = _directiveEnd(source, i);
       if (end < 0) break;
@@ -340,12 +347,61 @@ final class ConfigEditor {
 
   static final RegExp _identifier = RegExp(r'[A-Za-z0-9_$]+');
 
-  static final RegExp _importStart = RegExp(r"""import\s*['"]""");
+  static final RegExp _identifierStart = RegExp(r'[A-Za-z_$]');
 
-  /// `import` followed by a quote: a directive start, with or without the
-  /// space (`import'x.dart';` is valid Dart).
-  static bool _startsImport(String s, int at) =>
-      _importStart.matchAsPrefix(s, at) != null;
+  /// The directive keyword that starts at [at], or `null` when what is there is
+  /// not a directive: `import` and `export` take a quoted URI (a comment may
+  /// sit before it, and the space is optional, so `import'x.dart';` counts),
+  /// `part` a URI or `of`, `library` a name or `;`. So `library() => 1;` and
+  /// an identifier called `export` are declarations, not directives.
+  static String? _directiveWord(String s, int at) {
+    final word = _identifier.matchAsPrefix(s, at)?.group(0);
+    if (word == null) return null;
+
+    final after = _skipTrivia(s, at + word.length);
+    final next = after < s.length ? s[after] : '';
+    final quoted = next == "'" || next == '"';
+
+    switch (word) {
+      case 'import':
+      case 'export':
+        return quoted ? word : null;
+      case 'part':
+        return quoted || s.startsWith('of', after) ? word : null;
+      case 'library':
+        return next == ';' || _identifierStart.hasMatch(next) ? word : null;
+    }
+    return null;
+  }
+
+  /// Index after the annotation (`@name`, `@a.b`, `@name(args)`) at [at].
+  static int _annotationEnd(String s, int at) {
+    var i = at + 1;
+    while (i < s.length && RegExp(r'[A-Za-z0-9_$.]').hasMatch(s[i])) {
+      i++;
+    }
+    if (i >= s.length || s[i] != '(') return i;
+
+    var depth = 0;
+    String? quote;
+    for (; i < s.length; i++) {
+      final c = s[i];
+      if (quote != null) {
+        if (c == r'\') {
+          i++;
+        } else if (c == quote || c == '\n') {
+          quote = null;
+        }
+      } else if (c == "'" || c == '"') {
+        quote = c;
+      } else if (c == '(') {
+        depth++;
+      } else if (c == ')' && --depth == 0) {
+        return i + 1;
+      }
+    }
+    return s.length;
+  }
 
   /// Index of the first character after the whitespace and comments that start
   /// at [at], or [at] itself when there are none.
@@ -429,9 +485,11 @@ final class ConfigEditor {
     return -1;
   }
 
-  /// Offset of the start of the line after the directive that ends at [end],
-  /// past a trailing comment that begins on that line, even a block comment
-  /// that runs onto later ones.
+  /// Where an import that follows the directive ending at [end] goes: the start
+  /// of the next line, past a trailing comment that begins on that line (even a
+  /// block comment that runs onto later ones), or, when another token such as a
+  /// `part` directive shares the line, the start of that token, so the import
+  /// is never written after it.
   static int _lineAfter(String s, int end) {
     var i = end;
     while (i < s.length) {
@@ -439,11 +497,12 @@ final class ConfigEditor {
       if (c == '\n') return i + 1;
       if (c == ' ' || c == '\t' || c == '\r') {
         i++;
+      } else if (s.startsWith('//', i)) {
+        return _nextLine(s, i);
       } else if (s.startsWith('/*', i)) {
         i = _blockCommentEnd(s, i);
       } else {
-        // A line comment, or another token such as a second directive.
-        return _nextLine(s, i);
+        return i;
       }
     }
     return s.length;
@@ -483,13 +542,52 @@ final class ConfigEditor {
     return out.toString();
   }
 
-  /// The form two directives are compared in: comments gone, whitespace
-  /// collapsed, and none around `,` or before `;`.
-  static String _normaliseDirective(String directive) =>
-      _stripComments(directive)
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .replaceAll(RegExp(r'\s*([,;])\s*'), r'$1')
-          .trim();
+  /// The form two directives are compared in: comments gone, whitespace outside
+  /// a string collapsed to one space, and none around `,` or before `;`. A
+  /// string is kept as written, so `'a,b.dart'` and `'a;b.dart'` stay apart.
+  static String _normaliseDirective(String directive) {
+    final text = _stripComments(directive);
+    final out = StringBuffer();
+    String? quote;
+    var last = '';
+    var space = false;
+
+    void write(String c) {
+      out.write(c);
+      last = c;
+    }
+
+    for (var i = 0; i < text.length; i++) {
+      final c = text[i];
+      if (quote != null) {
+        write(c);
+        if (c == r'\' && i + 1 < text.length) {
+          write(text[++i]);
+        } else if (c == quote || c == '\n') {
+          quote = null;
+        }
+        continue;
+      }
+      if (c.trim().isEmpty) {
+        space = true;
+        continue;
+      }
+      if (space && last.isNotEmpty && last != ',' && c != ',' && c != ';') {
+        write(' ');
+      }
+      space = false;
+      if (c == "'" || c == '"') quote = c;
+      write(c);
+    }
+    return out.toString();
+  }
+
+  static final RegExp _importGrammar = RegExp(
+    r'''^import ?(?:'[^'\n]*'|"[^"\n]*")'''
+    r'''(?: if ?\([^)]*\) ?(?:'[^'\n]*'|"[^"\n]*"))*'''
+    r'''(?:(?: deferred)? as [^\s,;'"()]+)?'''
+    r'''(?: (?:show|hide) [^\s,;'"()]+(?:,[^\s,;'"()]+)*)*;$''',
+  );
 
   /// [raw] without its comments, ending in a `;`.
   ///
@@ -499,7 +597,7 @@ final class ConfigEditor {
   /// make the file unparseable.
   static String _importStatementOf(String raw) {
     final text = raw.trim();
-    if (!_startsImport(text, 0)) _throwNotOneImport(raw);
+    if (_directiveWord(text, 0) != 'import') _throwNotOneImport(raw);
 
     final end = _directiveEnd(text, 0);
     if (end >= 0 && _stripComments(text.substring(end)).trim().isNotEmpty) {
@@ -508,11 +606,27 @@ final class ConfigEditor {
 
     final code = _stripComments(end < 0 ? text : text.substring(0, end))
         .split('\n')
-        .map((line) => line.trimRight())
+        .map(_tidyLine)
         .join('\n')
         .trim();
 
-    return code.endsWith(';') ? code : '$code;';
+    final statement = code.endsWith(';') ? code : '$code;';
+    if (!_importGrammar.hasMatch(_normaliseDirective(statement))) {
+      _throwNotOneImport(raw);
+    }
+
+    return statement;
+  }
+
+  /// [line] with its indentation kept and the spaces a stripped comment left
+  /// behind collapsed.
+  static String _tidyLine(String line) {
+    final indent = RegExp(r'^[ \t]*').stringMatch(line)!;
+    return indent +
+        line
+            .substring(indent.length)
+            .replaceAll(RegExp(r'[ \t]+'), ' ')
+            .trimRight();
   }
 
   static Never _throwNotOneImport(String raw) => throw ArgumentError.value(
