@@ -152,7 +152,7 @@ class _McpHarness {
 
 /// Returns the minimum substrate commands needed to verify that dowel_*
 /// tools surface via McpServer's synthesis path. Avoids spinning up the full
-/// 22-command builtin list (which would pull in live-FS commands).
+/// 23-command builtin list (which would pull in live-FS commands).
 List<DowelCommand> _substrateCommands() => <DowelCommand>[
   _StubCommand('start', 'Boot flutter run -d <device> detached.'),
   _StubCommand('doctor', 'Run environment preflight checks.'),
